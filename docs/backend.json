@@ -1,0 +1,959 @@
+{
+  "entities": {
+    "User": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "User",
+      "type": "object",
+      "description": "Represents a user of the CampusConnect platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the User entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The user's full name."
+        },
+        "email": {
+          "type": "string",
+          "description": "The user's email address.",
+          "format": "email"
+        },
+        "role": {
+          "type": "string",
+          "description": "The user's role within the platform (e.g., admin, faculty, student)."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department the user belongs to."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "email",
+        "role"
+      ]
+    },
+    "Course": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Course",
+      "type": "object",
+      "description": "Represents a course offered by the college.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Course entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the course."
+        },
+        "code": {
+          "type": "string",
+          "description": "The course code or number."
+        },
+        "department": {
+          "type": "string",
+          "description": "The department offering the course."
+        },
+        "credits": {
+          "type": "number",
+          "description": "The number of credits the course is worth."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "code",
+        "department",
+        "credits"
+      ]
+    },
+    "Enrollment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Enrollment",
+      "type": "object",
+      "description": "Represents a student's enrollment in a course.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Enrollment entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Enrollment)"
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Enrollment)"
+        },
+        "semester": {
+          "type": "string",
+          "description": "The semester of the enrollment."
+        },
+        "year": {
+          "type": "number",
+          "description": "The year of the enrollment."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "courseId",
+        "semester",
+        "year"
+      ]
+    },
+    "Attendance": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Attendance",
+      "type": "object",
+      "description": "Represents a student's attendance record for a specific course and date.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Attendance entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Attendance)"
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Attendance)"
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the attendance record.",
+          "format": "date-time"
+        },
+        "status": {
+          "type": "string",
+          "description": "The attendance status (e.g., present, absent)."
+        },
+        "markedBy": {
+          "type": "string",
+          "description": "Reference to User (Faculty). (Relationship: User 1:N Attendance)"
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "courseId",
+        "date",
+        "status",
+        "markedBy"
+      ]
+    },
+    "Timetable": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Timetable",
+      "type": "object",
+      "description": "Represents the timetable for a course.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Timetable entity."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Timetable)"
+        },
+        "facultyId": {
+          "type": "string",
+          "description": "Reference to User (Faculty). (Relationship: User 1:N Timetable)"
+        },
+        "dayOfWeek": {
+          "type": "string",
+          "description": "The day of the week for the timetable slot."
+        },
+        "startTime": {
+          "type": "string",
+          "description": "The start time of the timetable slot."
+        },
+        "endTime": {
+          "type": "string",
+          "description": "The end time of the timetable slot."
+        },
+        "room": {
+          "type": "string",
+          "description": "The room where the class takes place."
+        },
+        "semester": {
+          "type": "string",
+          "description": "The semester for the timetable slot."
+        },
+        "year": {
+          "type": "number",
+          "description": "The year for the timetable slot."
+        }
+      },
+      "required": [
+        "id",
+        "courseId",
+        "facultyId",
+        "dayOfWeek",
+        "startTime",
+        "endTime",
+        "room",
+        "semester",
+        "year"
+      ]
+    },
+    "Result": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Result",
+      "type": "object",
+      "description": "Represents a student's result for a course in a semester.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Result entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Result)"
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Result)"
+        },
+        "semester": {
+          "type": "string",
+          "description": "The semester for the result."
+        },
+        "year": {
+          "type": "number",
+          "description": "The year for the result."
+        },
+        "marks": {
+          "type": "number",
+          "description": "The marks obtained by the student."
+        },
+        "grade": {
+          "type": "string",
+          "description": "The grade awarded to the student."
+        },
+        "published": {
+          "type": "boolean",
+          "description": "Indicates whether the result is published."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "courseId",
+        "semester",
+        "year",
+        "marks",
+        "grade",
+        "published"
+      ]
+    },
+    "Assignment": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Assignment",
+      "type": "object",
+      "description": "Represents an assignment for a course.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Assignment entity."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Assignment)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the assignment."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the assignment."
+        },
+        "deadline": {
+          "type": "string",
+          "description": "The deadline for the assignment.",
+          "format": "date-time"
+        },
+        "fileUrl": {
+          "type": "string",
+          "description": "URL to access the assignment file.",
+          "format": "uri"
+        }
+      },
+      "required": [
+        "id",
+        "courseId",
+        "title",
+        "description",
+        "deadline"
+      ]
+    },
+    "Submission": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Submission",
+      "type": "object",
+      "description": "Represents a student's submission for an assignment.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Submission entity."
+        },
+        "assignmentId": {
+          "type": "string",
+          "description": "Reference to Assignment. (Relationship: Assignment 1:N Submission)"
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Submission)"
+        },
+        "submissionDate": {
+          "type": "string",
+          "description": "The date of submission.",
+          "format": "date-time"
+        },
+        "fileUrl": {
+          "type": "string",
+          "description": "URL to access the submission file.",
+          "format": "uri"
+        },
+        "marksAwarded": {
+          "type": "number",
+          "description": "The marks awarded for the submission."
+        }
+      },
+      "required": [
+        "id",
+        "assignmentId",
+        "studentId",
+        "submissionDate",
+        "fileUrl"
+      ]
+    },
+    "StudyMaterial": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "StudyMaterial",
+      "type": "object",
+      "description": "Represents study material for a course.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the StudyMaterial entity."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N StudyMaterial)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the study material."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the study material."
+        },
+        "fileUrl": {
+          "type": "string",
+          "description": "URL to access the study material file.",
+          "format": "uri"
+        },
+        "uploadedBy": {
+          "type": "string",
+          "description": "Reference to User (Faculty/Admin). (Relationship: User 1:N StudyMaterial)"
+        },
+        "uploadDate": {
+          "type": "string",
+          "description": "The date the study material was uploaded.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "courseId",
+        "title",
+        "description",
+        "fileUrl",
+        "uploadedBy",
+        "uploadDate"
+      ]
+    },
+    "Announcement": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Announcement",
+      "type": "object",
+      "description": "Represents an announcement within the platform.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Announcement entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the announcement."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the announcement."
+        },
+        "targetAudience": {
+          "type": "string",
+          "description": "The target audience for the announcement (e.g., all, students, faculty)."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the announcement.",
+          "format": "date-time"
+        },
+        "postedBy": {
+          "type": "string",
+          "description": "Reference to User (Faculty/Admin). (Relationship: User 1:N Announcement)"
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "targetAudience",
+        "date",
+        "postedBy"
+      ]
+    },
+    "Forum": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Forum",
+      "type": "object",
+      "description": "Represents a forum for a course.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Forum entity."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Relationship: Course 1:N Forum)"
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the forum."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the forum."
+        },
+        "createdBy": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Forum)"
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The date and time the forum was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "courseId",
+        "title",
+        "description",
+        "createdBy",
+        "createdAt"
+      ]
+    },
+    "ForumPost": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ForumPost",
+      "type": "object",
+      "description": "Represents a post within a forum.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ForumPost entity."
+        },
+        "forumId": {
+          "type": "string",
+          "description": "Reference to Forum. (Relationship: Forum 1:N ForumPost)"
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N ForumPost)"
+        },
+        "content": {
+          "type": "string",
+          "description": "The content of the forum post."
+        },
+        "postedAt": {
+          "type": "string",
+          "description": "The date and time the post was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "forumId",
+        "userId",
+        "content",
+        "postedAt"
+      ]
+    },
+    "Event": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Event",
+      "type": "object",
+      "description": "Represents an event organized by the college.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Event entity."
+        },
+        "title": {
+          "type": "string",
+          "description": "The title of the event."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the event."
+        },
+        "date": {
+          "type": "string",
+          "description": "The date of the event.",
+          "format": "date-time"
+        },
+        "time": {
+          "type": "string",
+          "description": "The time of the event."
+        },
+        "location": {
+          "type": "string",
+          "description": "The location of the event."
+        },
+        "organizer": {
+          "type": "string",
+          "description": "The organizer of the event (e.g., club, department)."
+        }
+      },
+      "required": [
+        "id",
+        "title",
+        "description",
+        "date",
+        "time",
+        "location",
+        "organizer"
+      ]
+    },
+    "Club": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Club",
+      "type": "object",
+      "description": "Represents a club within the college.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Club entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The name of the club."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the club."
+        },
+        "facultyIncharge": {
+          "type": "string",
+          "description": "Reference to User (Faculty). (Relationship: User 1:N Club)"
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "description",
+        "facultyIncharge"
+      ]
+    },
+    "ClubMembership": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClubMembership",
+      "type": "object",
+      "description": "Represents a student's membership in a club.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ClubMembership entity."
+        },
+        "clubId": {
+          "type": "string",
+          "description": "Reference to Club. (Relationship: Club 1:N ClubMembership)"
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N ClubMembership)"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the student in the club."
+        }
+      },
+      "required": [
+        "id",
+        "clubId",
+        "studentId",
+        "role"
+      ]
+    },
+    "Notification": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Notification",
+      "type": "object",
+      "description": "Represents a notification for a user.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Notification entity."
+        },
+        "userId": {
+          "type": "string",
+          "description": "Reference to User. (Relationship: User 1:N Notification)"
+        },
+        "message": {
+          "type": "string",
+          "description": "The content of the notification."
+        },
+        "read": {
+          "type": "boolean",
+          "description": "Indicates whether the notification has been read."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The date and time the notification was created.",
+          "format": "date-time"
+        }
+      },
+      "required": [
+        "id",
+        "userId",
+        "message",
+        "read",
+        "createdAt"
+      ]
+    }
+  },
+  "auth": {
+    "providers": [
+      "password",
+      "anonymous"
+    ]
+  },
+  "firestore": {
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user data.  Path-based ownership.  Each user can only read/write their own document.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}",
+        "definition": {
+          "entityName": "Course",
+          "schema": {
+            "$ref": "#/backend/entities/Course"
+          },
+          "description": "Stores course information.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/enrollments/{enrollmentId}",
+        "definition": {
+          "entityName": "Enrollment",
+          "schema": {
+            "$ref": "#/backend/entities/Enrollment"
+          },
+          "description": "Stores enrollment data for a specific user. Path-based ownership: user can only read/write enrollments associated with their user ID.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "enrollmentId",
+              "description": "The unique identifier for the enrollment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/attendance/{attendanceId}",
+        "definition": {
+          "entityName": "Attendance",
+          "schema": {
+            "$ref": "#/backend/entities/Attendance"
+          },
+          "description": "Stores attendance data for a specific user. Path-based ownership, only faculty or admins should be able to create/update attendance, students can only view their own.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (student)."
+            },
+            {
+              "name": "attendanceId",
+              "description": "The unique identifier for the attendance record."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/timetables/{timetableId}",
+        "definition": {
+          "entityName": "Timetable",
+          "schema": {
+            "$ref": "#/backend/entities/Timetable"
+          },
+          "description": "Stores timetable data for a specific course.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            },
+            {
+              "name": "timetableId",
+              "description": "The unique identifier for the timetable slot."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/results/{resultId}",
+        "definition": {
+          "entityName": "Result",
+          "schema": {
+            "$ref": "#/backend/entities/Result"
+          },
+          "description": "Stores result data for a specific user. Path-based ownership, but faculty/admin need write access.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user (student)."
+            },
+            {
+              "name": "resultId",
+              "description": "The unique identifier for the result."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/assignments/{assignmentId}",
+        "definition": {
+          "entityName": "Assignment",
+          "schema": {
+            "$ref": "#/backend/entities/Assignment"
+          },
+          "description": "Stores assignment data for a specific course.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            },
+            {
+              "name": "assignmentId",
+              "description": "The unique identifier for the assignment."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/assignments/{assignmentId}/submissions/{submissionId}",
+        "definition": {
+          "entityName": "Submission",
+          "schema": {
+            "$ref": "#/backend/entities/Submission"
+          },
+          "description": "Stores submission data for a specific assignment.",
+          "params": [
+            {
+              "name": "assignmentId",
+              "description": "The unique identifier for the assignment."
+            },
+            {
+              "name": "submissionId",
+              "description": "The unique identifier for the submission."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/study_materials/{studyMaterialId}",
+        "definition": {
+          "entityName": "StudyMaterial",
+          "schema": {
+            "$ref": "#/backend/entities/StudyMaterial"
+          },
+          "description": "Stores study material data for a specific course.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            },
+            {
+              "name": "studyMaterialId",
+              "description": "The unique identifier for the study material."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": {
+            "$ref": "#/backend/entities/Announcement"
+          },
+          "description": "Stores announcements.",
+          "params": [
+            {
+              "name": "announcementId",
+              "description": "The unique identifier for the announcement."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/forums/{forumId}",
+        "definition": {
+          "entityName": "Forum",
+          "schema": {
+            "$ref": "#/backend/entities/Forum"
+          },
+          "description": "Stores forum data for a specific course.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            },
+            {
+              "name": "forumId",
+              "description": "The unique identifier for the forum."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/courses/{courseId}/forums/{forumId}/forum_posts/{forumPostId}",
+        "definition": {
+          "entityName": "ForumPost",
+          "schema": {
+            "$ref": "#/backend/entities/ForumPost"
+          },
+          "description": "Stores forum posts for a specific forum. Includes denormalized 'members' map for authorization independence.",
+          "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            },
+            {
+              "name": "forumId",
+              "description": "The unique identifier for the forum."
+            },
+            {
+              "name": "forumPostId",
+              "description": "The unique identifier for the forum post."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/events/{eventId}",
+        "definition": {
+          "entityName": "Event",
+          "schema": {
+            "$ref": "#/backend/entities/Event"
+          },
+          "description": "Stores event data.",
+          "params": [
+            {
+              "name": "eventId",
+              "description": "The unique identifier for the event."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clubs/{clubId}",
+        "definition": {
+          "entityName": "Club",
+          "schema": {
+            "$ref": "#/backend/entities/Club"
+          },
+          "description": "Stores club data.",
+          "params": [
+            {
+              "name": "clubId",
+              "description": "The unique identifier for the club."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/clubs/{clubId}/club_memberships/{clubMembershipId}",
+        "definition": {
+          "entityName": "ClubMembership",
+          "schema": {
+            "$ref": "#/backend/entities/ClubMembership"
+          },
+          "description": "Stores club membership data for a specific club.",
+          "params": [
+            {
+              "name": "clubId",
+              "description": "The unique identifier for the club."
+            },
+            {
+              "name": "clubMembershipId",
+              "description": "The unique identifier for the club membership."
+            }
+          ]
+        }
+      },
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Stores notifications for a specific user. Path-based ownership; users can only access their own notifications.",
+          "params": [
+            {
+              "name": "userId",
+              "description": "The unique identifier for the user."
+            },
+            {
+              "name": "notificationId",
+              "description": "The unique identifier for the notification."
+            }
+          ]
+        }
+      }
+    ],
+    "reasoning": "The Firestore structure is designed to support the CampusConnect platform's core features, including user authentication, attendance management, timetable management, semester results, academics, and student engagement. The design prioritizes authorization independence and supports secure list operations. Hierarchical paths are employed where appropriate (e.g., user-owned data).  Denormalization is used to avoid `get()` calls in security rules. Specifically, for collaborative entities such as Course forums the members map is denormalized into the ForumPost documents.  The structure assumes appropriate indexing will be configured to support common queries."
+  }
+}
