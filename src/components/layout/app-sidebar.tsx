@@ -2,17 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
-import {
-  BookOpen,
-  CalendarCheck,
-  ClipboardList,
-  GraduationCap,
-  LayoutGrid,
-  Library,
-  Settings,
-  Users,
-  UsersRound,
-} from 'lucide-react';
+import { BookOpen, Settings } from 'lucide-react';
 import {
   Tooltip,
   TooltipContent,
@@ -20,39 +10,11 @@ import {
   TooltipTrigger,
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
-import { loggedInUser } from '@/lib/data';
-
-const studentNavItems = [
-  { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
-  { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
-  { href: '/attendance', icon: ClipboardList, label: 'Attendance' },
-  { href: '/academics', icon: Library, label: 'Academics' },
-  { href: '/results', icon: GraduationCap, label: 'Results' },
-  { href: '/engagement', icon: Users, label: 'Engagement' },
-];
-
-const facultyNavItems = [
-  { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
-  { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
-  { href: '/attendance', icon: ClipboardList, label: 'Attendance' },
-  { href: '/academics', icon: Library, label: 'Academics' },
-  { href: '/results', icon: GraduationCap, label: 'Results' },
-];
-
-const adminNavItems = [
-  { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
-  { href: '/users', icon: UsersRound, label: 'Users' },
-  { href: '/courses', icon: Library, label: 'Courses' },
-];
+import { getNavItems } from '@/lib/navigation';
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  let navItems = studentNavItems;
-  if (loggedInUser.role === 'faculty') {
-    navItems = facultyNavItems;
-  } else if (loggedInUser.role === 'admin') {
-    navItems = adminNavItems;
-  }
+  const navItems = getNavItems();
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">

@@ -1,14 +1,8 @@
 import Link from 'next/link';
 import {
   Bell,
-  Home,
-  LineChart,
-  Package,
-  Package2,
   PanelLeft,
   Search,
-  ShoppingCart,
-  Users2,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -31,6 +25,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { loggedInUser } from '@/lib/data';
+import MobileSidebarContent from './mobile-sidebar-content';
 
 export default function AppHeader() {
   const userInitials = loggedInUser.name.split(' ').map(n => n[0]).join('');
@@ -44,8 +39,8 @@ export default function AppHeader() {
             <span className="sr-only">Toggle Menu</span>
           </Button>
         </SheetTrigger>
-        <SheetContent side="left" className="sm:max-w-xs">
-            {/* Mobile Sidebar Content can be duplicated from AppSidebar or refactored */}
+        <SheetContent side="left" className="sm:max-w-xs p-0">
+            <MobileSidebarContent />
         </SheetContent>
       </Sheet>
       <Breadcrumb className="hidden md:flex">
