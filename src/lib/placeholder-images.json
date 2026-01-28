@@ -3,13 +3,13 @@
     {
       "id": "user-avatar-1",
       "description": "User avatar",
-      "imageUrl": "https://images.unsplash.com/photo-1600180758890-6b94519a8ba6?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw1fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk1MTg4NDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/photo-1590086782792-42dd2350140d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk1MTg4NDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     },
     {
       "id": "user-avatar-2",
       "description": "User avatar",
-      "imageUrl": "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw2fHxwZXJzb24lMjBwb3J0cmFpdHxlbnwwfHx8fDE3Njk1MTg4NDB8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageUrl": "https://images.unsplash.com/flagged/photo-1595514191830-3e96a518989b?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxMHx8cGVyc29uJTIwcG9ydHJhaXR8ZW58MHx8fHwxNzY5NTE4ODQwfDA&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "person portrait"
     },
     {
@@ -17,6 +17,24 @@
       "description": "Students studying in a library",
       "imageUrl": "https://images.unsplash.com/photo-1606761568499-6d2451b23c66?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxjb2xsZWdlJTIwY2FtcHVzfGVufDB8fHx8MTc2OTUxNzIzNnww&ixlib=rb-4.1.0&q=80&w=1080",
       "imageHint": "college campus"
+    },
+    {
+      "id": "forum-discussion",
+      "description": "A group of students in a discussion.",
+      "imageUrl": "https://images.unsplash.com/photo-1765020553499-1ec9aeb21298?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw5fHxzdHVkZW50cyUyMGRpc2N1c3Npb258ZW58MHx8fHwxNzY5NjE0Mjk5fDA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "students discussion"
+    },
+    {
+      "id": "club-activity",
+      "description": "Students participating in a club activity.",
+      "imageUrl": "https://images.unsplash.com/photo-1761245591926-6117489d5ce1?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHw0fHxzdHVkZW50JTIwY2x1YnxlbnwwfHx8fDE3Njk2MTQyOTl8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "student club"
+    },
+    {
+      "id": "campus-event",
+      "description": "An event happening on the college campus.",
+      "imageUrl": "https://images.unsplash.com/photo-1764920265158-500a6e60c487?crop=entropy&cs=tinysrgb&fit=max&fm=jpg&ixid=M3w3NDE5ODJ8MHwxfHNlYXJjaHwxfHxjYW1wdXMlMjBldmVudHxlbnwwfHx8fDE3Njk0OTk0OTZ8MA&ixlib=rb-4.1.0&q=80&w=1080",
+      "imageHint": "campus event"
     }
   ]
 }
