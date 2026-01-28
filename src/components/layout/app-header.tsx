@@ -26,13 +26,29 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { loggedInUser } from '@/lib/data';
 import MobileSidebarContent from './mobile-sidebar-content';
-import { useAuth } from '@/firebase';
+import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 export default function AppHeader() {
   const auth = useAuth();
-  const userInitials = loggedInUser.name.split(' ').map(n => n[0]).join('');
+  const firestore = useFirestore();
+  const { user: authUser } = useUser();
+  const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+
+  const { data: userProfile } = useDoc<{name: string}>(userDocRef);
+
+  const userInitials = userProfile?.name
+    .split(' ')
+    .map((n) => n[0])
+    .join('');
 
   const handleSignOut = () => {
     if (auth) {
@@ -57,7 +73,7 @@ export default function AppHeader() {
         <BreadcrumbList>
           <BreadcrumbItem>
             <BreadcrumbLink asChild>
-              <Link href="#">Dashboard</Link>
+              <Link href="/dashboard">Dashboard</Link>
             </BreadcrumbLink>
           </BreadcrumbItem>
           <BreadcrumbSeparator />
@@ -81,20 +97,27 @@ export default function AppHeader() {
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
           <Button variant="outline" size="icon" className="overflow-hidden rounded-full">
-            <Avatar className="h-8 w-8">
-              <AvatarImage
-                src={loggedInUser.avatar.imageUrl}
-                alt={loggedInUser.name}
-                data-ai-hint={loggedInUser.avatar.imageHint}
-              />
-              <AvatarFallback>{userInitials}</AvatarFallback>
-            </Avatar>
+            {userProfile && userAvatar ? (
+                <Avatar className="h-8 w-8">
+                <AvatarImage
+                    src={userAvatar.imageUrl}
+                    alt={userProfile.name}
+                    data-ai-hint={userAvatar.imageHint}
+                />
+                <AvatarFallback>{userInitials}</AvatarFallback>
+                </Avatar>
+            ) : (
+                <Skeleton className="h-8 w-8 rounded-full" />
+            )}
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuLabel>My Account</DropdownMenuLabel>
+          <DropdownMenuLabel>{userProfile ? userProfile.name : 'My Account'}</DropdownMenuLabel>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
+          <DropdownMenuItem asChild>
+            <Link href="/profile">Profile</Link>
+          </DropdownMenuItem>
+          <DropdownMenuItem asChild>
             <Link href="/settings">Settings</Link>
           </DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>

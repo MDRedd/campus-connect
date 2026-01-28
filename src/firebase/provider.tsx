@@ -81,18 +81,24 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
       async (firebaseUser) => { // Auth state determined
         if (firebaseUser) {
           const userDocRef = doc(firestore, 'users', firebaseUser.uid);
-          const userDoc = await getDoc(userDocRef);
-          if (!userDoc.exists()) {
-            // If user doc doesn't exist, create one.
-            const userData = {
-              id: firebaseUser.uid,
-              email: firebaseUser.email,
-              name: firebaseUser.displayName || 'Alex Johnson', // Default for demo
-              role: 'student',
-              department: 'Computer Science'
-            };
-            // Non-blocking write
-            setDoc(userDocRef, userData).catch(err => console.error("Failed to create user profile", err));
+          try {
+            const userDoc = await getDoc(userDocRef);
+            if (!userDoc.exists()) {
+              // If user doc doesn't exist, create one.
+              const userData = {
+                id: firebaseUser.uid,
+                email: firebaseUser.email,
+                name: firebaseUser.displayName || 'Alex Johnson', // Default for demo
+                role: 'student',
+                department: 'Computer Science'
+              };
+              // Await the write to prevent race conditions on other pages
+              await setDoc(userDocRef, userData);
+            }
+          } catch (err) {
+            console.error("Error ensuring user profile exists:", err);
+            // We can still proceed, but the profile might be missing.
+            // The UI should handle the case where userProfile is null.
           }
         }
         setUserAuthState({ user: firebaseUser, isUserLoading: false, userError: null });
