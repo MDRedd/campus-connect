@@ -9,16 +9,34 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { BookOpen } from 'lucide-react';
+import { useAuth, useUser } from '@/firebase';
+import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
+import { useEffect, useState } from 'react';
+import { useToast } from '@/hooks/use-toast';
 
 export default function LoginPage() {
   const router = useRouter();
+  const auth = useAuth();
+  const { user, isUserLoading } = useUser();
+  const { toast } = useToast();
   const loginImage = PlaceHolderImages.find((img) => img.id === 'login-image');
+  const [email, setEmail] = useState('alex.j@example.com');
+  const [password, setPassword] = useState('password123');
+
+  useEffect(() => {
+    if (!isUserLoading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, isUserLoading, router]);
 
   const handleLogin = (e: React.FormEvent) => {
     e.preventDefault();
-    // In a real app, you'd handle authentication here.
-    // For this demo, we'll just redirect to the dashboard.
-    router.push('/dashboard');
+    if (!auth) return;
+    initiateEmailSignIn(auth, email, password);
+    toast({
+      title: 'Logging In...',
+      description: 'Please wait while we check your credentials.',
+    });
   };
 
   return (
@@ -65,7 +83,8 @@ export default function LoginPage() {
                     type="email"
                     placeholder="m@example.com"
                     required
-                    defaultValue="alex.j@example.com"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -82,13 +101,14 @@ export default function LoginPage() {
                     id="password"
                     type="password"
                     required
-                    defaultValue="password123"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
                   />
                 </div>
-                <Button type="submit" className="w-full">
-                  Login
+                <Button type="submit" className="w-full" disabled={isUserLoading}>
+                  {isUserLoading ? 'Logging in...' : 'Login'}
                 </Button>
-                <Button variant="outline" className="w-full">
+                <Button variant="outline" className="w-full" disabled>
                   Login with Google
                 </Button>
               </form>

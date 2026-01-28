@@ -26,9 +26,17 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { loggedInUser } from '@/lib/data';
 import MobileSidebarContent from './mobile-sidebar-content';
+import { useAuth } from '@/firebase';
 
 export default function AppHeader() {
+  const auth = useAuth();
   const userInitials = loggedInUser.name.split(' ').map(n => n[0]).join('');
+
+  const handleSignOut = () => {
+    if (auth) {
+      auth.signOut();
+    }
+  };
 
   return (
     <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
@@ -89,8 +97,8 @@ export default function AppHeader() {
           </DropdownMenuItem>
           <DropdownMenuItem>Support</DropdownMenuItem>
           <DropdownMenuSeparator />
-          <DropdownMenuItem>
-            <Link href="/login">Logout</Link>
+          <DropdownMenuItem onClick={handleSignOut}>
+            Logout
           </DropdownMenuItem>
         </DropdownMenuContent>
       </DropdownMenu>
