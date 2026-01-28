@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import type { TimetableEntry } from '@/lib/data';
 import { Clock, Video } from 'lucide-react';
+import { Button } from '@/components/ui/button';
 
 type UpcomingClassesProps = {
   timetable: TimetableEntry[];
