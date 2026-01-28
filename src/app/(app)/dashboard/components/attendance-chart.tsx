@@ -6,13 +6,15 @@ import { ChartContainer, ChartTooltip, ChartTooltipContent } from '@/components/
 import { useEffect, useState } from 'react';
 import { Skeleton } from '@/components/ui/skeleton';
 
+export type AttendanceChartData = {
+  name: string;
+  attended: number;
+  total: number;
+  percentage: number;
+};
+
 type AttendanceChartProps = {
-  data: {
-    name: string;
-    attended: number;
-    total: number;
-    percentage: number;
-  }[];
+  data: AttendanceChartData[];
 };
 
 export default function AttendanceChart({ data }: AttendanceChartProps) {

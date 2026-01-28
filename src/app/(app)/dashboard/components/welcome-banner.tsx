@@ -1,7 +1,5 @@
-import type { User } from "@/lib/data";
-
 type WelcomeBannerProps = {
-    user: User;
+    user: { name: string };
 }
 
 export default function WelcomeBanner({ user }: WelcomeBannerProps) {

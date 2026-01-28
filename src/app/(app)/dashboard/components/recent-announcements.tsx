@@ -1,10 +1,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { Announcement } from '@/lib/data';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
 
 type RecentAnnouncementsProps = {
-  announcements: Announcement[];
+  announcements: {
+    id: string;
+    title: string;
+    content: string;
+    date: string;
+  }[];
 };
 
 export default function RecentAnnouncements({ announcements }: RecentAnnouncementsProps) {
