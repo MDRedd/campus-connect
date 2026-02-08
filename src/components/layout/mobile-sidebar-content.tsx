@@ -5,10 +5,23 @@ import { usePathname } from 'next/navigation';
 import { BookOpen, Settings } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { getNavItems } from '@/lib/navigation';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function MobileSidebarContent() {
   const pathname = usePathname();
-  const navItems = getNavItems();
+  const { user: authUser } = useUser();
+  const firestore = useFirestore();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<{ role: 'student' | 'faculty' | 'admin' }>(userDocRef);
+
+  const navItems = userProfile ? getNavItems(userProfile.role) : [];
+
 
   return (
     <div className="flex h-full flex-col gap-2">
@@ -20,6 +33,13 @@ export default function MobileSidebarContent() {
       </div>
       <div className="flex-1">
         <nav className="grid items-start px-2 text-sm font-medium lg:px-4">
+          {isUserProfileLoading && (
+            <div className="space-y-2">
+              <Skeleton className="h-8 rounded-lg" />
+              <Skeleton className="h-8 rounded-lg" />
+              <Skeleton className="h-8 rounded-lg" />
+            </div>
+          )}
           {navItems.map((item) => (
             <Link
               key={item.href}

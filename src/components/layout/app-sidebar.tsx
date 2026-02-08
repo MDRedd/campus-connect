@@ -11,10 +11,22 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getNavItems } from '@/lib/navigation';
+import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
+import { doc } from 'firebase/firestore';
+import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const navItems = getNavItems();
+  const { user: authUser } = useUser();
+  const firestore = useFirestore();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<{ role: 'student' | 'faculty' | 'admin' }>(userDocRef);
+
+  const navItems = userProfile ? getNavItems(userProfile.role) : [];
 
   return (
     <aside className="fixed inset-y-0 left-0 z-10 hidden w-14 flex-col border-r bg-background sm:flex">
@@ -27,6 +39,13 @@ export default function AppSidebar() {
                 <BookOpen className="h-4 w-4 transition-all group-hover:scale-110" />
                 <span className="sr-only">CampusConnect</span>
                 </Link>
+                {isUserProfileLoading && (
+                  <div className="flex flex-col items-center gap-4">
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                    <Skeleton className="h-8 w-8 rounded-lg" />
+                  </div>
+                )}
                 {navItems.map((item) => (
                 <Tooltip key={item.href}>
                     <TooltipTrigger asChild>

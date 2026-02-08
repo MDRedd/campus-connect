@@ -66,9 +66,6 @@ export const adminUser: User = {
   avatar: PlaceHolderImages.find(img => img.id === 'user-avatar-2')!,
 };
 
-// For demonstration, we'll use the student user as the logged-in user.
-export const loggedInUser: User = studentUser;
-
 export const courses: Course[] = [
   { id: 'cs101', name: 'Introduction to Programming', code: 'CS101', credits: 3 },
   { id: 'ma202', name: 'Linear Algebra', code: 'MA202', credits: 4 },

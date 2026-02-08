@@ -7,7 +7,8 @@ import {
     Users,
     UsersRound,
   } from 'lucide-react';
-import { loggedInUser } from '@/lib/data';
+
+type UserRole = 'student' | 'faculty' | 'admin';
 
 const studentNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
@@ -32,11 +33,14 @@ const adminNavItems = [
     { href: '/courses', icon: Library, label: 'Courses' },
 ];
 
-export const getNavItems = () => {
-    if (loggedInUser.role === 'faculty') {
-        return facultyNavItems;
-    } else if (loggedInUser.role === 'admin') {
-        return adminNavItems;
+export const getNavItems = (role: UserRole) => {
+    switch (role) {
+        case 'faculty':
+            return facultyNavItems;
+        case 'admin':
+            return adminNavItems;
+        case 'student':
+        default:
+            return studentNavItems;
     }
-    return studentNavItems;
 }
