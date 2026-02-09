@@ -6,6 +6,7 @@ import {
     Library,
     Users,
     UsersRound,
+    QrCode,
   } from 'lucide-react';
 
 type UserRole = 'student' | 'faculty' | 'admin';
@@ -23,6 +24,7 @@ const facultyNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
     { href: '/attendance', icon: ClipboardList, label: 'Attendance' },
+    { href: '/attendance/mark', icon: QrCode, label: 'Mark Attendance' },
     { href: '/academics', icon: Library, label: 'Academics' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
 ];

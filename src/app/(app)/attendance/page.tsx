@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
+import Link from 'next/link';
 import {
   Card,
   CardHeader,
@@ -10,8 +11,10 @@ import {
   CardDescription,
   CardContent,
 } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
+import { QrCode } from 'lucide-react';
 import type { Course } from '@/lib/data';
 
 type AttendanceRecord = {
@@ -19,9 +22,20 @@ type AttendanceRecord = {
   status: 'present' | 'absent';
 };
 
+type UserProfile = {
+  role: 'student' | 'faculty' | 'admin';
+};
+
+
 export default function AttendancePage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
+
+  const userDocRef = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return doc(firestore, 'users', authUser.uid);
+  }, [firestore, authUser]);
+  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const coursesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -80,13 +94,23 @@ export default function AttendancePage() {
         
   }, [attendanceRecords, courses, isAttendanceLoading, areCoursesLoading]);
 
-  const isLoading = isAuthUserLoading || areCoursesLoading || isAttendanceLoading;
+  const isLoading = isAuthUserLoading || areCoursesLoading || isAttendanceLoading || isUserProfileLoading;
 
   return (
     <div className="flex flex-col gap-6">
-       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
-        <p className="text-muted-foreground">View your attendance records and get alerts for low attendance.</p>
+       <div className="flex justify-between items-start">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight">Attendance</h1>
+          <p className="text-muted-foreground">View your attendance records and get alerts for low attendance.</p>
+        </div>
+        {userProfile?.role === 'student' && (
+          <Button asChild>
+            <Link href="/attendance/scan">
+              <QrCode className="mr-2 h-4 w-4" />
+              Scan QR Code
+            </Link>
+          </Button>
+        )}
       </div>
       
       {isLoading ? (
