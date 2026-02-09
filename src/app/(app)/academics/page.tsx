@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, updateDoc } from 'firebase/firestore';
+import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, updateDoc, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -35,6 +35,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
+import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { doc } from 'firebase/firestore';
@@ -88,12 +89,14 @@ export default function AcademicsPage() {
   const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
   const [openSubmissionDialog, setOpenSubmissionDialog] = useState(false);
   const [openSubmissionsDialog, setOpenSubmissionsDialog] = useState(false);
+  const [openMySubmissionDialog, setOpenMySubmissionDialog] = useState(false);
 
   const [selectedAssignment, setSelectedAssignment] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
   const [selectedAssignmentForGrading, setSelectedAssignmentForGrading] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
   const [currentSubmissions, setCurrentSubmissions] = useState<Submission[] | null>(null);
   const [areSubmissionsLoading, setAreSubmissionsLoading] = useState(false);
   const [marks, setMarks] = useState<{[submissionId: string]: string}>({});
+  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
 
 
   const userDocRef = useMemoFirebase(() => {
@@ -228,6 +231,49 @@ export default function AcademicsPage() {
 
     fetchData();
   }, [firestore, displayCourses]);
+  
+  // Student-specific data for submissions
+  const [mySubmissions, setMySubmissions] = useState<{[assignmentId: string]: Submission} | null>(null);
+  const [areMySubmissionsLoading, setAreMySubmissionsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firestore || !authUser || isFaculty || !assignments) return;
+
+    if (assignments.length === 0) {
+        setMySubmissions({});
+        setAreMySubmissionsLoading(false);
+        return;
+    }
+
+    const fetchMySubmissions = async () => {
+        setAreMySubmissionsLoading(true);
+        const subsMap: {[assignmentId: string]: Submission} = {};
+        try {
+            for (const assignment of assignments) {
+                const submissionsQuery = query(
+                    collection(firestore, 'courses', assignment.courseId, 'assignments', assignment.id, 'submissions'),
+                    where('studentId', '==', authUser.uid),
+                    limit(1)
+                );
+                const querySnapshot = await getDocs(submissionsQuery);
+                if (!querySnapshot.empty) {
+                    const doc = querySnapshot.docs[0];
+                    subsMap[assignment.id] = { ...(doc.data() as Submission), id: doc.id };
+                }
+            }
+            setMySubmissions(subsMap);
+        } catch (error) {
+            console.error("Error fetching student submissions:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your submission status.' });
+            setMySubmissions({});
+        } finally {
+            setAreMySubmissionsLoading(false);
+        }
+    };
+
+    fetchMySubmissions();
+
+  }, [firestore, authUser, isFaculty, assignments, toast]);
 
 
   const handleSummarize = async (material: StudyMaterial & { courseName: string }) => {
@@ -420,6 +466,11 @@ export default function AcademicsPage() {
       }
   }
 
+  const handleViewMySubmission = (submission: Submission) => {
+    setSelectedSubmission(submission);
+    setOpenMySubmissionDialog(true);
+  }
+
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || areStudentsLoading;
 
@@ -501,26 +552,34 @@ export default function AcademicsPage() {
                 )}
               </CardHeader>
               <CardContent className="space-y-4">
-                {areAssignmentsLoading ? (
+                {areAssignmentsLoading || (!isFaculty && areMySubmissionsLoading) ? (
                     <Skeleton className="h-32 w-full" />
                 ) : assignments && assignments.length > 0 ? (
-                    assignments.map(assignment => (
-                    <Card key={assignment.id}>
-                        <CardHeader><CardTitle>{assignment.title}</CardTitle><CardDescription>{assignment.courseName} ({assignment.courseCode})</CardDescription></CardHeader>
-                        <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
-                        <CardFooter className="flex justify-between items-center">
-                        <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                        {isFaculty ? (
-                            <Button variant="secondary" size="sm" onClick={() => handleViewSubmissions(assignment)}>View Submissions</Button>
-                        ) : (
-                            <Button onClick={() => {
-                                setSelectedAssignment(assignment);
-                                setOpenSubmissionDialog(true);
-                            }}>Submit</Button>
-                        )}
-                        </CardFooter>
-                    </Card>
-                    ))
+                    assignments.map(assignment => {
+                      const mySubmission = mySubmissions?.[assignment.id];
+                      return (
+                        <Card key={assignment.id}>
+                            <CardHeader><CardTitle>{assignment.title}</CardTitle><CardDescription>{assignment.courseName} ({assignment.courseCode})</CardDescription></CardHeader>
+                            <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
+                            <CardFooter className="flex justify-between items-center">
+                            <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
+                            {isFaculty ? (
+                                <Button variant="secondary" size="sm" onClick={() => handleViewSubmissions(assignment)}>View Submissions</Button>
+                            ) : mySubmission ? (
+                                <Button variant="secondary" onClick={() => {
+                                  setSelectedAssignment(assignment);
+                                  handleViewMySubmission(mySubmission);
+                                }}>View Submission</Button>
+                            ) : (
+                                <Button onClick={() => {
+                                    setSelectedAssignment(assignment);
+                                    setOpenSubmissionDialog(true);
+                                }}>Submit</Button>
+                            )}
+                            </CardFooter>
+                        </Card>
+                      )
+                    })
                 ) : (
                     <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
                     <FileText className="h-12 w-12 text-muted-foreground" />
@@ -717,6 +776,45 @@ export default function AcademicsPage() {
             </div>
         </DialogContent>
       </Dialog>
+      
+      <Dialog open={openMySubmissionDialog} onOpenChange={setOpenMySubmissionDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>My Submission for &quot;{selectedAssignment?.title}&quot;</DialogTitle>
+                <DialogDescription>
+                    Details of your submission. Your grade will appear here once awarded.
+                </DialogDescription>
+            </DialogHeader>
+            {selectedSubmission && (
+                <div className="grid gap-4 py-4 text-sm">
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right text-muted-foreground">Submitted On</Label>
+                        <p className="col-span-3 font-medium">{format(new Date(selectedSubmission.submissionDate), 'Pp')}</p>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right text-muted-foreground">File</Label>
+                        <Button asChild variant="link" className="col-span-3 justify-start p-0 h-auto">
+                            <a href={selectedSubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="truncate">{selectedSubmission.fileUrl}</a>
+                        </Button>
+                    </div>
+                    <div className="grid grid-cols-4 items-start gap-4">
+                        <Label className="text-right pt-1 text-muted-foreground">Comments</Label>
+                        <p className="col-span-3">{selectedSubmission.comments || 'No comments provided.'}</p>
+                    </div>
+                    <div className="grid grid-cols-4 items-center gap-4">
+                        <Label className="text-right text-muted-foreground">Grade</Label>
+                        <p className="col-span-3 font-bold text-lg">
+                            {selectedSubmission.marksAwarded !== undefined ? `${selectedSubmission.marksAwarded} / 100` : 'Not Graded Yet'}
+                        </p>
+                    </div>
+                </div>
+            )}
+            <DialogFooter>
+                <Button variant="outline" onClick={() => setOpenMySubmissionDialog(false)}>Close</Button>
+            </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
     </div>
   );
 }

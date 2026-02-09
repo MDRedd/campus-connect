@@ -122,8 +122,11 @@ service cloud.firestore {
         }
 
         allow get: if (isExistingDoc() && isOwner(resource.data.studentId)) || isAssignmentFaculty() || isAdmin();
-        allow list: if isAssignmentFaculty() || isAdmin();
         
+        // Faculty/admins can list all submissions.
+        // Students can list their own submission for a given assignment.
+        allow list: if isAssignmentFaculty() || isAdmin() || (isSignedIn() && request.query.where.studentId == request.auth.uid);
+                      
         allow create: if isSignedIn() 
                       && request.resource.data.studentId == request.auth.uid
                       && request.resource.data.assignmentId == assignmentId;
