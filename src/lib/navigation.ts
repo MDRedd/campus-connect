@@ -7,6 +7,7 @@ import {
     Users,
     UsersRound,
     QrCode,
+    FileWarning,
   } from 'lucide-react';
 
 type UserRole = 'student' | 'faculty' | 'admin';
@@ -46,3 +47,5 @@ export const getNavItems = (role: UserRole) => {
             return studentNavItems;
     }
 }
+
+    

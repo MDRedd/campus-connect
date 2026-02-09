@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
@@ -17,6 +17,9 @@ type QuickStat = {
   value: string;
   icon: React.ElementType;
 };
+
+type Assignment = { id: string; courseId: string; deadline: string; };
+type Submission = { id: string; };
 
 
 export default function DashboardPage() {
@@ -139,24 +142,152 @@ export default function DashboardPage() {
     }, [firestore, userProfile]);
     const { data: allUsers, isLoading: areAllUsersLoading } = useCollection<{role: string}>(allUsersQuery);
 
+    // --- Data for Quick Stats ---
+    const [assignments, setAssignments] = useState<Assignment[] | null>(null);
+    const [mySubmissions, setMySubmissions] = useState<{[assignmentId: string]: Submission} | null>(null);
+    const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
+    const [areMySubmissionsLoading, setAreMySubmissionsLoading] = useState(true);
+    const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
+    const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
     const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
 
+    // Effect to fetch assignments for students
     useEffect(() => {
-        if (isUserProfileLoading || areEnrollmentsLoading || isAttendanceLoading) return;
+        if (!firestore || !enrolledCourses || userProfile?.role !== 'student') {
+            setAssignments([]);
+            setAreAssignmentsLoading(false);
+            return;
+        };
+        if (enrolledCourses.length === 0) {
+            setAssignments([]);
+            setAreAssignmentsLoading(false);
+            return;
+        }
+
+        const fetchData = async () => {
+        setAreAssignmentsLoading(true);
+        try {
+            const allAssignments: Assignment[] = [];
+            for (const course of enrolledCourses) {
+            const assignmentsQuery = query(collection(firestore, 'courses', course.id, 'assignments'));
+            const assignmentsSnapshot = await getDocs(assignmentsQuery);
+            assignmentsSnapshot.forEach((doc) => {
+                allAssignments.push({ ...(doc.data() as Omit<Assignment, 'id'>), id: doc.id });
+            });
+            }
+            setAssignments(allAssignments);
+        } catch (error) {
+            console.error("Error fetching assignments for dashboard:", error);
+            setAssignments([]);
+        } finally {
+            setAreAssignmentsLoading(false);
+        }
+        };
+
+        fetchData();
+    }, [firestore, enrolledCourses, userProfile]);
+
+    // Effect to fetch submissions for students
+    useEffect(() => {
+        if (!firestore || !authUser || !assignments || userProfile?.role !== 'student') {
+            setMySubmissions({});
+            setAreMySubmissionsLoading(false);
+            return;
+        }
+        if (assignments.length === 0) {
+            setMySubmissions({});
+            setAreMySubmissionsLoading(false);
+            return;
+        }
+
+        const fetchMySubmissions = async () => {
+            setAreMySubmissionsLoading(true);
+            const subsMap: {[assignmentId: string]: Submission} = {};
+            try {
+                for (const assignment of assignments) {
+                    const submissionsQuery = query(
+                        collection(firestore, 'courses', assignment.courseId, 'assignments', assignment.id, 'submissions'),
+                        where('studentId', '==', authUser.uid),
+                        limit(1)
+                    );
+                    const querySnapshot = await getDocs(submissionsQuery);
+                    if (!querySnapshot.empty) {
+                        const doc = querySnapshot.docs[0];
+                        subsMap[assignment.id] = { id: doc.id, ...(doc.data() as any) };
+                    }
+                }
+                setMySubmissions(subsMap);
+            } catch (error) {
+                console.error("Error fetching submissions for dashboard:", error);
+                setMySubmissions({});
+            } finally {
+                setAreMySubmissionsLoading(false);
+            }
+        };
+
+        fetchMySubmissions();
+    }, [firestore, authUser, assignments, userProfile]);
+
+    // Effect to fetch courses for faculty
+    useEffect(() => {
+        if (!userProfile || userProfile.role !== 'faculty' || !firestore || !authUser || areCoursesLoading || !courses) {
+            if (userProfile && userProfile.role === 'faculty') {
+                setAreFacultyCoursesLoading(false);
+                setFacultyCourses([]);
+            }
+            return;
+        };
+        
+        const fetchFacultyCourses = async () => {
+        setAreFacultyCoursesLoading(true);
+        try {
+            const timetablesQuery = query(
+                collectionGroup(firestore, 'timetables'),
+                where('facultyId', '==', authUser.uid)
+            );
+            const timetableSnapshot = await getDocs(timetablesQuery);
+            const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+            if (facultyCourseIds.length > 0) {
+                setFacultyCourses(courses.filter(course => facultyCourseIds.includes(course.id)));
+            } else {
+                setFacultyCourses([]);
+            }
+        } catch (error) {
+            console.error("Error fetching faculty courses:", error);
+            setFacultyCourses([]);
+        } finally {
+            setAreFacultyCoursesLoading(false);
+        }
+        };
+        fetchFacultyCourses();
+    }, [firestore, authUser, courses, areCoursesLoading, userProfile]);
+
+    useEffect(() => {
+        if (isUserProfileLoading) return;
         if (!userProfile) return;
 
         const getStats = async () => {
             let stats: QuickStat[] = [];
             if (userProfile.role === 'student') {
+                if (areEnrollmentsLoading || isAttendanceLoading || areAssignmentsLoading || areMySubmissionsLoading) return;
                 const overallAttendance = attendanceData ? Math.round(attendanceData.reduce((acc, curr) => acc + curr.percentage, 0) / (attendanceData.length || 1)) : 0;
+                
+                const dueAssignments = assignments?.filter(assignment => {
+                    const deadline = new Date(assignment.deadline);
+                    const isDue = deadline > new Date();
+                    const isSubmitted = mySubmissions ? !!mySubmissions[assignment.id] : false;
+                    return isDue && !isSubmitted;
+                }).length ?? 0;
+
                 stats = [
                     { title: 'Enrolled Courses', value: (enrollments?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
                     { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: require('lucide-react').Percent },
-                    { title: 'Assignments Due', value: '2', icon: require('lucide-react').CheckCircle }, // Static
+                    { title: 'Assignments Due', value: dueAssignments.toString(), icon: require('lucide-react').FileWarning },
                 ];
             } else if (userProfile.role === 'faculty') {
-                 stats = [
-                    { title: 'Active Courses', value: '3', icon: require('lucide-react').BookOpen }, // Static for now
+                if (areFacultyCoursesLoading) return;
+                stats = [
+                    { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
                     { title: 'Students', value: '128', icon: require('lucide-react').Users }, // Static
                     { title: 'Submissions to Grade', value: '15', icon: require('lucide-react').CheckCircle }, // Static
                 ];
@@ -174,7 +305,12 @@ export default function DashboardPage() {
         }
 
         getStats();
-    }, [userProfile, isUserProfileLoading, areEnrollmentsLoading, isAttendanceLoading, enrollments, attendanceData, allUsers, areAllUsersLoading, courses, areCoursesLoading]);
+    }, [
+        userProfile, isUserProfileLoading, areEnrollmentsLoading, isAttendanceLoading, enrollments, attendanceData, 
+        allUsers, areAllUsersLoading, courses, areCoursesLoading,
+        areAssignmentsLoading, areMySubmissionsLoading, assignments, mySubmissions,
+        areFacultyCoursesLoading, facultyCourses
+    ]);
 
 
   const isPageLoading = isAuthUserLoading || isUserProfileLoading;
