@@ -1,8 +1,12 @@
+
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { doc, updateDoc } from 'firebase/firestore';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import {
   Card,
   CardContent,
@@ -14,8 +18,18 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Pencil } from 'lucide-react';
+import { Pencil, Save } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { useToast } from '@/hooks/use-toast';
 
 type UserProfile = {
   name: string;
@@ -24,10 +38,20 @@ type UserProfile = {
   department?: string;
 };
 
+const profileFormSchema = z.object({
+  name: z.string().min(2, 'Name must be at least 2 characters.'),
+  department: z.string().optional(),
+});
+
+type ProfileFormValues = z.infer<typeof profileFormSchema>;
+
 export default function ProfilePage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
+  const { toast } = useToast();
+
+  const [isEditing, setIsEditing] = useState(false);
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -35,12 +59,42 @@ export default function ProfilePage() {
   }, [firestore, authUser]);
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
+  const form = useForm<ProfileFormValues>({
+    resolver: zodResolver(profileFormSchema),
+    values: {
+      name: userProfile?.name || '',
+      department: userProfile?.department || '',
+    },
+  });
+
   const isLoading = isAuthUserLoading || isUserProfileLoading;
 
   const userInitials = userProfile?.name
     .split(' ')
     .map((n) => n[0])
     .join('');
+
+  const onSubmit = async (data: ProfileFormValues) => {
+    if (!userDocRef) return;
+    try {
+      await updateDoc(userDocRef, {
+        name: data.name,
+        department: data.department,
+      });
+      toast({
+        title: 'Profile Updated',
+        description: 'Your profile has been successfully updated.',
+      });
+      setIsEditing(false);
+    } catch (error) {
+      console.error('Error updating profile:', error);
+      toast({
+        variant: 'destructive',
+        title: 'Update Failed',
+        description: 'Could not update your profile. Please try again.',
+      });
+    }
+  };
 
   if (isLoading) {
     return (
@@ -100,55 +154,112 @@ export default function ProfilePage() {
 
   return (
     <Card>
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold">Profile</CardTitle>
-        <CardDescription>
-          View and manage your personal information.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="grid gap-8 md:grid-cols-3">
-        <div className="flex flex-col items-center gap-4 md:col-span-1 pt-6">
-          <Avatar className="h-32 w-32 text-4xl">
-            {userAvatar && (
-              <AvatarImage
-                src={userAvatar.imageUrl}
-                alt={userProfile.name}
-                data-ai-hint={userAvatar.imageHint}
-              />
-            )}
-            <AvatarFallback>{userInitials}</AvatarFallback>
-          </Avatar>
-          <div className="text-center">
-            <h2 className="text-2xl font-bold">{userProfile.name}</h2>
-            <p className="text-muted-foreground">{userProfile.email}</p>
-          </div>
-        </div>
-        <div className="grid gap-y-6 text-sm md:col-span-2">
-           <div className="grid grid-cols-4 items-center gap-4">
-            <p className="text-muted-foreground">Full Name</p>
-            <p className="col-span-3 font-medium">{userProfile.name}</p>
-          </div>
-           <div className="grid grid-cols-4 items-center gap-4">
-            <p className="text-muted-foreground">Email</p>
-            <p className="col-span-3 font-medium">{userProfile.email}</p>
-          </div>
-           <div className="grid grid-cols-4 items-center gap-4">
-            <p className="text-muted-foreground">Role</p>
-            <p className="col-span-3 font-medium capitalize">{userProfile.role}</p>
-          </div>
-          {userProfile.department && (
-             <div className="grid grid-cols-4 items-center gap-4">
-              <p className="text-muted-foreground">Department</p>
-              <p className="col-span-3 font-medium">{userProfile.department}</p>
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)}>
+          <CardHeader>
+            <CardTitle className="text-3xl font-bold">Profile</CardTitle>
+            <CardDescription>
+              View and manage your personal information.
+            </CardDescription>
+          </CardHeader>
+          <CardContent className="grid gap-8 md:grid-cols-3">
+            <div className="flex flex-col items-center gap-4 md:col-span-1 pt-6">
+              <Avatar className="h-32 w-32 text-4xl">
+                {userAvatar && (
+                  <AvatarImage
+                    src={userAvatar.imageUrl}
+                    alt={userProfile.name}
+                    data-ai-hint={userAvatar.imageHint}
+                  />
+                )}
+                <AvatarFallback>{userInitials}</AvatarFallback>
+              </Avatar>
+              <div className="text-center">
+                <h2 className="text-2xl font-bold">{userProfile.name}</h2>
+                <p className="text-muted-foreground">{userProfile.email}</p>
+              </div>
             </div>
-          )}
-        </div>
-      </CardContent>
-      <CardFooter className="border-t px-6 py-4">
-        <Button>
-          <Pencil className="mr-2 h-4 w-4" /> Edit Profile
-        </Button>
-      </CardFooter>
+            <div className="grid gap-y-6 text-sm md:col-span-2">
+              {!isEditing ? (
+                <>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <p className="text-muted-foreground">Full Name</p>
+                    <p className="col-span-3 font-medium">{userProfile.name}</p>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <p className="text-muted-foreground">Email</p>
+                    <p className="col-span-3 font-medium">{userProfile.email}</p>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <p className="text-muted-foreground">Role</p>
+                    <p className="col-span-3 font-medium capitalize">{userProfile.role}</p>
+                  </div>
+                  {userProfile.department && (
+                    <div className="grid grid-cols-4 items-center gap-4">
+                      <p className="text-muted-foreground">Department</p>
+                      <p className="col-span-3 font-medium">{userProfile.department}</p>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <>
+                  <FormField
+                    control={form.control}
+                    name="name"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-muted-foreground">Full Name</FormLabel>
+                        <FormControl className="col-span-3">
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage className="col-span-4" />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <p className="text-muted-foreground">Email</p>
+                    <p className="col-span-3 font-medium">{userProfile.email}</p>
+                  </div>
+                  <div className="grid grid-cols-4 items-center gap-4">
+                    <p className="text-muted-foreground">Role</p>
+                    <p className="col-span-3 font-medium capitalize">{userProfile.role}</p>
+                  </div>
+                  <FormField
+                    control={form.control}
+                    name="department"
+                    render={({ field }) => (
+                      <FormItem className="grid grid-cols-4 items-center gap-4">
+                        <FormLabel className="text-muted-foreground">Department</FormLabel>
+                        <FormControl className="col-span-3">
+                          <Input {...field} />
+                        </FormControl>
+                        <FormMessage className="col-span-4" />
+                      </FormItem>
+                    )}
+                  />
+                </>
+              )}
+            </div>
+          </CardContent>
+          <CardFooter className="border-t px-6 py-4">
+            {isEditing ? (
+              <div className="flex gap-2">
+                <Button type="submit" disabled={form.formState.isSubmitting}>
+                  <Save className="mr-2 h-4 w-4" />
+                  {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                </Button>
+                <Button variant="outline" onClick={() => setIsEditing(false)}>
+                  Cancel
+                </Button>
+              </div>
+            ) : (
+              <Button onClick={() => setIsEditing(true)}>
+                <Pencil className="mr-2 h-4 w-4" /> Edit Profile
+              </Button>
+            )}
+          </CardFooter>
+        </form>
+      </Form>
     </Card>
   );
 }
