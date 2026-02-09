@@ -52,7 +52,7 @@ export const studentUser: User = {
 export const facultyUser: User = {
   id: 'user-2',
   name: 'Dr. Evelyn Reed',
-  email: 'e.reed@example.com',
+  email: 'faculty@example.com',
   role: 'faculty',
   avatar: PlaceHolderImages.find(img => img.id === 'user-avatar-2')!,
   department: 'Computer Science',
