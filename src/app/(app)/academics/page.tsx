@@ -1,8 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection } from 'firebase/firestore';
+import { collection, getDocs, query, DocumentData } from 'firebase/firestore';
+import { format } from 'date-fns';
 import {
   Card,
   CardHeader,
@@ -19,7 +20,6 @@ import { Skeleton } from '@/components/ui/skeleton';
 // Simplified types based on backend.json
 type Enrollment = {
   courseId: string;
-  // ... other fields
 };
 
 type Course = {
@@ -27,6 +27,22 @@ type Course = {
   name: string;
   code: string;
   credits: number;
+};
+
+type Assignment = {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  deadline: string; // it's a string in schema, format: "date-time"
+};
+
+type StudyMaterial = {
+  id: string;
+  courseId: string;
+  title: string;
+  description: string;
+  fileUrl: string;
 };
 
 export default function AcademicsPage() {
@@ -50,6 +66,82 @@ export default function AcademicsPage() {
     const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
     return allCourses.filter(course => enrolledCourseIds.has(course.id));
   }, [enrollments, allCourses]);
+
+  const [assignments, setAssignments] = useState<(Assignment & { courseName: string; courseCode: string; })[] | null>(null);
+  const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
+  const [studyMaterials, setStudyMaterials] = useState<(StudyMaterial & { courseName: string; courseCode: string; })[] | null>(null);
+  const [areStudyMaterialsLoading, setAreStudyMaterialsLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firestore || !enrolledCourses) return;
+    if (enrolledCourses.length === 0) {
+      setAreAssignmentsLoading(false);
+      setAssignments([]);
+      return;
+    };
+
+    const fetchAssignments = async () => {
+      setAreAssignmentsLoading(true);
+      try {
+        const allAssignments: (Assignment & { courseName: string; courseCode: string; })[] = [];
+        for (const course of enrolledCourses) {
+          const assignmentsQuery = query(collection(firestore, 'courses', course.id, 'assignments'));
+          const querySnapshot = await getDocs(assignmentsQuery);
+          querySnapshot.forEach((doc) => {
+            allAssignments.push({
+              id: doc.id,
+              ...doc.data(),
+              courseName: course.name,
+              courseCode: course.code,
+            } as Assignment & { courseName: string; courseCode: string; });
+          });
+        }
+        allAssignments.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+        setAssignments(allAssignments);
+      } catch (error) {
+        console.error("Error fetching assignments:", error);
+        setAssignments([]);
+      }
+      setAreAssignmentsLoading(false);
+    };
+
+    fetchAssignments();
+  }, [firestore, enrolledCourses]);
+
+  useEffect(() => {
+    if (!firestore || !enrolledCourses) return;
+     if (enrolledCourses.length === 0) {
+      setAreStudyMaterialsLoading(false);
+      setStudyMaterials([]);
+      return;
+    };
+
+    const fetchStudyMaterials = async () => {
+      setAreStudyMaterialsLoading(true);
+      try {
+        const allMaterials: (StudyMaterial & { courseName: string; courseCode: string; })[] = [];
+        for (const course of enrolledCourses) {
+          const materialsQuery = query(collection(firestore, 'courses', course.id, 'study_materials'));
+          const querySnapshot = await getDocs(materialsQuery);
+          querySnapshot.forEach((doc) => {
+            allMaterials.push({
+              id: doc.id,
+              ...doc.data(),
+              courseName: course.name,
+              courseCode: course.code,
+            } as StudyMaterial & { courseName: string; courseCode: string; });
+          });
+        }
+        setStudyMaterials(allMaterials);
+      } catch (error) {
+        console.error("Error fetching study materials:", error);
+        setStudyMaterials([]);
+      }
+      setAreStudyMaterialsLoading(false);
+    };
+
+    fetchStudyMaterials();
+  }, [firestore, enrolledCourses]);
 
   const isLoading = isAuthUserLoading || areEnrollmentsLoading || areCoursesLoading;
 
@@ -129,38 +221,107 @@ export default function AcademicsPage() {
           )}
         </TabsContent>
         <TabsContent value="assignments" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Upcoming Assignments</CardTitle>
-              <CardDescription>
-                Submit your work before the deadline.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                <FileText className="h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No Assignments... Yet!</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Check back here for updates on your coursework.</p>
-              </div>
-            </CardContent>
-          </Card>
+          {areAssignmentsLoading ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Assignments</CardTitle>
+                <CardDescription>Submit your work before the deadline.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[...Array(2)].map((_, i) => <Skeleton key={i} className="h-32 w-full" />)}
+              </CardContent>
+            </Card>
+          ) : assignments && assignments.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Assignments</CardTitle>
+                <CardDescription>Submit your work before the deadline.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {assignments.map(assignment => (
+                  <Card key={assignment.id}>
+                    <CardHeader>
+                      <CardTitle>{assignment.title}</CardTitle>
+                      <CardDescription>{assignment.courseName} ({assignment.courseCode})</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <p className="text-sm text-muted-foreground">{assignment.description}</p>
+                    </CardContent>
+                    <CardFooter className="flex justify-between items-center">
+                      <p className="text-sm font-medium">
+                        Deadline: {format(new Date(assignment.deadline), 'PPP')}
+                      </p>
+                      <Button>Submit</Button>
+                    </CardFooter>
+                  </Card>
+                ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Upcoming Assignments</CardTitle>
+                <CardDescription>Submit your work before the deadline.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                  <FileText className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-semibold">No Assignments... Yet!</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Check back here for updates on your coursework.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
         <TabsContent value="materials" className="mt-6">
-          <Card>
-            <CardHeader>
-              <CardTitle>Study Materials</CardTitle>
-              <CardDescription>
-                Download lecture notes and other resources.
-              </CardDescription>
-            </CardHeader>
-            <CardContent>
-              <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                <Download className="h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No Materials Available</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Your instructors will upload materials here.</p>
-              </div>
-            </CardContent>
-          </Card>
+          {areStudyMaterialsLoading ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Study Materials</CardTitle>
+                <CardDescription>Download lecture notes and other resources.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full" />)}
+              </CardContent>
+            </Card>
+          ) : studyMaterials && studyMaterials.length > 0 ? (
+            <Card>
+              <CardHeader>
+                <CardTitle>Study Materials</CardTitle>
+                <CardDescription>Download lecture notes and other resources.</CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {studyMaterials.map(material => (
+                  <Card key={material.id} className="flex items-center justify-between p-4">
+                    <div className="flex-1">
+                      <h4 className="font-semibold">{material.title}</h4>
+                      <p className="text-sm text-muted-foreground">{material.courseName}</p>
+                    </div>
+                    <Button variant="outline" size="sm" asChild>
+                      <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">
+                        <Download className="mr-2 h-4 w-4" />
+                        Download
+                      </a>
+                    </Button>
+                  </Card>
+                ))}
+              </CardContent>
+            </Card>
+          ) : (
+            <Card>
+              <CardHeader>
+                <CardTitle>Study Materials</CardTitle>
+                <CardDescription>Download lecture notes and other resources.</CardDescription>
+              </CardHeader>
+              <CardContent>
+                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                  <Download className="h-12 w-12 text-muted-foreground" />
+                  <h3 className="mt-4 text-lg font-semibold">No Materials Available</h3>
+                  <p className="mt-1 text-sm text-muted-foreground">Your instructors will upload materials here.</p>
+                </div>
+              </CardContent>
+            </Card>
+          )}
         </TabsContent>
       </Tabs>
     </div>
