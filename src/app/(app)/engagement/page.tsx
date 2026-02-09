@@ -1,5 +1,9 @@
 'use client';
 
+import { useMemo, useState, useEffect } from 'react';
+import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, getDocs, query } from 'firebase/firestore';
+import Image from 'next/image';
 import {
   Card,
   CardHeader,
@@ -14,66 +18,86 @@ import { Input } from '@/components/ui/input';
 import {
   MessageSquare,
   Users,
-  Calendar,
+  Calendar as CalendarIcon,
   Search,
   ArrowRight,
 } from 'lucide-react';
-import Image from 'next/image';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { Skeleton } from '@/components/ui/skeleton';
 
-// Mock data for demonstration purposes
-const forums = [
-  {
-    id: 'forum-1',
-    title: 'CS101 - Introduction to Programming Discussion',
-    description: 'Discuss assignments, concepts, and get help from peers.',
-    courseCode: 'CS101',
-    members: 124,
-    lastActivity: '2 hours ago',
-  },
-  {
-    id: 'forum-2',
-    title: 'Campus Life & Events',
-    description: 'A place to discuss everything happening on campus.',
-    courseCode: 'General',
-    members: 532,
-    lastActivity: '30 minutes ago',
-  },
-];
-
-const clubs = [
-  {
-    id: 'club-1',
-    name: 'Coding Club',
-    description: 'For all the passionate coders and developers.',
-    image: PlaceHolderImages.find((img) => img.id === 'club-activity'),
-  },
-  {
-    id: 'club-2',
-    name: 'Debate Society',
-    description: 'Sharpen your arguments and public speaking skills.',
-    image: PlaceHolderImages.find((img) => img.id === 'forum-discussion'),
-  },
-];
-
-const events = [
-  {
-    id: 'event-1',
-    title: 'Hackathon 2024',
-    date: 'December 15-16, 2024',
-    location: 'Main Auditorium',
-    image: PlaceHolderImages.find((img) => img.id === 'campus-event'),
-  },
-  {
-    id: 'event-2',
-    title: 'Guest Lecture: AI & The Future',
-    date: 'November 28, 2024',
-    location: 'Seminar Hall B',
-    image: PlaceHolderImages.find((img) => img.id === 'forum-discussion'),
-  },
-];
+// Types based on backend.json
+type Course = { id: string; name: string; code: string; };
+type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
+type Club = { id: string; name: string; description: string; facultyIncharge: string; };
+type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
 
 export default function EngagementPage() {
+    const firestore = useFirestore();
+
+    const [forums, setForums] = useState<Forum[] | null>(null);
+    const [areForumsLoading, setAreForumsLoading] = useState(true);
+
+    const coursesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'courses');
+    }, [firestore]);
+    const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+
+    const clubsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'clubs');
+    }, [firestore]);
+    const { data: clubs, isLoading: areClubsLoading } = useCollection<Club>(clubsQuery);
+
+    const eventsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'events');
+    }, [firestore]);
+    const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
+    
+    // Fetch all forums from all courses
+    useEffect(() => {
+        if (!firestore || areCoursesLoading) return;
+        if (!allCourses) {
+            setForums([]);
+            setAreForumsLoading(false);
+            return;
+        }
+
+        const fetchForums = async () => {
+            setAreForumsLoading(true);
+            const allForums: Forum[] = [];
+            try {
+                for (const course of allCourses) {
+                    const forumsQuery = query(collection(firestore, 'courses', course.id, 'forums'));
+                    const querySnapshot = await getDocs(forumsQuery);
+                    querySnapshot.forEach((doc) => {
+                        allForums.push({
+                            id: doc.id,
+                            courseCode: course.code,
+                            courseName: course.name,
+                            ...(doc.data() as Omit<Forum, 'id'>)
+                        });
+                    });
+                }
+                setForums(allForums);
+            } catch (error) {
+                console.error("Error fetching forums:", error);
+                setForums([]);
+            } finally {
+                setAreForumsLoading(false);
+            }
+        };
+
+        fetchForums();
+    }, [firestore, allCourses, areCoursesLoading]);
+
+
+    const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
+    const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
+
+    const isLoading = areForumsLoading || areClubsLoading || areEventsLoading;
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -94,7 +118,7 @@ export default function EngagementPage() {
             Clubs
           </TabsTrigger>
           <TabsTrigger value="events">
-            <Calendar className="mr-2 h-4 w-4" />
+            <CalendarIcon className="mr-2 h-4 w-4" />
             Events
           </TabsTrigger>
         </TabsList>
@@ -112,29 +136,39 @@ export default function EngagementPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {forums.map((forum) => (
-                <Card key={forum.id}>
-                  <CardHeader>
-                    <CardTitle className="text-lg">{forum.title}</CardTitle>
-                    <CardDescription>{forum.description}</CardDescription>
-                  </CardHeader>
-                  <CardContent>
-                    <div className="flex justify-between items-center text-sm text-muted-foreground">
-                        <div className="flex items-center gap-2">
-                            <span className="font-semibold text-foreground">{forum.courseCode}</span>
-                            <span className="text-xs">&#8226;</span>
-                            <span>{forum.members} members</span>
-                        </div>
-                        <span>Last activity: {forum.lastActivity}</span>
-                    </div>
-                  </CardContent>
-                   <CardFooter>
-                    <Button>
-                      View Forum <ArrowRight className="ml-2 h-4 w-4" />
-                    </Button>
-                  </CardFooter>
-                </Card>
-              ))}
+              {areForumsLoading ? (
+                <>
+                  <Skeleton className="h-36 w-full" />
+                  <Skeleton className="h-36 w-full" />
+                </>
+              ) : forums && forums.length > 0 ? (
+                forums.map((forum) => (
+                  <Card key={forum.id}>
+                    <CardHeader>
+                      <CardTitle className="text-lg">{forum.title}</CardTitle>
+                      <CardDescription>{forum.description}</CardDescription>
+                    </CardHeader>
+                    <CardContent>
+                      <div className="flex justify-between items-center text-sm text-muted-foreground">
+                          <div className="flex items-center gap-2">
+                              <span className="font-semibold text-foreground">{forum.courseCode}</span>
+                          </div>
+                      </div>
+                    </CardContent>
+                    <CardFooter>
+                      <Button>
+                        View Forum <ArrowRight className="ml-2 h-4 w-4" />
+                      </Button>
+                    </CardFooter>
+                  </Card>
+                ))
+              ) : (
+                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                    <MessageSquare className="h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">No Forums Found</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Check back later for discussions.</p>
+                </div>
+              )}
             </CardContent>
           </Card>
         </TabsContent>
@@ -146,29 +180,48 @@ export default function EngagementPage() {
                     <CardDescription>Find your community and explore your interests.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {clubs.map(club => (
-                        <Card key={club.id} className="overflow-hidden">
-                            {club.image && (
-                                <Image
-                                    src={club.image.imageUrl}
-                                    alt={club.name}
-                                    width={600}
-                                    height={400}
-                                    className="h-48 w-full object-cover"
-                                    data-ai-hint={club.image.imageHint}
-                                />
-                            )}
-                            <CardHeader>
-                                <CardTitle>{club.name}</CardTitle>
-                            </CardHeader>
-                            <CardContent>
-                                <p className="text-sm text-muted-foreground">{club.description}</p>
+                    {areClubsLoading ? (
+                         [...Array(3)].map((_, i) => (
+                            <Card key={i}>
+                                <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
+                                <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+                                <CardContent><Skeleton className="h-10 w-full" /></CardContent>
+                                <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
+                            </Card>
+                         ))
+                    ) : clubs && clubs.length > 0 ? (
+                        clubs.map(club => (
+                            <Card key={club.id} className="overflow-hidden flex flex-col">
+                                {clubImage && (
+                                    <Image
+                                        src={clubImage.imageUrl}
+                                        alt={club.name}
+                                        width={600}
+                                        height={400}
+                                        className="h-48 w-full object-cover"
+                                        data-ai-hint={clubImage.imageHint}
+                                    />
+                                )}
+                                <CardHeader>
+                                    <CardTitle>{club.name}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="flex-grow">
+                                    <p className="text-sm text-muted-foreground">{club.description}</p>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button className="w-full">Join Club</Button>
+                                </CardFooter>
+                            </Card>
+                        ))
+                    ) : (
+                        <Card className="md:col-span-2 lg:col-span-3">
+                            <CardContent className="p-8 text-center">
+                                <Users className="h-12 w-12 text-muted-foreground mx-auto" />
+                                <h3 className="mt-4 text-lg font-semibold">No Clubs Available</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">Student clubs will be listed here.</p>
                             </CardContent>
-                             <CardFooter>
-                                <Button className="w-full">Join Club</Button>
-                            </CardFooter>
                         </Card>
-                    ))}
+                    )}
                 </CardContent>
             </Card>
         </TabsContent>
@@ -180,36 +233,55 @@ export default function EngagementPage() {
                     <CardDescription>Don't miss out on what's happening on campus.</CardDescription>
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {events.map(event => (
-                        <Card key={event.id} className="overflow-hidden">
-                            {event.image && (
-                                 <Image
-                                    src={event.image.imageUrl}
-                                    alt={event.title}
-                                    width={600}
-                                    height={400}
-                                    className="h-48 w-full object-cover"
-                                    data-ai-hint={event.image.imageHint}
-                                />
-                            )}
-                            <CardHeader>
-                                <CardTitle>{event.title}</CardTitle>
-                            </CardHeader>
-                            <CardContent className="grid gap-1 text-sm">
-                               <div className="flex items-center gap-2 text-muted-foreground">
-                                   <Calendar className="h-4 w-4" />
-                                   <span>{event.date}</span>
-                               </div>
+                     {areEventsLoading ? (
+                        [...Array(3)].map((_, i) => (
+                            <Card key={i}>
+                                <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
+                                <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
+                                <CardContent><Skeleton className="h-10 w-full" /></CardContent>
+                                <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
+                            </Card>
+                        ))
+                     ) : events && events.length > 0 ? (
+                        events.map(event => (
+                            <Card key={event.id} className="overflow-hidden flex flex-col">
+                                {eventImage && (
+                                    <Image
+                                        src={eventImage.imageUrl}
+                                        alt={event.title}
+                                        width={600}
+                                        height={400}
+                                        className="h-48 w-full object-cover"
+                                        data-ai-hint={eventImage.imageHint}
+                                    />
+                                )}
+                                <CardHeader>
+                                    <CardTitle>{event.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent className="grid gap-1 text-sm flex-grow">
                                 <div className="flex items-center gap-2 text-muted-foreground">
-                                   <Users className="h-4 w-4" />
-                                   <span>{event.location}</span>
-                               </div>
+                                    <CalendarIcon className="h-4 w-4" />
+                                    <span>{new Date(event.date).toLocaleDateString()} at {event.time}</span>
+                                </div>
+                                    <div className="flex items-center gap-2 text-muted-foreground">
+                                    <Users className="h-4 w-4" />
+                                    <span>{event.location}</span>
+                                </div>
+                                </CardContent>
+                                <CardFooter>
+                                    <Button variant="secondary" className="w-full">View Details</Button>
+                                </CardFooter>
+                            </Card>
+                        ))
+                     ) : (
+                        <Card className="md:col-span-2 lg:col-span-3">
+                            <CardContent className="p-8 text-center">
+                                <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto" />
+                                <h3 className="mt-4 text-lg font-semibold">No Upcoming Events</h3>
+                                <p className="mt-1 text-sm text-muted-foreground">Check back later for new events.</p>
                             </CardContent>
-                             <CardFooter>
-                                <Button variant="secondary" className="w-full">View Details</Button>
-                            </CardFooter>
                         </Card>
-                    ))}
+                     )}
                 </CardContent>
             </Card>
         </TabsContent>
