@@ -1,6 +1,7 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { ArrowRight } from 'lucide-react';
+import Link from 'next/link';
 
 type RecentAnnouncementsProps = {
   announcements: {
@@ -33,7 +34,11 @@ export default function RecentAnnouncements({ announcements }: RecentAnnouncemen
           ))}
         </ul>
         <div className="mt-4 flex justify-end">
-            <Button variant="ghost" size="sm">View All <ArrowRight className="ml-2 h-4 w-4" /></Button>
+            <Button variant="ghost" size="sm" asChild>
+              <Link href="/announcements/view">
+                View All <ArrowRight className="ml-2 h-4 w-4" />
+              </Link>
+            </Button>
         </div>
       </CardContent>
     </Card>
