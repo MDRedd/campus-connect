@@ -163,16 +163,23 @@ export default function ScanAttendancePage() {
         </div>
         <Card className="w-full max-w-2xl">
             <CardContent className="p-0 overflow-hidden">
-                <div className="aspect-video bg-black flex items-center justify-center">
-                {scanned ? (
-                    <div className="text-center text-background p-4">
-                        <CheckCircle className="h-16 w-16 text-green-400 mx-auto" />
-                        <p className="mt-4 font-semibold text-lg">Attendance Marked!</p>
-                        <p className="text-muted-foreground">Redirecting...</p>
-                    </div>
-                ) : (
+                <div className="relative aspect-video bg-black flex items-center justify-center">
                     <video ref={videoRef} className="w-full h-full object-cover" autoPlay muted playsInline />
-                )}
+                    
+                    {scanned && (
+                        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center text-white p-4">
+                            <CheckCircle className="h-16 w-16 text-green-400" />
+                            <p className="mt-4 font-semibold text-lg">Attendance Marked!</p>
+                            <p className="text-muted-foreground">Redirecting...</p>
+                        </div>
+                    )}
+
+                    {hasCameraPermission === false && !scanned && (
+                        <div className="absolute inset-0 bg-black/70 flex flex-col items-center justify-center text-center text-white p-4">
+                            <CameraOff className="h-16 w-16 text-muted-foreground" />
+                            <p className="mt-4 font-semibold text-lg">Camera Unavailable</p>
+                        </div>
+                    )}
                 </div>
             </CardContent>
             <CardFooter className="p-4">
