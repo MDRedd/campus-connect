@@ -38,6 +38,7 @@ export default function EngagementPage() {
     const { user, isUserLoading: isAuthLoading } = useUser();
     const { toast } = useToast();
     const [joiningClubId, setJoiningClubId] = useState<string | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
@@ -96,6 +97,15 @@ export default function EngagementPage() {
 
         fetchForums();
     }, [firestore, allCourses, areCoursesLoading]);
+
+    const filteredForums = useMemo(() => {
+        if (!forums) return null;
+        if (!searchQuery) return forums;
+        return forums.filter(forum => 
+            forum.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+            forum.description.toLowerCase().includes(searchQuery.toLowerCase())
+        );
+    }, [forums, searchQuery]);
 
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
@@ -161,7 +171,12 @@ export default function EngagementPage() {
               </CardDescription>
               <div className="relative pt-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input placeholder="Search forums..." className="pl-8 w-full md:w-1/2 lg:w-1/3" />
+                <Input 
+                    placeholder="Search forums by title or description..." 
+                    className="pl-8 w-full md:w-1/2 lg:w-1/3" 
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                />
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -170,8 +185,8 @@ export default function EngagementPage() {
                   <Skeleton className="h-36 w-full" />
                   <Skeleton className="h-36 w-full" />
                 </>
-              ) : forums && forums.length > 0 ? (
-                forums.map((forum) => (
+              ) : filteredForums && filteredForums.length > 0 ? (
+                filteredForums.map((forum) => (
                   <Card key={forum.id}>
                     <CardHeader>
                       <CardTitle className="text-lg">{forum.title}</CardTitle>
@@ -197,7 +212,9 @@ export default function EngagementPage() {
                 <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
                     <MessageSquare className="h-12 w-12 text-muted-foreground" />
                     <h3 className="mt-4 text-lg font-semibold">No Forums Found</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Check back later for discussions.</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                        {searchQuery ? `No forums match "${searchQuery}".` : "Check back later for discussions."}
+                    </p>
                 </div>
               )}
             </CardContent>
@@ -329,5 +346,3 @@ export default function EngagementPage() {
     </div>
   );
 }
-
-    
