@@ -10,7 +10,7 @@ import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { BookOpen } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
-import { initiateEmailSignIn } from '@/firebase/non-blocking-login';
+import { initiateEmailSignIn, initiateGoogleSignIn } from '@/firebase/non-blocking-login';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 
@@ -36,6 +36,15 @@ export default function LoginPage() {
     toast({
       title: 'Logging In...',
       description: 'Please wait while we check your credentials.',
+    });
+  };
+
+  const handleGoogleLogin = () => {
+    if (!auth) return;
+    initiateGoogleSignIn(auth);
+    toast({
+      title: 'Redirecting to Google...',
+      description: 'Please follow the prompts to sign in.',
     });
   };
 
@@ -108,7 +117,7 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full" disabled={isUserLoading}>
                   {isUserLoading ? 'Logging in...' : 'Login'}
                 </Button>
-                <Button variant="outline" className="w-full" disabled>
+                <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isUserLoading}>
                   Login with Google
                 </Button>
               </form>
@@ -125,3 +134,5 @@ export default function LoginPage() {
     </div>
   );
 }
+
+    
