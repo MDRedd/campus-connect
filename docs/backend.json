@@ -320,6 +320,10 @@
           "description": "URL to access the submission file.",
           "format": "uri"
         },
+        "comments": {
+          "type": "string",
+          "description": "Optional comments from the student."
+        },
         "marksAwarded": {
           "type": "number",
           "description": "The marks awarded for the submission."
@@ -825,14 +829,18 @@
         }
       },
       {
-        "path": "/assignments/{assignmentId}/submissions/{submissionId}",
+        "path": "/courses/{courseId}/assignments/{assignmentId}/submissions/{submissionId}",
         "definition": {
           "entityName": "Submission",
           "schema": {
             "$ref": "#/backend/entities/Submission"
           },
-          "description": "Stores submission data for a specific assignment.",
+          "description": "Stores submission data for a specific assignment within a course.",
           "params": [
+            {
+              "name": "courseId",
+              "description": "The unique identifier for the course."
+            },
             {
               "name": "assignmentId",
               "description": "The unique identifier for the assignment."

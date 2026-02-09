@@ -58,6 +58,12 @@ const materialSchema = z.object({
   fileUrl: z.string().url('Please enter a valid URL.'),
 });
 
+const submissionSchema = z.object({
+  fileUrl: z.string().url({ message: "Please enter a valid URL for your submission." }),
+  comments: z.string().optional(),
+});
+
+
 export default function AcademicsPage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
@@ -70,6 +76,8 @@ export default function AcademicsPage() {
 
   const [openAssignmentDialog, setOpenAssignmentDialog] = useState(false);
   const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
+  const [openSubmissionDialog, setOpenSubmissionDialog] = useState(false);
+  const [selectedAssignment, setSelectedAssignment] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -80,14 +88,10 @@ export default function AcademicsPage() {
 
   // Data fetching for all courses (needed for both roles to map IDs to names)
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !authUser) return null; // Wait for user
     return collection(firestore, 'courses');
-  }, [firestore]);
+  }, [firestore, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
-  const courseMap = useMemo(() => {
-    if (!allCourses) return new Map();
-    return new Map(allCourses.map(c => [c.id, c]));
-  }, [allCourses]);
 
   // Role-specific data
   const [displayCourses, setDisplayCourses] = useState<Course[] | null>(null);
@@ -222,6 +226,7 @@ export default function AcademicsPage() {
 
   const assignmentForm = useForm<z.infer<typeof assignmentSchema>>({ resolver: zodResolver(assignmentSchema) });
   const materialForm = useForm<z.infer<typeof materialSchema>>({ resolver: zodResolver(materialSchema) });
+  const submissionForm = useForm<z.infer<typeof submissionSchema>>({ resolver: zodResolver(submissionSchema) });
 
   async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
     if (!firestore) return;
@@ -230,6 +235,7 @@ export default function AcademicsPage() {
         await addDoc(courseRef, {
             title: values.title,
             description: values.description,
+            courseId: values.courseId, // Storing courseId for the corrected submission path
             deadline: new Date(values.deadline).toISOString(),
         });
         toast({ title: 'Success', description: 'Assignment added.' });
@@ -260,6 +266,27 @@ export default function AcademicsPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'Could not add study material.' });
       }
   }
+
+  async function onAddSubmission(values: z.infer<typeof submissionSchema>) {
+    if (!firestore || !authUser || !selectedAssignment) return;
+    try {
+        const submissionRef = collection(firestore, 'courses', selectedAssignment.courseId, 'assignments', selectedAssignment.id, 'submissions');
+        await addDoc(submissionRef, {
+            assignmentId: selectedAssignment.id,
+            studentId: authUser.uid,
+            submissionDate: new Date().toISOString(),
+            fileUrl: values.fileUrl,
+            comments: values.comments,
+        });
+        toast({ title: 'Success', description: 'Assignment submitted successfully.' });
+        setOpenSubmissionDialog(false);
+        submissionForm.reset();
+    } catch (error) {
+        console.error("Error submitting assignment:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not submit assignment.' });
+    }
+  }
+
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading;
 
@@ -350,7 +377,12 @@ export default function AcademicsPage() {
                         <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
                         <CardFooter className="flex justify-between items-center">
                         <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                        {!isFaculty && <Button>Submit</Button>}
+                        {!isFaculty && (
+                            <Button onClick={() => {
+                                setSelectedAssignment(assignment);
+                                setOpenSubmissionDialog(true);
+                            }}>Submit</Button>
+                        )}
                         </CardFooter>
                     </Card>
                     ))
@@ -445,6 +477,39 @@ export default function AcademicsPage() {
                 <p className="text-sm whitespace-pre-wrap">{summary}</p>
             )}
             </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={openSubmissionDialog} onOpenChange={setOpenSubmissionDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>Submit: {selectedAssignment?.title}</DialogTitle>
+                <DialogDescription>Upload your assignment file and add any comments.</DialogDescription>
+            </DialogHeader>
+            <Form {...submissionForm}>
+                <form onSubmit={submissionForm.handleSubmit(onAddSubmission)} className="space-y-4">
+                    <FormField control={submissionForm.control} name="fileUrl" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Submission File URL</FormLabel>
+                            <FormControl><Input type="url" placeholder="https://docs.google.com/document/d/..." {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <FormField control={submissionForm.control} name="comments" render={({ field }) => (
+                        <FormItem>
+                            <FormLabel>Comments (Optional)</FormLabel>
+                            <FormControl><Textarea placeholder="Add any comments for your instructor..." {...field} /></FormControl>
+                            <FormMessage />
+                        </FormItem>
+                    )} />
+                    <DialogFooter>
+                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                        <Button type="submit" disabled={submissionForm.formState.isSubmitting}>
+                            {submissionForm.formState.isSubmitting ? "Submitting..." : "Submit Assignment"}
+                        </Button>
+                    </DialogFooter>
+                </form>
+            </Form>
         </DialogContent>
       </Dialog>
     </div>

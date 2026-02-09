@@ -111,11 +111,13 @@ service cloud.firestore {
     match /courses/{courseId}/assignments/{assignmentId} {
       allow get, list: if isSignedIn();
       allow create, update, delete: if isFacultyOrAdmin();
-    }
 
-    match /assignments/{assignmentId}/submissions/{submissionId} {
-      allow get, list, update, delete: if isExistingDoc() && isOwner(resource.data.studentId);
-      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      match /submissions/{submissionId} {
+        allow get, list, update, delete: if isExistingDoc() && isOwner(resource.data.studentId);
+        allow create: if isSignedIn() 
+                      && request.resource.data.studentId == request.auth.uid
+                      && request.resource.data.assignmentId == assignmentId;
+      }
     }
 
     match /courses/{courseId}/study_materials/{studyMaterialId} {
