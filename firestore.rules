@@ -79,7 +79,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get, update, delete: if isOwner(userId);
-      allow list: if false;
+      allow list: if isAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
     }
 

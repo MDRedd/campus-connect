@@ -1,41 +1,32 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { BookOpen, CheckCircle, Percent, Users } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+import { LucideIcon } from 'lucide-react';
 
-type QuickStatsProps = {
-  userRole: 'student' | 'faculty' | 'admin';
+type QuickStat = {
+  title: string;
+  value: string;
+  icon: LucideIcon;
 };
 
-export default function QuickStats({ userRole }: QuickStatsProps) {
-  // In a real app, these stats would come from an API
-  const studentStats = [
-    { title: 'Enrolled Courses', value: '4', icon: BookOpen },
-    { title: 'Overall Attendance', value: '89%', icon: Percent },
-    { title: 'Assignments Due', value: '2', icon: CheckCircle },
-  ];
-  
-  const facultyStats = [
-    { title: 'Active Courses', value: '3', icon: BookOpen },
-    { title: 'Students', value: '128', icon: Users },
-    { title: 'Submissions to Grade', value: '15', icon: CheckCircle },
-  ];
-  
-  const adminStats = [
-    { title: 'Total Students', value: '2,543', icon: Users },
-    { title: 'Total Faculty', value: '189', icon: Users },
-    { title: 'Total Courses', value: '350', icon: BookOpen },
-  ];
+type QuickStatsProps = {
+  stats: QuickStat[] | null;
+  isLoading: boolean;
+};
 
-  let stats;
-  switch (userRole) {
-    case 'faculty':
-      stats = facultyStats;
-      break;
-    case 'admin':
-      stats = adminStats;
-      break;
-    case 'student':
-    default:
-      stats = studentStats;
+export default function QuickStats({ stats, isLoading }: QuickStatsProps) {
+
+  if (isLoading) {
+    return (
+        <div className="grid gap-4 md:grid-cols-3">
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+            <Skeleton className="h-24" />
+        </div>
+    )
+  }
+
+  if (!stats) {
+    return null; // or some placeholder/error state
   }
 
   return (

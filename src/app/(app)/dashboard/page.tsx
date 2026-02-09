@@ -12,6 +12,13 @@ import RecentAnnouncements from './components/recent-announcements';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/lib/data';
 
+type QuickStat = {
+  title: string;
+  value: string;
+  icon: React.ElementType;
+};
+
+
 export default function DashboardPage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
@@ -125,8 +132,54 @@ export default function DashboardPage() {
     });
   }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areCoursesLoading, areEnrollmentsLoading]);
 
+  // Query for all users if admin
+    const allUsersQuery = useMemoFirebase(() => {
+        if (!firestore || !userProfile || userProfile.role !== 'admin') return null;
+        return collection(firestore, 'users');
+    }, [firestore, userProfile]);
+    const { data: allUsers, isLoading: areAllUsersLoading } = useCollection<{role: string}>(allUsersQuery);
 
-  if (isAuthUserLoading || isUserProfileLoading) {
+    const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
+
+    useEffect(() => {
+        if (isUserProfileLoading || areEnrollmentsLoading || isAttendanceLoading) return;
+        if (!userProfile) return;
+
+        const getStats = async () => {
+            let stats: QuickStat[] = [];
+            if (userProfile.role === 'student') {
+                const overallAttendance = attendanceData ? Math.round(attendanceData.reduce((acc, curr) => acc + curr.percentage, 0) / (attendanceData.length || 1)) : 0;
+                stats = [
+                    { title: 'Enrolled Courses', value: (enrollments?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
+                    { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: require('lucide-react').Percent },
+                    { title: 'Assignments Due', value: '2', icon: require('lucide-react').CheckCircle }, // Static
+                ];
+            } else if (userProfile.role === 'faculty') {
+                 stats = [
+                    { title: 'Active Courses', value: '3', icon: require('lucide-react').BookOpen }, // Static for now
+                    { title: 'Students', value: '128', icon: require('lucide-react').Users }, // Static
+                    { title: 'Submissions to Grade', value: '15', icon: require('lucide-react').CheckCircle }, // Static
+                ];
+            } else if (userProfile.role === 'admin') {
+                if (areAllUsersLoading || areCoursesLoading) return;
+                const studentCount = allUsers?.filter(u => u.role === 'student').length ?? 0;
+                const facultyCount = allUsers?.filter(u => u.role === 'faculty').length ?? 0;
+                stats = [
+                    { title: 'Total Students', value: studentCount.toString(), icon: require('lucide-react').Users },
+                    { title: 'Total Faculty', value: facultyCount.toString(), icon: require('lucide-react').Users },
+                    { title: 'Total Courses', value: (courses?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
+                ];
+            }
+            setQuickStats(stats);
+        }
+
+        getStats();
+    }, [userProfile, isUserProfileLoading, areEnrollmentsLoading, isAttendanceLoading, enrollments, attendanceData, allUsers, areAllUsersLoading, courses, areCoursesLoading]);
+
+
+  const isPageLoading = isAuthUserLoading || isUserProfileLoading;
+
+  if (isPageLoading) {
     return (
         <div className="flex flex-col gap-6">
             <Skeleton className="h-12 w-1/2" />
@@ -151,11 +204,12 @@ export default function DashboardPage() {
   }
   
   const displayAnnouncements = announcements?.map(a => ({...a, content: a.description, date: new Date(a.date).toLocaleDateString()}));
+  const areQuickStatsLoading = !quickStats;
 
   return (
     <div className="flex flex-col gap-6">
       <WelcomeBanner user={userProfile} />
-      <QuickStats userRole={userProfile.role} />
+      <QuickStats stats={quickStats} isLoading={areQuickStatsLoading} />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="lg:col-span-2">
           {(areTodaysClassesLoading || areEnrollmentsLoading || areCoursesLoading) ? (
