@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, query, where, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -51,32 +51,28 @@ export default function MarkAttendancePage() {
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
   
   useEffect(() => {
-    if (!firestore || !authUser || areAllCoursesLoading) return;
-    if (allCourses === null) return;
+    if (!firestore || !authUser || areAllCoursesLoading || !allCourses) return;
 
     const fetchFacultyCourses = async () => {
       setAreCoursesLoading(true);
       try {
-        if (!allCourses) {
-          setFacultyCourses([]);
-          return;
-        }
-
-        const facultyCourseIds = new Set<string>();
-        // This loop performs a query for each course. It is less efficient than a collection group query
-        // but avoids the need for a composite index, which can be difficult to manage automatically.
-        for (const course of allCourses) {
-          const timetablesForCourseQuery = query(
-            collection(firestore, 'courses', course.id, 'timetables'),
+        // 1. Find all timetable entries for this faculty
+        const timetablesQuery = query(
+            collectionGroup(firestore, 'timetables'),
             where('facultyId', '==', authUser.uid)
-          );
-          const timetableSnapshot = await getDocs(timetablesForCourseQuery);
-          if (!timetableSnapshot.empty) {
-            facultyCourseIds.add(course.id);
-          }
+        );
+        const timetableSnapshot = await getDocs(timetablesQuery);
+
+        // 2. Get unique course IDs from the timetable entries
+        const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+
+        // 3. Filter the already fetched allCourses list
+        if (facultyCourseIds.length > 0) {
+            const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
+            setFacultyCourses(courses);
+        } else {
+            setFacultyCourses([]);
         }
-        const courses = allCourses.filter(course => facultyCourseIds.has(course.id));
-        setFacultyCourses(courses);
 
       } catch (error: any) {
         console.error("Error fetching faculty courses:", error);
@@ -250,5 +246,3 @@ export default function MarkAttendancePage() {
     </div>
   );
 }
-
-    

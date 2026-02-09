@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, getDocs, addDoc } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs, addDoc, collectionGroup } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -152,19 +152,23 @@ export default function ResultsPage() {
     const fetchFacultyCourses = async () => {
       setAreFacultyCoursesLoading(true);
       try {
-        const facultyCourseIds = new Set<string>();
-        for (const course of allCourses) {
-          const timetablesForCourseQuery = query(
-            collection(firestore, 'courses', course.id, 'timetables'),
+        // 1. Find all timetable entries for this faculty
+        const timetablesQuery = query(
+            collectionGroup(firestore, 'timetables'),
             where('facultyId', '==', authUser.uid)
-          );
-          const timetableSnapshot = await getDocs(timetablesForCourseQuery);
-          if (!timetableSnapshot.empty) {
-            facultyCourseIds.add(course.id);
-          }
+        );
+        const timetableSnapshot = await getDocs(timetablesQuery);
+
+        // 2. Get unique course IDs from the timetable entries
+        const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+
+        // 3. Filter the already fetched allCourses list
+        if (facultyCourseIds.length > 0) {
+            const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
+            setFacultyCourses(courses);
+        } else {
+            setFacultyCourses([]);
         }
-        const courses = allCourses.filter(course => facultyCourseIds.has(course.id));
-        setFacultyCourses(courses);
       } catch (error) {
         console.error("Error fetching faculty courses:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your courses.' });
@@ -364,5 +368,3 @@ export default function ResultsPage() {
     </Card>
   );
 }
-
-    

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -96,7 +96,7 @@ export default function AcademicsPage() {
 
   // Data fetching for all courses (needed for both roles to map IDs to names)
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthUserLoading || !authUser) return null; // Wait for user
+    if (!firestore || isAuthUserLoading || !authUser) return null;
     return collection(firestore, 'courses');
   }, [firestore, isAuthUserLoading, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
@@ -130,27 +130,29 @@ export default function AcademicsPage() {
     const getCourses = async () => {
         setAreDisplayCoursesLoading(true);
         if (isFaculty) {
-            // Logic for faculty
+            // Efficiently fetch courses for faculty using a collection group query
             if (!firestore || !authUser || !allCourses) {
                 setDisplayCourses([]);
                 setAreDisplayCoursesLoading(false);
                 return;
             }
             try {
-                const facultyCourseIds = new Set<string>();
-                // This loop performs a query for each course. It is less efficient than a collection group query
-                // but avoids the need for a composite index, which can be difficult to manage automatically.
-                for (const course of allCourses) {
-                    const timetablesForCourseQuery = query(
-                        collection(firestore, 'courses', course.id, 'timetables'),
-                        where('facultyId', '==', authUser.uid)
-                    );
-                    const timetableSnapshot = await getDocs(timetablesForCourseQuery);
-                    if (!timetableSnapshot.empty) {
-                        facultyCourseIds.add(course.id);
-                    }
+                // 1. Find all timetable entries for this faculty
+                const timetablesQuery = query(
+                    collectionGroup(firestore, 'timetables'),
+                    where('facultyId', '==', authUser.uid)
+                );
+                const timetableSnapshot = await getDocs(timetablesQuery);
+
+                // 2. Get unique course IDs from the timetable entries
+                const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+
+                // 3. Filter the already fetched allCourses list
+                if (facultyCourseIds.length > 0) {
+                    setDisplayCourses(allCourses.filter(course => facultyCourseIds.includes(course.id)));
+                } else {
+                    setDisplayCourses([]);
                 }
-                setDisplayCourses(allCourses.filter(course => facultyCourseIds.has(course.id)));
             } catch (error) {
                 console.error("Error fetching faculty courses:", error);
                 toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your courses.' });
@@ -600,5 +602,3 @@ export default function AcademicsPage() {
     </div>
   );
 }
-
-    
