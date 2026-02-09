@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, getDocs, query, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
+import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -22,16 +22,37 @@ import {
   Calendar as CalendarIcon,
   Search,
   ArrowRight,
+  PlusCircle,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Textarea } from '@/components/ui/textarea';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
 type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
 type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
+type UserProfile = { role: 'student' | 'faculty' | 'admin' };
+
+const clubSchema = z.object({
+  name: z.string().min(3, 'Club name must be at least 3 characters long.'),
+  description: z.string().min(10, 'Description must be at least 10 characters long.'),
+});
 
 export default function EngagementPage() {
     const firestore = useFirestore();
@@ -39,9 +60,17 @@ export default function EngagementPage() {
     const { toast } = useToast();
     const [joiningClubId, setJoiningClubId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
+    const [openClubDialog, setOpenClubDialog] = useState(false);
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
+
+    const userDocRef = useMemoFirebase(() => {
+      if (!firestore || !user) return null;
+      return doc(firestore, 'users', user.uid);
+    }, [firestore, user]);
+    const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
+    const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role === 'admin';
 
     const coursesQuery = useMemoFirebase(() => {
         if (!firestore || isAuthLoading || !user) return null;
@@ -107,6 +136,9 @@ export default function EngagementPage() {
         );
     }, [forums, searchQuery]);
 
+    const clubForm = useForm<z.infer<typeof clubSchema>>({
+      resolver: zodResolver(clubSchema),
+    });
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
@@ -135,7 +167,26 @@ export default function EngagementPage() {
         }
     };
 
-    const isLoading = isAuthLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
+    async function onCreateClub(values: z.infer<typeof clubSchema>) {
+      if (!firestore || !user) return;
+      try {
+          const clubsRef = collection(firestore, 'clubs');
+          await addDoc(clubsRef, {
+              name: values.name,
+              description: values.description,
+              facultyIncharge: user.uid,
+              members: [],
+          });
+          toast({ title: 'Success', description: 'Club created successfully.' });
+          setOpenClubDialog(false);
+          clubForm.reset();
+      } catch (error) {
+          console.error("Error creating club:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not create club.' });
+      }
+    }
+
+    const isLoading = isAuthLoading || isUserProfileLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -223,12 +274,31 @@ export default function EngagementPage() {
 
         <TabsContent value="clubs" className="mt-6">
             <Card>
-                <CardHeader>
-                    <CardTitle>Student Clubs</CardTitle>
-                    <CardDescription>Find your community and explore your interests.</CardDescription>
+                <CardHeader className="flex-row justify-between items-start">
+                    <div>
+                        <CardTitle>Student Clubs</CardTitle>
+                        <CardDescription>Find your community and explore your interests.</CardDescription>
+                    </div>
+                    {isFacultyOrAdmin && (
+                        <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
+                            <DialogTrigger asChild>
+                                <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Club</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader><DialogTitle>Create New Club</DialogTitle></DialogHeader>
+                                <Form {...clubForm}>
+                                    <form onSubmit={clubForm.handleSubmit(onCreateClub)} className="space-y-4">
+                                        <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Club Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Club</Button></DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {areClubsLoading ? (
+                    {areClubsLoading || isUserProfileLoading ? (
                          [...Array(3)].map((_, i) => (
                             <Card key={i}>
                                 <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
