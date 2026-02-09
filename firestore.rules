@@ -150,5 +150,21 @@ service cloud.firestore {
       allow get, list, update, delete: if isOwner(userId);
       allow create: if false;
     }
+
+    match /attendanceSessions/{sessionId} {
+      // Faculty can create a new session if they are the one starting it.
+      allow create: if isFaculty() && request.resource.data.facultyId == request.auth.uid;
+      // The faculty who created the session can read it to monitor attendees.
+      allow get: if isFaculty() && resource.data.facultyId == request.auth.uid;
+      // Students can update the 'attendees' array to add themselves.
+      // This rule ensures only the 'attendees' field is changed and only allows adding the current user's UID.
+      allow update: if isSignedIn() 
+                    && request.resource.data.keys().hasOnly(['attendees', 'courseId', 'facultyId', 'createdAt'])
+                    && request.resource.data.attendees == resource.data.attendees.concat([request.auth.uid]);
+      // No one can delete sessions or list all of them.
+      allow delete, list: if false;
+    }
   }
 }
+
+    

@@ -639,6 +639,44 @@
         "read",
         "createdAt"
       ]
+    },
+    "AttendanceSession": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "AttendanceSession",
+      "type": "object",
+      "description": "Represents a single class session for taking attendance via QR code.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the AttendanceSession entity."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to the Course for this session."
+        },
+        "facultyId": {
+          "type": "string",
+          "description": "Reference to the User (Faculty) who initiated the session."
+        },
+        "createdAt": {
+          "type": "string",
+          "description": "The timestamp when the session was created.",
+          "format": "date-time"
+        },
+        "attendees": {
+          "type": "array",
+          "description": "A list of student UIDs who have successfully scanned the QR code for this session.",
+          "items": {
+            "type": "string"
+          }
+        }
+      },
+      "required": [
+        "id",
+        "courseId",
+        "facultyId",
+        "createdAt"
+      ]
     }
   },
   "auth": {
@@ -952,8 +990,25 @@
             }
           ]
         }
+      },
+      {
+        "path": "/attendanceSessions/{sessionId}",
+        "definition": {
+          "entityName": "AttendanceSession",
+          "schema": {
+            "$ref": "#/backend/entities/AttendanceSession"
+          },
+          "description": "Stores live attendance data for a class session. Created by faculty, updated by students.",
+          "params": [
+            {
+              "name": "sessionId",
+              "description": "The unique identifier for the attendance session."
+            }
+          ]
+        }
       }
     ],
     "reasoning": "The Firestore structure is designed to support the CampusConnect platform's core features, including user authentication, attendance management, timetable management, semester results, academics, and student engagement. The design prioritizes authorization independence and supports secure list operations. Hierarchical paths are employed where appropriate (e.g., user-owned data).  Denormalization is used to avoid `get()` calls in security rules. Specifically, for collaborative entities such as Course forums the members map is denormalized into the ForumPost documents.  The structure assumes appropriate indexing will be configured to support common queries."
   }
 }
+    

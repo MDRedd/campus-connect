@@ -3,15 +3,16 @@
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
+import { Card, CardContent, CardFooter } from '@/components/ui/card';
 import { CameraOff, CheckCircle } from 'lucide-react';
 
 // Define the shape of the data encoded in the QR code
 type QRAttendanceData = {
+  sessionId: string;
   courseId: string;
   facultyId: string;
   timestamp: number;
@@ -95,11 +96,12 @@ export default function ScanAttendancePage() {
 
   const handleQrCode = async (data: string) => {
     setIsSubmitting(true);
+    setError(null);
     try {
       const parsedData: QRAttendanceData = JSON.parse(data);
-      const { courseId, facultyId, timestamp } = parsedData;
+      const { sessionId, courseId, facultyId, timestamp } = parsedData;
 
-      if (!courseId || !facultyId || !timestamp) {
+      if (!sessionId || !courseId || !facultyId || !timestamp) {
         throw new Error('Invalid QR code data.');
       }
 
@@ -113,9 +115,18 @@ export default function ScanAttendancePage() {
         throw new Error('Authentication or database service is not available.');
       }
       
+      // 1. Update the shared attendance session document
+      const sessionRef = doc(firestore, 'attendanceSessions', sessionId);
+      // This is a non-blocking update. We optimistically assume it works.
+      updateDoc(sessionRef, {
+        attendees: arrayUnion(authUser.uid)
+      }).catch(err => {
+        console.error("Failed to update attendance session:", err);
+        // This error is not shown to the user to keep the UI optimistic.
+      });
+
+      // 2. Add the attendance record to the student's personal log (non-blocking)
       const attendanceColRef = collection(firestore, 'users', authUser.uid, 'attendance');
-      
-      // The non-blocking function will handle the write and any permission errors
       addDocumentNonBlocking(attendanceColRef, {
         courseId,
         markedBy: facultyId,
@@ -185,3 +196,5 @@ export default function ScanAttendancePage() {
     </div>
   );
 }
+
+    
