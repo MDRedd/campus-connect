@@ -26,6 +26,10 @@ type UserProfile = {
   role: 'student' | 'faculty' | 'admin';
 };
 
+type Enrollment = {
+  courseId: string;
+};
+
 
 export default function AttendancePage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
@@ -41,7 +45,19 @@ export default function AttendancePage() {
     if (!firestore) return null;
     return collection(firestore, 'courses');
   }, [firestore]);
-  const { data: courses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+  const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+
+  const enrollmentsQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return collection(firestore, 'users', authUser.uid, 'enrollments');
+  }, [firestore, authUser]);
+  const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<Enrollment>(enrollmentsQuery);
+
+  const enrolledCourses = useMemo(() => {
+    if (!enrollments || !allCourses) return null;
+    const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
+    return allCourses.filter(course => enrolledCourseIds.has(course.id));
+  }, [enrollments, allCourses]);
 
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -51,7 +67,7 @@ export default function AttendancePage() {
     useCollection<AttendanceRecord>(attendanceQuery);
 
   const attendanceData = useMemo(() => {
-    if (isAttendanceLoading || areCoursesLoading || !attendanceRecords || !courses) {
+    if (isAttendanceLoading || areCoursesLoading || areEnrollmentsLoading || !attendanceRecords || !enrolledCourses) {
       return null;
     }
 
@@ -67,7 +83,7 @@ export default function AttendancePage() {
       }
     }
 
-    return courses
+    return enrolledCourses
         .map(course => {
             const courseStats = stats[course.id];
             if (!courseStats) {
@@ -92,9 +108,9 @@ export default function AttendancePage() {
         })
         .sort((a,b) => a.name.localeCompare(b.name));
         
-  }, [attendanceRecords, courses, isAttendanceLoading, areCoursesLoading]);
+  }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areCoursesLoading, areEnrollmentsLoading]);
 
-  const isLoading = isAuthUserLoading || areCoursesLoading || isAttendanceLoading || isUserProfileLoading;
+  const isLoading = isAuthUserLoading || areCoursesLoading || isAttendanceLoading || isUserProfileLoading || areEnrollmentsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -146,7 +162,7 @@ export default function AttendancePage() {
                   </div>
                   <Progress value={data.percentage} className="h-2" />
                 </div>
-                {data.percentage < 75 && (
+                {data.percentage < 75 && data.total > 0 && (
                     <p className="text-sm text-destructive">
                         Your attendance is low. Please attend classes regularly.
                     </p>
@@ -158,7 +174,7 @@ export default function AttendancePage() {
       ) : (
         <Card>
             <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">No attendance data available.</p>
+                <p className="text-muted-foreground">You are not enrolled in any courses or no attendance data is available.</p>
             </CardContent>
         </Card>
       )}

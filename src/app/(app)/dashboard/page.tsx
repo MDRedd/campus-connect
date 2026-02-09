@@ -97,7 +97,7 @@ export default function DashboardPage() {
 
 
   const attendanceData = useMemo(() => {
-    if (isAttendanceLoading || areCoursesLoading || !attendanceRecords || !courses) return null;
+    if (isAttendanceLoading || areCoursesLoading || areEnrollmentsLoading || !attendanceRecords || !enrolledCourses) return null;
 
     const stats: { [courseId: string]: { attended: number, total: number } } = {};
 
@@ -110,10 +110,12 @@ export default function DashboardPage() {
         stats[record.courseId].attended++;
       }
     }
+    
+    // We only want to show courses with attendance records in the chart.
+    const coursesWithAttendance = enrolledCourses.filter(c => stats[c.id]);
 
-    return Object.keys(stats).map(courseId => {
-      const course = courses.find(c => c.id === courseId);
-      const { attended, total } = stats[courseId];
+    return coursesWithAttendance.map(course => {
+      const { attended, total } = stats[course.id];
       return {
         name: course?.code || 'N/A',
         attended: attended,
@@ -121,7 +123,7 @@ export default function DashboardPage() {
         percentage: total > 0 ? Math.round((attended / total) * 100) : 0,
       };
     });
-  }, [attendanceRecords, courses, isAttendanceLoading, areCoursesLoading]);
+  }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areCoursesLoading, areEnrollmentsLoading]);
 
 
   if (isAuthUserLoading || isUserProfileLoading) {
@@ -148,7 +150,7 @@ export default function DashboardPage() {
     return <div>Could not load user profile. Please try logging in again.</div>
   }
   
-  const displayAnnouncements = announcements?.map(a => ({...a, content: a.description}));
+  const displayAnnouncements = announcements?.map(a => ({...a, content: a.description, date: new Date(a.date).toLocaleDateString()}));
 
   return (
     <div className="flex flex-col gap-6">
@@ -162,16 +164,16 @@ export default function DashboardPage() {
             todaysClasses && <UpcomingClasses timetable={todaysClasses} />
           )}
         </div>
-        {attendanceData ? (
-          <AttendanceChart data={attendanceData} />
-        ) : (
+        {(isAttendanceLoading || areCoursesLoading || areEnrollmentsLoading) ? (
           <Skeleton className="h-80" />
+        ) : (
+          attendanceData && <AttendanceChart data={attendanceData} />
         )}
       </div>
-      {displayAnnouncements ? (
-        <RecentAnnouncements announcements={displayAnnouncements} />
+      {isAnnouncementsLoading ? (
+         <Skeleton className="h-64" />
       ) : (
-        <Skeleton className="h-64" />
+        displayAnnouncements && <RecentAnnouncements announcements={displayAnnouncements} />
       )}
     </div>
   );
