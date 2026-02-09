@@ -2,8 +2,8 @@
 
 import { useState, useRef, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
-import { useUser, useFirestore, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp, doc, updateDoc, arrayUnion } from 'firebase/firestore';
+import { useUser, useFirestore, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, doc, arrayUnion } from 'firebase/firestore';
 import { useToast } from '@/hooks/use-toast';
 import { Alert, AlertTitle, AlertDescription } from '@/components/ui/alert';
 import { Button } from '@/components/ui/button';
@@ -122,11 +122,8 @@ export default function ScanAttendancePage() {
       // 1. Update the shared attendance session document
       const sessionRef = doc(firestore, 'attendanceSessions', sessionId);
       // This is a non-blocking update. We optimistically assume it works.
-      updateDoc(sessionRef, {
+      updateDocumentNonBlocking(sessionRef, {
         attendees: arrayUnion(authUser.uid)
-      }).catch(err => {
-        console.error("Failed to update attendance session:", err);
-        // This error is not shown to the user to keep the UI optimistic.
       });
 
       // 2. Add the attendance record to the student's personal log (non-blocking)
