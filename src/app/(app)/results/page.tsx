@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, getDocs, addDoc, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, doc, getDocs, addDoc, collectionGroup, updateDoc, deleteDoc } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -27,7 +27,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, GraduationCap, PlusCircle } from 'lucide-react';
+import { Download, GraduationCap, PlusCircle, Edit, Trash2 } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -45,8 +45,11 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
 type Result = {
+  id?: string;
+  studentId?: string;
   courseId: string;
   semester: string;
   year: number;
@@ -87,6 +90,7 @@ export default function ResultsPage() {
   const { toast } = useToast();
   
   const [openResultDialog, setOpenResultDialog] = useState(false);
+  const [editingResult, setEditingResult] = useState<(Result & { studentName?: string; courseCode?: string}) | null>(null);
 
   // --- Common ---
   const userDocRef = useMemoFirebase(() => {
@@ -146,26 +150,23 @@ export default function ResultsPage() {
   }, [firestore, userProfile]);
   const { data: allStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(allStudentsQuery);
   
+    const [facultyResults, setFacultyResults] = useState<(Result & { studentName: string; courseCode: string; })[] | null>(null);
+    const [areFacultyResultsLoading, setAreFacultyResultsLoading] = useState(true);
+  
   useEffect(() => {
     if (!userProfile || userProfile.role !== 'faculty' || !firestore || !authUser || areAllCoursesLoading || !allCourses) return;
     
     const fetchFacultyCourses = async () => {
       setAreFacultyCoursesLoading(true);
       try {
-        // 1. Find all timetable entries for this faculty
         const timetablesQuery = query(
             collectionGroup(firestore, 'timetables'),
             where('facultyId', '==', authUser.uid)
         );
         const timetableSnapshot = await getDocs(timetablesQuery);
-
-        // 2. Get unique course IDs from the timetable entries
         const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
-
-        // 3. Filter the already fetched allCourses list
         if (facultyCourseIds.length > 0) {
-            const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
-            setFacultyCourses(courses);
+            setFacultyCourses(allCourses.filter(course => facultyCourseIds.includes(course.id)));
         } else {
             setFacultyCourses([]);
         }
@@ -180,35 +181,118 @@ export default function ResultsPage() {
     fetchFacultyCourses();
   }, [firestore, authUser, allCourses, areAllCoursesLoading, userProfile, toast]);
 
+    useEffect(() => {
+        if (userProfile?.role !== 'faculty' || !firestore || areFacultyCoursesLoading || areStudentsLoading) return;
+        if (!facultyCourses || !allStudents) {
+            setAreFacultyResultsLoading(false);
+            return;
+        }
+        if (facultyCourses.length === 0) {
+            setFacultyResults([]);
+            setAreFacultyResultsLoading(false);
+            return;
+        }
+
+        const fetchResults = async () => {
+            setAreFacultyResultsLoading(true);
+            const results: (Result & { studentName: string; courseCode: string; })[] = [];
+            const studentMap = new Map(allStudents.map(s => [s.id, s.name]));
+            const courseMap = new Map(facultyCourses.map(c => [c.id, c.code]));
+
+            try {
+                const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', 'in', facultyCourses.map(c => c.id)));
+                const querySnapshot = await getDocs(resultsQuery);
+                
+                querySnapshot.forEach(docSnap => {
+                    const data = docSnap.data() as Result;
+                    const parentPath = docSnap.ref.parent.parent;
+                    if (parentPath) {
+                        results.push({
+                            ...data,
+                            id: docSnap.id,
+                            studentId: parentPath.id,
+                            studentName: studentMap.get(parentPath.id) || 'Unknown Student',
+                            courseCode: courseMap.get(data.courseId) || 'N/A'
+                        });
+                    }
+                });
+                results.sort((a, b) => b.year - a.year || a.semester.localeCompare(b.semester));
+                setFacultyResults(results);
+            } catch (error) {
+                console.error("Error fetching faculty results:", error);
+                setFacultyResults([]);
+            } finally {
+                setAreFacultyResultsLoading(false);
+            }
+        }
+        fetchResults();
+
+  }, [firestore, facultyCourses, allStudents, userProfile, areFacultyCoursesLoading, areStudentsLoading]);
+
+
   const resultForm = useForm<z.infer<typeof resultSchema>>({
     resolver: zodResolver(resultSchema),
     defaultValues: {
-        semester: '',
         year: new Date().getFullYear(),
-        marks: 0,
-        grade: '',
         published: false
     }
   });
 
-  async function onAddResult(values: z.infer<typeof resultSchema>) {
+  const handleAddNewClick = () => {
+    setEditingResult(null);
+    resultForm.reset({
+        year: new Date().getFullYear(),
+        published: false
+    });
+    setOpenResultDialog(true);
+  };
+  
+  const handleEditClick = (result: Result & { studentName: string; courseCode: string }) => {
+    setEditingResult(result);
+    resultForm.reset({
+        studentId: result.studentId,
+        courseId: result.courseId,
+        semester: result.semester,
+        year: result.year,
+        marks: result.marks,
+        grade: result.grade,
+        published: result.published,
+    });
+    setOpenResultDialog(true);
+  };
+
+  const handleDelete = async (result: Result) => {
+    if (!firestore || !result.id || !result.studentId) return;
+    if (!confirm('Are you sure you want to delete this result? This action cannot be undone.')) return;
+
+    try {
+        const resultRef = doc(firestore, 'users', result.studentId, 'results', result.id);
+        await deleteDoc(resultRef);
+        toast({ title: 'Success', description: 'Result deleted.' });
+    } catch (error) {
+        console.error("Error deleting result:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete result.' });
+    }
+  };
+
+
+  async function onResultSubmit(values: z.infer<typeof resultSchema>) {
     if (!firestore) return;
     try {
-        const resultsRef = collection(firestore, 'users', values.studentId, 'results');
-        await addDoc(resultsRef, {
-            courseId: values.courseId,
-            semester: values.semester,
-            year: values.year,
-            marks: values.marks,
-            grade: values.grade,
-            published: values.published,
-        });
-        toast({ title: 'Success', description: 'Result added successfully.' });
+        if (editingResult && editingResult.id && editingResult.studentId) {
+            const resultRef = doc(firestore, 'users', editingResult.studentId, 'results', editingResult.id);
+            await updateDoc(resultRef, values);
+            toast({ title: 'Success', description: 'Result updated.' });
+        } else {
+            const resultsRef = collection(firestore, 'users', values.studentId, 'results');
+            await addDoc(resultsRef, values);
+            toast({ title: 'Success', description: 'Result added successfully.' });
+        }
         setOpenResultDialog(false);
-        resultForm.reset();
+        setEditingResult(null);
     } catch (error) {
-        console.error("Error adding result:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not add result.' });
+        console.error("Error saving result:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not save result.' });
     }
   }
 
@@ -222,10 +306,7 @@ export default function ResultsPage() {
                 <Skeleton className="h-5 w-3/4" />
             </CardHeader>
             <CardContent>
-                <div className="space-y-4">
-                    <Skeleton className="h-12 w-full" />
-                    <Skeleton className="h-48 w-full" />
-                </div>
+                <Skeleton className="h-64 w-full" />
             </CardContent>
         </Card>
     )
@@ -233,26 +314,27 @@ export default function ResultsPage() {
 
   // FACULTY VIEW
   if (userProfile?.role === 'faculty') {
+    const isFacultyDataLoading = areFacultyCoursesLoading || areStudentsLoading || areFacultyResultsLoading;
     return (
         <Card className="w-full">
             <CardHeader className="flex-row justify-between items-start">
               <div>
                 <CardTitle className="text-3xl font-bold">Manage Results</CardTitle>
-                <CardDescription>Add and publish results for students.</CardDescription>
+                <CardDescription>Add, edit, and publish results for students in your courses.</CardDescription>
               </div>
               <Dialog open={openResultDialog} onOpenChange={setOpenResultDialog}>
                 <DialogTrigger asChild>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Result</Button>
+                    <Button onClick={handleAddNewClick}><PlusCircle className="mr-2 h-4 w-4" /> {editingResult ? 'Edit Result' : 'Add Result'}</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
-                    <DialogHeader><DialogTitle>Add New Result</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editingResult ? 'Edit Result' : 'Add New Result'}</DialogTitle></DialogHeader>
                     {areFacultyCoursesLoading || areStudentsLoading ? <Skeleton className="h-96"/> : (
                     <Form {...resultForm}>
-                        <form onSubmit={resultForm.handleSubmit(onAddResult)} className="space-y-4">
+                        <form onSubmit={resultForm.handleSubmit(onResultSubmit)} className="space-y-4">
                            <FormField control={resultForm.control} name="studentId" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Student</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a student" /></SelectTrigger></FormControl>
                                     <SelectContent>{allStudents?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -262,7 +344,7 @@ export default function ResultsPage() {
                             <FormField control={resultForm.control} name="courseId" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Course</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
                                     <SelectContent>{facultyCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -275,10 +357,7 @@ export default function ResultsPage() {
                             <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel>Grade</FormLabel><FormControl><Input placeholder="e.g., A+" {...field} /></FormControl><FormMessage /></FormItem> )} />
                              <FormField control={resultForm.control} name="published" render={({ field }) => (
                                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                    <div className="space-y-0.5">
-                                        <FormLabel>Publish Result</FormLabel>
-                                        <FormMessage />
-                                    </div>
+                                    <div className="space-y-0.5"><FormLabel>Publish Result</FormLabel></div>
                                     <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 </FormItem>
                             )} />
@@ -290,11 +369,43 @@ export default function ResultsPage() {
               </Dialog>
             </CardHeader>
             <CardContent>
-                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                    <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">Result Management</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Use the &quot;Add Result&quot; button to publish results for your students.</p>
-                </div>
+                <Table>
+                    <TableHeader>
+                        <TableRow>
+                            <TableHead>Student</TableHead>
+                            <TableHead>Course</TableHead>
+                            <TableHead>Semester</TableHead>
+                            <TableHead>Grade</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead className="text-right">Actions</TableHead>
+                        </TableRow>
+                    </TableHeader>
+                    <TableBody>
+                        {isFacultyDataLoading ? (
+                            [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8" /></TableCell></TableRow>)
+                        ) : facultyResults && facultyResults.length > 0 ? (
+                            facultyResults.map(result => (
+                                <TableRow key={result.id}>
+                                    <TableCell>{result.studentName}</TableCell>
+                                    <TableCell>{result.courseCode}</TableCell>
+                                    <TableCell>{result.semester} {result.year}</TableCell>
+                                    <TableCell className="font-bold">{result.grade}</TableCell>
+                                    <TableCell>
+                                        <Badge variant={result.published ? 'default' : 'secondary'}>
+                                            {result.published ? 'Published' : 'Draft'}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell className="text-right">
+                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(result)}><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(result)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow><TableCell colSpan={6} className="text-center h-24">No results found for your courses.</TableCell></TableRow>
+                        )}
+                    </TableBody>
+                </Table>
             </CardContent>
         </Card>
     );
