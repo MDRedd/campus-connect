@@ -20,8 +20,8 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const loginImage = PlaceHolderImages.find((img) => img.id === 'login-image');
-  const [email, setEmail] = useState('alex.j@example.com');
-  const [password, setPassword] = useState('password123');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -99,12 +99,6 @@ export default function LoginPage() {
                 <div className="grid gap-2">
                   <div className="flex items-center">
                     <Label htmlFor="password">Password</Label>
-                    <Link
-                      href="#"
-                      className="ml-auto inline-block text-sm underline"
-                    >
-                      Forgot your password?
-                    </Link>
                   </div>
                   <Input
                     id="password"
@@ -121,12 +115,6 @@ export default function LoginPage() {
                   Login with Google
                 </Button>
               </form>
-              <div className="mt-4 text-center text-sm">
-                Don&apos;t have an account?{' '}
-                <Link href="#" className="underline">
-                  Sign up
-                </Link>
-              </div>
             </CardContent>
           </Card>
         </div>
@@ -134,5 +122,3 @@ export default function LoginPage() {
     </div>
   );
 }
-
-    
