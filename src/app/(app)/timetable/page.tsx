@@ -1,5 +1,9 @@
 'use client';
 
+import { useMemo, useState, useEffect } from 'react';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, getDocs, query } from 'firebase/firestore';
+import type { Course } from '@/lib/data';
 import {
   Card,
   CardHeader,
@@ -7,9 +11,24 @@ import {
   CardContent,
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { studentTimetable } from '@/lib/data';
-import type { TimetableEntry } from '@/lib/data';
-import { Clock, User, MapPin } from 'lucide-react';
+import { Clock, MapPin } from 'lucide-react';
+import { Skeleton } from '@/components/ui/skeleton';
+
+type Timetable = {
+    id: string;
+    courseId: string;
+    facultyId: string;
+    dayOfWeek: string;
+    startTime: string;
+    endTime: string;
+    room: string;
+    semester: string;
+    year: number;
+    course: {
+        name: string;
+        code: string;
+    }
+};
 
 const daysOfWeek = [
   'Monday',
@@ -20,18 +39,83 @@ const daysOfWeek = [
 ];
 
 export default function TimetablePage() {
-  
-  const timetableByDay = daysOfWeek.reduce((acc, day) => {
-      acc[day] = studentTimetable.filter(t => t.day === day);
-      return acc;
-  }, {} as Record<string, TimetableEntry[]>);
+    const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+    const firestore = useFirestore();
 
-  // For demo purposes, let's make sure every day has something, and some days are empty
-  timetableByDay['Thursday'] = [
-      { ...studentTimetable[0], id: 'tt5', day: 'Thursday', startTime: '09:00', endTime: '10:00' }
-  ];
-  timetableByDay['Friday'] = [];
+    const coursesQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return collection(firestore, 'courses');
+    }, [firestore]);
+    const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+    
+    const enrollmentsQuery = useMemoFirebase(() => {
+        if (!firestore || !authUser) return null;
+        return collection(firestore, 'users', authUser.uid, 'enrollments');
+    }, [firestore, authUser]);
+    const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<{courseId: string}>(enrollmentsQuery);
+    
+    const enrolledCourses = useMemo(() => {
+        if (!enrollments || !allCourses) return null;
+        const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
+        return allCourses.filter(course => enrolledCourseIds.has(course.id));
+    }, [enrollments, allCourses]);
 
+    const [fullTimetable, setFullTimetable] = useState<Timetable[] | null>(null);
+    const [isTimetableLoading, setIsTimetableLoading] = useState(true);
+
+    useEffect(() => {
+        if (!firestore || !enrolledCourses) {
+            if (enrolledCourses === null) return; // Still loading
+             setFullTimetable([]);
+             setIsTimetableLoading(false);
+            return;
+        };
+        if (enrolledCourses.length === 0) {
+            setFullTimetable([]);
+            setIsTimetableLoading(false);
+            return;
+        }
+    
+        const fetchTimetable = async () => {
+          setIsTimetableLoading(true);
+          const allTimetableEntries: Timetable[] = [];
+    
+          try {
+            for (const course of enrolledCourses) {
+                const timetablesQuery = query(
+                    collection(firestore, 'courses', course.id, 'timetables')
+                );
+                const querySnapshot = await getDocs(timetablesQuery);
+                querySnapshot.forEach((doc) => {
+                    allTimetableEntries.push({
+                        id: doc.id,
+                        ...doc.data(),
+                        course: { name: course.name, code: course.code }
+                    } as Timetable);
+                });
+            }
+            allTimetableEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
+            setFullTimetable(allTimetableEntries);
+          } catch (error) {
+            console.error("Error fetching timetable:", error);
+            setFullTimetable([]);
+          }
+          setIsTimetableLoading(false);
+        };
+    
+        fetchTimetable();
+      }, [firestore, enrolledCourses]);
+
+      const timetableByDay = useMemo(() => {
+        if (!fullTimetable) return null;
+        return daysOfWeek.reduce((acc, day) => {
+            acc[day] = fullTimetable.filter(t => t.dayOfWeek === day);
+            return acc;
+        }, {} as Record<string, Timetable[]>);
+      }, [fullTimetable]);
+
+      const isLoading = isAuthUserLoading || areCoursesLoading || areEnrollmentsLoading || isTimetableLoading;
+      const today = new Date().toLocaleString('en-US', { weekday: 'long' });
 
   return (
     <div className="flex flex-col gap-6">
@@ -42,7 +126,7 @@ export default function TimetablePage() {
         </p>
       </div>
 
-      <Tabs defaultValue="Monday" className="w-full">
+      <Tabs defaultValue={daysOfWeek.includes(today) ? today : 'Monday'} className="w-full">
         <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
           {daysOfWeek.map((day) => (
             <TabsTrigger key={day} value={day}>
@@ -58,7 +142,12 @@ export default function TimetablePage() {
                 <CardTitle>{day}'s Schedule</CardTitle>
               </CardHeader>
               <CardContent>
-                {timetableByDay[day].length > 0 ? (
+                {isLoading ? (
+                    <div className="space-y-4">
+                        <Skeleton className="h-24 w-full" />
+                        <Skeleton className="h-24 w-full" />
+                    </div>
+                ) : timetableByDay && timetableByDay[day].length > 0 ? (
                   <ul className="space-y-4">
                     {timetableByDay[day].map((entry) => (
                       <li key={entry.id} className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -70,10 +159,6 @@ export default function TimetablePage() {
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
                                 <span>{entry.startTime} - {entry.endTime}</span>
-                            </div>
-                            <div className="flex items-center gap-2">
-                                <User className="h-4 w-4 text-muted-foreground" />
-                                <span>{entry.facultyName}</span>
                             </div>
                              <div className="flex items-center gap-2">
                                 <MapPin className="h-4 w-4 text-muted-foreground" />
