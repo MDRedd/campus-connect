@@ -1,18 +1,29 @@
+'use client';
+
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
-import type { TimetableEntry } from '@/lib/data';
 import { Clock, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+export type UpcomingClass = {
+  id: string;
+  startTime: string;
+  endTime: string;
+  room: string;
+  course: {
+    name: string;
+  };
+};
+
+
 type UpcomingClassesProps = {
-  timetable: TimetableEntry[];
+  timetable: UpcomingClass[];
 };
 
 export default function UpcomingClasses({ timetable }: UpcomingClassesProps) {
     const today = new Date();
     const dayOfWeek = today.toLocaleString('en-US', { weekday: 'long' });
 
-    // For demo, we'll just show all classes from the mock data
-    const upcoming = timetable.slice(0, 3);
+    const upcoming = timetable;
 
   return (
     <Card>
@@ -30,7 +41,7 @@ export default function UpcomingClasses({ timetable }: UpcomingClassesProps) {
                 </div>
                 <div className="flex-1">
                   <p className="font-semibold">{entry.course.name}</p>
-                  <p className="text-sm text-muted-foreground">{entry.facultyName} | Room: {entry.room}</p>
+                  <p className="text-sm text-muted-foreground">Room: {entry.room}</p>
                 </div>
                 <div className="text-right">
                   <p className="font-medium">{entry.startTime} - {entry.endTime}</p>

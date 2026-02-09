@@ -1,10 +1,9 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, limit } from 'firebase/firestore';
+import { doc, collection, query, orderBy, limit, where, getDocs } from 'firebase/firestore';
 
-import { studentTimetable } from '@/lib/data';
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
 import UpcomingClasses from './components/upcoming-classes';
@@ -34,6 +33,61 @@ export default function DashboardPage() {
     return collection(firestore, 'courses');
   }, [firestore]);
   const { data: courses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+
+  const enrollmentsQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser) return null;
+    return collection(firestore, 'users', authUser.uid, 'enrollments');
+  }, [firestore, authUser]);
+  const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<{courseId: string}>(enrollmentsQuery);
+
+  const enrolledCourses = useMemo(() => {
+    if (!enrollments || !courses) return null;
+    const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
+    return courses.filter(course => enrolledCourseIds.has(course.id));
+  }, [enrollments, courses]);
+
+  const [todaysClasses, setTodaysClasses] = useState<any[] | null>(null);
+  const [areTodaysClassesLoading, setAreTodaysClassesLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firestore || !enrolledCourses) return;
+    if (enrolledCourses.length === 0) {
+      setTodaysClasses([]);
+      setAreTodaysClassesLoading(false);
+      return;
+    }
+
+    const fetchTodaysClasses = async () => {
+      setAreTodaysClassesLoading(true);
+      const today = new Date().toLocaleString('en-US', { weekday: 'long' });
+      const allClasses: any[] = [];
+
+      try {
+        for (const course of enrolledCourses) {
+            const timetablesQuery = query(
+            collection(firestore, 'courses', course.id, 'timetables'),
+            where('dayOfWeek', '==', today)
+            );
+            const querySnapshot = await getDocs(timetablesQuery);
+            querySnapshot.forEach((doc) => {
+            allClasses.push({
+                id: doc.id,
+                ...doc.data(),
+                course: { name: course.name, code: course.code }
+            });
+            });
+        }
+        allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
+        setTodaysClasses(allClasses);
+      } catch (error) {
+        console.error("Error fetching timetable:", error);
+        setTodaysClasses([]);
+      }
+      setAreTodaysClassesLoading(false);
+    };
+
+    fetchTodaysClasses();
+  }, [firestore, enrolledCourses]);
 
   const attendanceQuery = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -102,8 +156,11 @@ export default function DashboardPage() {
       <QuickStats userRole={userProfile.role} />
       <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
         <div className="lg:col-span-2">
-          {/* Using mock data for upcoming classes for now as the data structure is complex to query */}
-          <UpcomingClasses timetable={studentTimetable} />
+          {(areTodaysClassesLoading || areEnrollmentsLoading || areCoursesLoading) ? (
+            <Skeleton className="h-80" />
+          ) : (
+            todaysClasses && <UpcomingClasses timetable={todaysClasses} />
+          )}
         </div>
         {attendanceData ? (
           <AttendanceChart data={attendanceData} />
