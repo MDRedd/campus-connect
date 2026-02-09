@@ -1,7 +1,7 @@
 
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { useForm } from 'react-hook-form';
@@ -61,11 +61,21 @@ export default function ProfilePage() {
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
-    values: {
-      name: userProfile?.name || '',
-      department: userProfile?.department || '',
+    defaultValues: {
+      name: '',
+      department: '',
     },
   });
+
+  useEffect(() => {
+    if (userProfile) {
+      form.reset({
+        name: userProfile.name || '',
+        department: userProfile.department || '',
+      });
+    }
+  }, [userProfile, form]);
+
 
   const isLoading = isAuthUserLoading || isUserProfileLoading;
 
