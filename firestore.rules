@@ -37,11 +37,19 @@ service cloud.firestore {
     // }
     
     /**
+     * Retrieves the full user document for the given UID.
+     * Note: This function incurs a read operation.
+     */
+    function getUser(userId) {
+      return get(/databases/$(database)/documents/users/$(userId));
+    }
+    
+    /**
      * Retrieves the role of the currently authenticated user from their user profile.
      * Note: This function incurs a read operation.
      */
     function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+      return getUser(request.auth.uid).data.role;
     }
 
     /**
@@ -91,7 +99,7 @@ service cloud.firestore {
     }
 
     match /courses/{courseId}/timetables/{timetableId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isFacultyOrAdmin();
     }
 
@@ -126,7 +134,9 @@ service cloud.firestore {
 
       match /forum_posts/{forumPostId} {
         allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+        allow create: if isSignedIn() 
+                      && request.resource.data.userId == request.auth.uid
+                      && request.resource.data.userName == getUser(request.auth.uid).data.name;
         allow update, delete: if isExistingDoc() && isOwner(resource.data.userId);
       }
     }

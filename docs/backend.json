@@ -480,6 +480,10 @@
           "type": "string",
           "description": "Reference to User. (Relationship: User 1:N ForumPost)"
         },
+        "userName": {
+          "type": "string",
+          "description": "The name of the user who created the post (denormalized)."
+        },
         "content": {
           "type": "string",
           "description": "The content of the forum post."
@@ -494,6 +498,7 @@
         "id",
         "forumId",
         "userId",
+        "userName",
         "content",
         "postedAt"
       ]

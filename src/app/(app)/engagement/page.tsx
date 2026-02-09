@@ -4,6 +4,7 @@ import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, getDocs, query } from 'firebase/firestore';
 import Image from 'next/image';
+import Link from 'next/link';
 import {
   Card,
   CardHeader,
@@ -45,20 +46,20 @@ export default function EngagementPage() {
     const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
     const clubsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user) return null;
         return collection(firestore, 'clubs');
-    }, [firestore]);
+    }, [firestore, user]);
     const { data: clubs, isLoading: areClubsLoading } = useCollection<Club>(clubsQuery);
 
     const eventsQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || !user) return null;
         return collection(firestore, 'events');
-    }, [firestore]);
+    }, [firestore, user]);
     const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
     
     // Fetch all forums from all courses
     useEffect(() => {
-        if (areCoursesLoading) return;
+        if (!firestore || areCoursesLoading) return;
         if (!allCourses) {
             setForums([]);
             setAreForumsLoading(false);
@@ -157,8 +158,10 @@ export default function EngagementPage() {
                       </div>
                     </CardContent>
                     <CardFooter>
-                      <Button>
-                        View Forum <ArrowRight className="ml-2 h-4 w-4" />
+                       <Button asChild>
+                        <Link href={`/engagement/forum/${forum.id}?courseId=${forum.courseId}`}>
+                          View Forum <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
                       </Button>
                     </CardFooter>
                   </Card>
