@@ -79,7 +79,7 @@ service cloud.firestore {
 
     match /users/{userId} {
       allow get, update, delete: if isOwner(userId);
-      allow list: if isAdmin();
+      allow list: if isFacultyOrAdmin();
       allow create: if isOwner(userId) && request.resource.data.id == userId;
     }
 
@@ -104,7 +104,7 @@ service cloud.firestore {
     }
 
     match /users/{userId}/results/{resultId} {
-      allow get, list: if isOwner(userId) && resource.data.published == true;
+      allow get, list: if (isOwner(userId) && resource.data.published == true) || isFacultyOrAdmin();
       allow create, update, delete: if isFacultyOrAdmin();
     }
 
@@ -113,7 +113,7 @@ service cloud.firestore {
       allow create, update, delete: if isFacultyOrAdmin();
 
       match /submissions/{submissionId} {
-        allow get, list, update, delete: if isExistingDoc() && isOwner(resource.data.studentId);
+        allow get, list, update, delete: if (isExistingDoc() && isOwner(resource.data.studentId)) || isFacultyOrAdmin();
         allow create: if isSignedIn() 
                       && request.resource.data.studentId == request.auth.uid
                       && request.resource.data.assignmentId == assignmentId;
