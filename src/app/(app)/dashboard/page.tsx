@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { BookOpen, Percent, FileWarning, Users, CheckCircle } from 'lucide-react';
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
@@ -329,25 +330,25 @@ export default function DashboardPage() {
                 }).length ?? 0;
 
                 stats = [
-                    { title: 'Enrolled Courses', value: (enrollments?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
-                    { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: require('lucide-react').Percent },
-                    { title: 'Assignments Due', value: dueAssignments.toString(), icon: require('lucide-react').FileWarning },
+                    { title: 'Enrolled Courses', value: (enrollments?.length ?? 0).toString(), icon: BookOpen },
+                    { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: Percent },
+                    { title: 'Assignments Due', value: dueAssignments.toString(), icon: FileWarning },
                 ];
             } else if (userProfile.role === 'faculty') {
                 if (areFacultyCoursesLoading || isFacultyStatsLoading) return;
                 stats = [
-                    { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
-                    { title: 'Total Students', value: (facultyStudentCount ?? 0).toString(), icon: require('lucide-react').Users },
-                    { title: 'Submissions to Grade', value: (submissionsToGradeCount ?? 0).toString(), icon: require('lucide-react').CheckCircle },
+                    { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: BookOpen },
+                    { title: 'Total Students', value: (facultyStudentCount ?? 0).toString(), icon: Users },
+                    { title: 'Submissions to Grade', value: (submissionsToGradeCount ?? 0).toString(), icon: CheckCircle },
                 ];
             } else if (userProfile.role === 'admin') {
                 if (areAllUsersLoading || areCoursesLoading) return;
                 const studentCount = allUsers?.filter(u => u.role === 'student').length ?? 0;
                 const facultyCount = allUsers?.filter(u => u.role === 'faculty').length ?? 0;
                 stats = [
-                    { title: 'Total Students', value: studentCount.toString(), icon: require('lucide-react').Users },
-                    { title: 'Total Faculty', value: facultyCount.toString(), icon: require('lucide-react').Users },
-                    { title: 'Total Courses', value: (courses?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
+                    { title: 'Total Students', value: studentCount.toString(), icon: Users },
+                    { title: 'Total Faculty', value: facultyCount.toString(), icon: Users },
+                    { title: 'Total Courses', value: (courses?.length ?? 0).toString(), icon: BookOpen },
                 ];
             }
             setQuickStats(stats);
