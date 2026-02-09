@@ -26,6 +26,28 @@
         "department": {
           "type": "string",
           "description": "The department the user belongs to."
+        },
+        "notificationPreferences": {
+          "type": "object",
+          "description": "User's notification settings.",
+          "properties": {
+            "email": {
+              "type": "boolean",
+              "default": true
+            },
+            "push": {
+              "type": "boolean",
+              "default": false
+            },
+            "newGrades": {
+              "type": "boolean",
+              "default": true
+            },
+            "deadlineReminders": {
+              "type": "boolean",
+              "default": true
+            }
+          }
         }
       },
       "required": [
