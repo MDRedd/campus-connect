@@ -78,9 +78,11 @@ service cloud.firestore {
     // ---------------------------------------------------------------------
 
     match /users/{userId} {
-      allow get, update, delete: if isOwner(userId);
+      // Admins can manage any user doc, owners can manage their own.
+      allow get, update, delete: if isOwner(userId) || isAdmin();
       allow list: if isFacultyOrAdmin();
-      allow create: if isOwner(userId) && request.resource.data.id == userId;
+      // Creating a user doc is still tied to the user signing up, but an admin could also do it.
+      allow create: if (isOwner(userId) && request.resource.data.id == userId) || isAdmin();
     }
 
     match /courses/{courseId} {
@@ -94,7 +96,7 @@ service cloud.firestore {
     }
 
     match /users/{userId}/attendance/{attendanceId} {
-      allow get, list: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isFacultyOrAdmin();
       allow create, update, delete: if isFacultyOrAdmin();
     }
 
