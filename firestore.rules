@@ -115,12 +115,24 @@ service cloud.firestore {
       allow create, update, delete: if isFacultyOrAdmin();
 
       match /submissions/{submissionId} {
-        allow get, list, update: if (isExistingDoc() && isOwner(resource.data.studentId)) || isFacultyOrAdmin();
-        // Allow students to delete their own submissions
-        allow delete: if isOwner(resource.data.studentId);
+        
+        function isAssignmentFaculty() {
+          let assignmentDoc = get(/databases/$(database)/documents/courses/$(courseId)/assignments/$(assignmentId));
+          return isSignedIn() && assignmentDoc.data.facultyId == request.auth.uid;
+        }
+
+        allow get: if (isExistingDoc() && isOwner(resource.data.studentId)) || isAssignmentFaculty() || isAdmin();
+        allow list: if isAssignmentFaculty() || isAdmin();
+        
         allow create: if isSignedIn() 
                       && request.resource.data.studentId == request.auth.uid
                       && request.resource.data.assignmentId == assignmentId;
+                      
+        // Students can update their file/comments before grading. Faculty/Admins can update anything (for grading).
+        allow update: if (isExistingDoc() && isOwner(resource.data.studentId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'fileUrl'])) 
+                      || isAssignmentFaculty() || isAdmin();
+        
+        allow delete: if isOwner(resource.data.studentId);
       }
     }
 
@@ -193,5 +205,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

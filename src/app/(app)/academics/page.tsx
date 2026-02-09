@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup } from 'firebase/firestore';
+import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, updateDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -38,11 +38,13 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { doc } from 'firebase/firestore';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 
 // Simplified types based on backend.json
 type Enrollment = { courseId: string; };
 type Course = { id: string; name: string; code: string; credits: number; };
-type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; };
+type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
+type Submission = { id: string; assignmentId: string; studentId: string; submissionDate: string; fileUrl: string; comments?: string; marksAwarded?: number; studentName?: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
 type UserProfile = { role: 'student' | 'faculty' | 'admin'; };
 type Student = { id: string; name: string; };
@@ -85,7 +87,14 @@ export default function AcademicsPage() {
   const [openAssignmentDialog, setOpenAssignmentDialog] = useState(false);
   const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
   const [openSubmissionDialog, setOpenSubmissionDialog] = useState(false);
+  const [openSubmissionsDialog, setOpenSubmissionsDialog] = useState(false);
+
   const [selectedAssignment, setSelectedAssignment] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
+  const [selectedAssignmentForGrading, setSelectedAssignmentForGrading] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
+  const [currentSubmissions, setCurrentSubmissions] = useState<Submission[] | null>(null);
+  const [areSubmissionsLoading, setAreSubmissionsLoading] = useState(false);
+  const [marks, setMarks] = useState<{[submissionId: string]: string}>({});
+
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -96,9 +105,9 @@ export default function AcademicsPage() {
 
   // Data fetching for all courses (needed for both roles to map IDs to names)
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthUserLoading || !authUser) return null;
+    if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore, isAuthUserLoading, authUser]);
+  }, [firestore, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
   const allStudentsQuery = useMemoFirebase(() => {
@@ -125,13 +134,13 @@ export default function AcademicsPage() {
 
   // Effect to determine which courses to display based on role
   useEffect(() => {
-    if (isUserProfileLoading || areCoursesLoading || (isFaculty === false && areEnrollmentsLoading)) return;
+    if (isUserProfileLoading || areCoursesLoading || (isFaculty === false && areEnrollmentsLoading) || !authUser) return;
 
     const getCourses = async () => {
         setAreDisplayCoursesLoading(true);
         if (isFaculty) {
             // Efficiently fetch courses for faculty using a collection group query
-            if (!firestore || !authUser || !allCourses) {
+            if (!firestore || !allCourses) {
                 setDisplayCourses([]);
                 setAreDisplayCoursesLoading(false);
                 return;
@@ -264,7 +273,7 @@ export default function AcademicsPage() {
   const submissionForm = useForm<z.infer<typeof submissionSchema>>({ resolver: zodResolver(submissionSchema) });
 
   async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
-    if (!firestore) return;
+    if (!firestore || !authUser) return;
     try {
         const courseRef = collection(firestore, 'courses', values.courseId, 'assignments');
         await addDoc(courseRef, {
@@ -272,6 +281,7 @@ export default function AcademicsPage() {
             description: values.description,
             courseId: values.courseId,
             deadline: new Date(values.deadline).toISOString(),
+            facultyId: authUser.uid,
         });
         toast({ title: 'Success', description: 'Assignment added.' });
 
@@ -352,6 +362,62 @@ export default function AcademicsPage() {
         console.error("Error submitting assignment:", error);
         toast({ variant: 'destructive', title: 'Error', description: 'Could not submit assignment.' });
     }
+  }
+
+  const handleViewSubmissions = async (assignment: Assignment & { courseName: string; courseCode: string; }) => {
+    setSelectedAssignmentForGrading(assignment);
+    setOpenSubmissionsDialog(true);
+    setAreSubmissionsLoading(true);
+    setCurrentSubmissions(null);
+    if (!firestore) return;
+
+    try {
+        const submissionsQuery = query(collection(firestore, 'courses', assignment.courseId, 'assignments', assignment.id, 'submissions'));
+        const querySnapshot = await getDocs(submissionsQuery);
+        const studentMap = new Map(allStudents?.map(s => [s.id, s.name]));
+        
+        const subs = querySnapshot.docs.map(doc => {
+            const data = doc.data() as Submission;
+            return {
+                ...data,
+                id: doc.id,
+                studentName: studentMap.get(data.studentId) || 'Unknown Student'
+            }
+        });
+        setCurrentSubmissions(subs);
+
+        const initialMarks = subs.reduce((acc, sub) => {
+            acc[sub.id] = sub.marksAwarded?.toString() || '';
+            return acc;
+        }, {} as {[key: string]: string});
+        setMarks(initialMarks);
+
+    } catch (error) {
+        console.error("Error fetching submissions:", error);
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch submissions.' });
+    } finally {
+        setAreSubmissionsLoading(false);
+    }
+}
+
+  const handleSaveGrade = async (submissionId: string, mark: string) => {
+      if (!firestore || !selectedAssignmentForGrading) return;
+      const marksValue = parseInt(mark, 10);
+      if (isNaN(marksValue) || marksValue < 0 || marksValue > 100) {
+          toast({ variant: 'destructive', title: 'Invalid Marks', description: 'Marks must be a number between 0 and 100.' });
+          return;
+      }
+
+      try {
+          const subRef = doc(firestore, 'courses', selectedAssignmentForGrading.courseId, 'assignments', selectedAssignmentForGrading.id, 'submissions', submissionId);
+          await updateDoc(subRef, {
+              marksAwarded: marksValue
+          });
+          toast({ title: 'Grade Saved', description: 'The marks have been updated.' });
+      } catch (error) {
+          console.error("Error saving grade:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not save the grade.' });
+      }
   }
 
 
@@ -444,7 +510,9 @@ export default function AcademicsPage() {
                         <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
                         <CardFooter className="flex justify-between items-center">
                         <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                        {!isFaculty && (
+                        {isFaculty ? (
+                            <Button variant="secondary" size="sm" onClick={() => handleViewSubmissions(assignment)}>View Submissions</Button>
+                        ) : (
                             <Button onClick={() => {
                                 setSelectedAssignment(assignment);
                                 setOpenSubmissionDialog(true);
@@ -597,6 +665,56 @@ export default function AcademicsPage() {
                     </DialogFooter>
                 </form>
             </Form>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={openSubmissionsDialog} onOpenChange={setOpenSubmissionsDialog}>
+        <DialogContent className="sm:max-w-4xl">
+            <DialogHeader>
+                <DialogTitle>Submissions for &quot;{selectedAssignmentForGrading?.title}&quot;</DialogTitle>
+                <DialogDescription>Review student submissions and award marks.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 max-h-[60vh] overflow-y-auto">
+                {areSubmissionsLoading ? (
+                    <Skeleton className="h-48 w-full" />
+                ) : currentSubmissions && currentSubmissions.length > 0 ? (
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Date</TableHead>
+                                <TableHead>Submission</TableHead>
+                                <TableHead className="w-[150px]">Marks</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                            {currentSubmissions.map(sub => (
+                                <TableRow key={sub.id}>
+                                    <TableCell>{sub.studentName}</TableCell>
+                                    <TableCell>{format(new Date(sub.submissionDate), 'Pp')}</TableCell>
+                                    <TableCell><Button asChild variant="link" size="sm"><a href={sub.fileUrl} target="_blank" rel="noopener noreferrer">View File</a></Button></TableCell>
+                                    <TableCell className="flex items-center gap-2">
+                                        <Input 
+                                            type="number" 
+                                            value={marks[sub.id] || ''}
+                                            onChange={(e) => setMarks(prev => ({...prev, [sub.id]: e.target.value}))}
+                                            className="w-20 h-9"
+                                            placeholder="--"
+                                        />
+                                        <Button size="sm" onClick={() => handleSaveGrade(sub.id, marks[sub.id])}>Save</Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))}
+                        </TableBody>
+                    </Table>
+                ) : (
+                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                      <FileText className="h-12 w-12 text-muted-foreground" />
+                      <h3 className="mt-4 text-lg font-semibold">No Submissions Yet</h3>
+                      <p className="mt-1 text-sm text-muted-foreground">Student submissions will appear here once they are submitted.</p>
+                    </div>
+                )}
+            </div>
         </DialogContent>
       </Dialog>
     </div>

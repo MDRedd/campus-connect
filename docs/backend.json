@@ -304,6 +304,10 @@
           "type": "string",
           "description": "URL to access the assignment file.",
           "format": "uri"
+        },
+        "facultyId": {
+          "type": "string",
+          "description": "Reference to User (Faculty) who created the assignment."
         }
       },
       "required": [
@@ -311,7 +315,8 @@
         "courseId",
         "title",
         "description",
-        "deadline"
+        "deadline",
+        "facultyId"
       ]
     },
     "Submission": {
@@ -1004,5 +1009,3 @@
     "reasoning": "The Firestore structure is designed to support the CampusConnect platform's core features, including user authentication, attendance management, timetable management, semester results, academics, and student engagement. The design prioritizes authorization independence and supports secure list operations. Hierarchical paths are employed where appropriate (e.g., user-owned data).  Denormalization is used to avoid `get()` calls in security rules. Specifically, for collaborative entities such as Course forums the members map is denormalized into the ForumPost documents.  The structure assumes appropriate indexing will be configured to support common queries."
   }
 }
-
-    
