@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
+import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
 import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, updateDoc, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
@@ -505,7 +506,7 @@ export default function AcademicsPage() {
                     <CardDescription>{course.code} | {course.credits} Credits</CardDescription>
                   </CardHeader>
                   <CardFooter className="flex gap-2">
-                    <Button size="sm">View Details</Button>
+                    <Button size="sm" asChild><Link href={`/courses/${course.id}`}>View Details</Link></Button>
                   </CardFooter>
                 </Card>
               ))}

@@ -1,6 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
 import {
@@ -205,7 +206,11 @@ export default function CoursesPage() {
               ) : allCourses && allCourses.length > 0 ? (
                 allCourses.map(course => (
                   <TableRow key={course.id}>
-                    <TableCell className="font-medium">{course.name}</TableCell>
+                    <TableCell className="font-medium">
+                        <Link href={`/courses/${course.id}`} className="hover:underline">
+                            {course.name}
+                        </Link>
+                    </TableCell>
                     <TableCell>{course.code}</TableCell>
                     <TableCell>{course.department}</TableCell>
                     <TableCell>{course.credits}</TableCell>
@@ -233,5 +238,3 @@ export default function CoursesPage() {
     </div>
   );
 }
-
-    
