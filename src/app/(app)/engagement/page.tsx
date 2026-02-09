@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, deleteDoc } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -23,6 +23,8 @@ import {
   Search,
   ArrowRight,
   PlusCircle,
+  Edit,
+  Trash2,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -41,6 +43,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
+import { format } from 'date-fns';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
@@ -54,6 +57,15 @@ const clubSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters long.'),
 });
 
+const eventSchema = z.object({
+    title: z.string().min(3, 'Title is required.'),
+    description: z.string().optional(),
+    date: z.string().min(1, 'Date is required.'),
+    time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (e.g., 14:30).'),
+    location: z.string().min(3, 'Location is required.'),
+    organizer: z.string().min(3, 'Organizer is required.'),
+});
+
 export default function EngagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading: isAuthLoading } = useUser();
@@ -61,6 +73,8 @@ export default function EngagementPage() {
     const [joiningClubId, setJoiningClubId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [openClubDialog, setOpenClubDialog] = useState(false);
+    const [openEventDialog, setOpenEventDialog] = useState(false);
+    const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
@@ -86,7 +100,7 @@ export default function EngagementPage() {
 
     const eventsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return collection(firestore, 'events');
+        return query(collection(firestore, 'events'), orderBy('date', 'desc'));
     }, [firestore, user]);
     const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
     
@@ -139,6 +153,9 @@ export default function EngagementPage() {
     const clubForm = useForm<z.infer<typeof clubSchema>>({
       resolver: zodResolver(clubSchema),
     });
+    const eventForm = useForm<z.infer<typeof eventSchema>>({
+      resolver: zodResolver(eventSchema),
+    });
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
@@ -184,6 +201,55 @@ export default function EngagementPage() {
           console.error("Error creating club:", error);
           toast({ variant: 'destructive', title: 'Error', description: 'Could not create club.' });
       }
+    }
+    
+    const handleAddNewEvent = () => {
+        setEditingEvent(null);
+        eventForm.reset();
+        setOpenEventDialog(true);
+    };
+
+    const handleEditEvent = (event: Event) => {
+        setEditingEvent(event);
+        eventForm.reset({
+            ...event,
+            date: format(new Date(event.date), 'yyyy-MM-dd')
+        });
+        setOpenEventDialog(true);
+    };
+
+    const handleDeleteEvent = async (eventId: string) => {
+        if (!firestore || !confirm('Are you sure you want to delete this event?')) return;
+        try {
+            await deleteDoc(doc(firestore, 'events', eventId));
+            toast({ title: 'Success', description: 'Event deleted.' });
+        } catch (error) {
+            console.error("Error deleting event:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not delete event.' });
+        }
+    };
+
+    async function onEventSubmit(values: z.infer<typeof eventSchema>) {
+        if (!firestore) return;
+        try {
+            const eventData = {
+                ...values,
+                date: new Date(values.date).toISOString()
+            };
+
+            if (editingEvent) {
+                await updateDoc(doc(firestore, 'events', editingEvent.id), eventData);
+                toast({ title: 'Success', description: 'Event updated.' });
+            } else {
+                await addDoc(collection(firestore, 'events'), eventData);
+                toast({ title: 'Success', description: 'Event created.' });
+            }
+            setOpenEventDialog(false);
+            setEditingEvent(null);
+        } catch (error) {
+            console.error("Error saving event:", error);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not save event.' });
+        }
     }
 
     const isLoading = isAuthLoading || isUserProfileLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
@@ -355,9 +421,34 @@ export default function EngagementPage() {
 
         <TabsContent value="events" className="mt-6">
            <Card>
-                <CardHeader>
-                    <CardTitle>Upcoming Events</CardTitle>
-                    <CardDescription>Don't miss out on what's happening on campus.</CardDescription>
+                <CardHeader className="flex-row justify-between items-start">
+                    <div>
+                        <CardTitle>Upcoming Events</CardTitle>
+                        <CardDescription>Don't miss out on what's happening on campus.</CardDescription>
+                    </div>
+                     {isFacultyOrAdmin && (
+                        <Dialog open={openEventDialog} onOpenChange={setOpenEventDialog}>
+                            <DialogTrigger asChild>
+                                <Button size="sm" onClick={handleAddNewEvent}><PlusCircle className="mr-2 h-4 w-4" /> Create Event</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader><DialogTitle>{editingEvent ? 'Edit Event' : 'Create New Event'}</DialogTitle></DialogHeader>
+                                <Form {...eventForm}>
+                                    <form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
+                                        <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <div className="grid grid-cols-2 gap-4">
+                                            <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                            <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        </div>
+                                        <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel>Organizer</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingEvent ? 'Save Changes' : 'Create Event'}</Button></DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
+                    )}
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
                      {areEventsLoading ? (
@@ -388,15 +479,22 @@ export default function EngagementPage() {
                                 <CardContent className="grid gap-1 text-sm flex-grow">
                                 <div className="flex items-center gap-2 text-muted-foreground">
                                     <CalendarIcon className="h-4 w-4" />
-                                    <span>{new Date(event.date).toLocaleDateString()} at {event.time}</span>
+                                    <span>{format(new Date(event.date), 'PPP')} at {event.time}</span>
                                 </div>
                                     <div className="flex items-center gap-2 text-muted-foreground">
                                     <Users className="h-4 w-4" />
                                     <span>{event.location}</span>
                                 </div>
                                 </CardContent>
-                                <CardFooter>
-                                    <Button variant="secondary" className="w-full">View Details</Button>
+                                <CardFooter className="flex gap-2">
+                                    {isFacultyOrAdmin ? (
+                                        <>
+                                            <Button variant="outline" size="sm" className="w-full" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                                            <Button variant="destructive" size="sm" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
+                                        </>
+                                    ) : (
+                                        <Button variant="secondary" className="w-full">View Details</Button>
+                                    )}
                                 </CardFooter>
                             </Card>
                         ))
