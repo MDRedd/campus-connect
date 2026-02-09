@@ -1,9 +1,9 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, query, where } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, query, where, collectionGroup, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -24,9 +24,10 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { QrCode, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useToast } from '@/hooks/use-toast';
 
 type Course = { id: string; name: string; code: string; };
-type AttendanceSession = { courseId: string; facultyId: string; createdAt: any; attendees: string[]; };
+type AttendanceSession = { courseId: string; facultyId: string; createdAt: any; attendees: string[]; id: string };
 type UserProfile = { id: string; name: string; email: string; };
 
 
@@ -34,21 +35,60 @@ export default function MarkAttendancePage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
+  const { toast } = useToast();
 
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
-  const [activeSessionId, setActiveSessionId] = useState<string | null>(null);
+  const [activeSession, setActiveSession] = useState<AttendanceSession | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const coursesQuery = useMemoFirebase(() => {
+  const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
+  const [areCoursesLoading, setAreCoursesLoading] = useState(true);
+
+  const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // In a real app, this would query only courses taught by the faculty
     return collection(firestore, 'courses');
   }, [firestore]);
-  const { data: courses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+  const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
+  
+  useEffect(() => {
+    if (!firestore || !authUser || areAllCoursesLoading) return;
+    if (allCourses === null) return;
+
+    const fetchFacultyCourses = async () => {
+      setAreCoursesLoading(true);
+      try {
+        const timetablesQuery = query(
+          collectionGroup(firestore, 'timetables'),
+          where('facultyId', '==', authUser.uid)
+        );
+        const timetableSnapshot = await getDocs(timetablesQuery);
+        const courseIds = new Set(timetableSnapshot.docs.map(doc => doc.data().courseId));
+        
+        const courses = allCourses.filter(course => courseIds.has(course.id));
+        setFacultyCourses(courses);
+      } catch (error: any) {
+        console.error("Error fetching faculty courses:", error);
+        if (error.code === 'failed-precondition') {
+          toast({
+            variant: 'destructive',
+            title: 'Index Required',
+            description: 'A Firestore index is needed for this query. Please check the console for a link to create it.',
+          });
+          console.error("Firestore indexing error: You need to create a composite index for the 'timetables' collection group. The link to create it should be in the error message in your browser's developer console.");
+        }
+        setFacultyCourses([]);
+      } finally {
+        setAreCoursesLoading(false);
+      }
+    };
+
+    fetchFacultyCourses();
+  }, [firestore, authUser, allCourses, areAllCoursesLoading, toast]);
+
 
   const handleCourseSelect = async (courseId: string) => {
     setSelectedCourseId(courseId);
-    setActiveSessionId(null);
+    setActiveSession(null);
     setIsGenerating(true);
     if (!firestore || !authUser) return;
 
@@ -60,7 +100,7 @@ export default function MarkAttendancePage() {
         attendees: [],
       };
       const sessionDocRef = await addDoc(collection(firestore, 'attendanceSessions'), sessionData);
-      setActiveSessionId(sessionDocRef.id);
+      setActiveSession({ ...sessionData, id: sessionDocRef.id });
     } catch (error) {
       console.error("Error creating attendance session:", error);
     } finally {
@@ -69,9 +109,9 @@ export default function MarkAttendancePage() {
   };
 
   const sessionDocRef = useMemoFirebase(() => {
-    if (!firestore || !activeSessionId) return null;
-    return doc(firestore, 'attendanceSessions', activeSessionId);
-  }, [firestore, activeSessionId]);
+    if (!firestore || !activeSession) return null;
+    return doc(firestore, 'attendanceSessions', activeSession.id);
+  }, [firestore, activeSession]);
   const { data: sessionData, isLoading: isSessionLoading } = useDoc<AttendanceSession>(sessionDocRef);
 
   const attendeeIds = useMemo(() => sessionData?.attendees || [], [sessionData]);
@@ -84,8 +124,8 @@ export default function MarkAttendancePage() {
   const { data: attendees, isLoading: areAttendeesLoading } = useCollection<UserProfile>(attendeesQuery);
 
 
-  const qrData = activeSessionId && selectedCourseId && authUser ? JSON.stringify({
-    sessionId: activeSessionId,
+  const qrData = activeSession && selectedCourseId && authUser ? JSON.stringify({
+    sessionId: activeSession.id,
     courseId: selectedCourseId,
     facultyId: authUser.uid,
     timestamp: Date.now(),
@@ -115,12 +155,12 @@ export default function MarkAttendancePage() {
                   {isLoading ? (
                     <Skeleton className="h-10 w-full" />
                   ) : (
-                    <Select onValueChange={handleCourseSelect} disabled={!courses || isGenerating}>
+                    <Select onValueChange={handleCourseSelect} disabled={!facultyCourses || facultyCourses.length === 0 || isGenerating}>
                       <SelectTrigger id="course-select">
-                        <SelectValue placeholder="Select a course..." />
+                        <SelectValue placeholder={facultyCourses && facultyCourses.length > 0 ? "Select a course..." : "No courses assigned"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {courses?.map(course => (
+                        {facultyCourses?.map(course => (
                           <SelectItem key={course.id} value={course.id}>
                             {course.name} ({course.code})
                           </SelectItem>
@@ -130,7 +170,7 @@ export default function MarkAttendancePage() {
                   )}
                 </div>
                 <p className="text-sm text-muted-foreground">
-                  The QR code is valid for 60 seconds. A new code will be generated each time you select a course.
+                  The QR code is valid for 60 seconds. A new code is generated when you select a course.
                 </p>
               </div>
               <div className="flex items-center justify-center rounded-lg border border-dashed bg-muted/50 p-8">
@@ -201,5 +241,3 @@ export default function MarkAttendancePage() {
     </div>
   );
 }
-
-    

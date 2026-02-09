@@ -76,7 +76,7 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
-      allow get, list: if true;
+      allow get, list: if isSignedIn();
       allow create, update, delete: if isFacultyOrAdmin();
     }
 
@@ -112,7 +112,7 @@ service cloud.firestore {
 
     match /courses/{courseId}/study_materials/{studyMaterialId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isFacultyOrAdmin() && request.resource.data.uploadedBy == request.auth.uid;
+      allow create, update, delete: if isFacultyOrAdmin();
     }
 
     match /announcements/{announcementId} {
@@ -129,6 +129,10 @@ service cloud.firestore {
         allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
         allow update, delete: if isExistingDoc() && isOwner(resource.data.userId);
       }
+    }
+    
+    match /{path=**}/timetables/{timetableId} {
+      allow read: if isSignedIn();
     }
 
     match /events/{eventId} {
@@ -159,12 +163,10 @@ service cloud.firestore {
       // Students can update the 'attendees' array to add themselves.
       // This rule ensures only the 'attendees' field is changed and only allows adding the current user's UID.
       allow update: if isSignedIn() 
-                    && request.resource.data.keys().hasOnly(['attendees', 'courseId', 'facultyId', 'createdAt'])
+                    && request.resource.data.keys().hasOnly(['attendees', 'courseId', 'facultyId', 'createdAt', 'id'])
                     && request.resource.data.attendees == resource.data.attendees.concat([request.auth.uid]);
       // No one can delete sessions or list all of them.
       allow delete, list: if false;
     }
   }
 }
-
-    
