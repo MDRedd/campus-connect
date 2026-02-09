@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
 import { collection, getDocs, query } from 'firebase/firestore';
 import Image from 'next/image';
 import {
@@ -33,14 +33,15 @@ type Event = { id: string; title: string; description: string; date: string; tim
 
 export default function EngagementPage() {
     const firestore = useFirestore();
+    const { user, isUserLoading: isAuthLoading } = useUser();
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
 
     const coursesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
+        if (!firestore || isAuthLoading || !user) return null;
         return collection(firestore, 'courses');
-    }, [firestore]);
+    }, [firestore, isAuthLoading, user]);
     const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
     const clubsQuery = useMemoFirebase(() => {
@@ -57,7 +58,7 @@ export default function EngagementPage() {
     
     // Fetch all forums from all courses
     useEffect(() => {
-        if (!firestore || areCoursesLoading) return;
+        if (areCoursesLoading) return;
         if (!allCourses) {
             setForums([]);
             setAreForumsLoading(false);
@@ -96,7 +97,7 @@ export default function EngagementPage() {
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
 
-    const isLoading = areForumsLoading || areClubsLoading || areEventsLoading;
+    const isLoading = isAuthLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -136,7 +137,7 @@ export default function EngagementPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              {areForumsLoading ? (
+              {isLoading || areForumsLoading ? (
                 <>
                   <Skeleton className="h-36 w-full" />
                   <Skeleton className="h-36 w-full" />
