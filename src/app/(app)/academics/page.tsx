@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, collectionGroup, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, DocumentData, where, addDoc } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -113,18 +113,29 @@ export default function AcademicsPage() {
         setAreDisplayCoursesLoading(true);
         if (isFaculty) {
             // Logic for faculty
-            if (!firestore || !authUser || !allCourses) return;
+            if (!firestore || !authUser || !allCourses) {
+                setDisplayCourses([]);
+                setAreDisplayCoursesLoading(false);
+                return;
+            }
             try {
-                const timetablesQuery = query(
-                    collectionGroup(firestore, 'timetables'),
-                    where('facultyId', '==', authUser.uid)
-                );
-                const timetableSnapshot = await getDocs(timetablesQuery);
-                const courseIds = new Set(timetableSnapshot.docs.map(doc => doc.data().courseId));
-                setDisplayCourses(allCourses.filter(course => courseIds.has(course.id)));
+                const facultyCourseIds = new Set<string>();
+                // This loop performs a query for each course. It is less efficient than a collection group query
+                // but avoids the need for a composite index, which can be difficult to manage automatically.
+                for (const course of allCourses) {
+                    const timetablesForCourseQuery = query(
+                        collection(firestore, 'courses', course.id, 'timetables'),
+                        where('facultyId', '==', authUser.uid)
+                    );
+                    const timetableSnapshot = await getDocs(timetablesForCourseQuery);
+                    if (!timetableSnapshot.empty) {
+                        facultyCourseIds.add(course.id);
+                    }
+                }
+                setDisplayCourses(allCourses.filter(course => facultyCourseIds.has(course.id)));
             } catch (error) {
                 console.error("Error fetching faculty courses:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your courses. You may need to create a Firestore index.' });
+                toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your courses.' });
                 setDisplayCourses([]);
             }
         } else {

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, query, where, collectionGroup, getDocs } from 'firebase/firestore';
+import { collection, addDoc, serverTimestamp, doc, query, where, getDocs } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -57,25 +57,34 @@ export default function MarkAttendancePage() {
     const fetchFacultyCourses = async () => {
       setAreCoursesLoading(true);
       try {
-        const timetablesQuery = query(
-          collectionGroup(firestore, 'timetables'),
-          where('facultyId', '==', authUser.uid)
-        );
-        const timetableSnapshot = await getDocs(timetablesQuery);
-        const courseIds = new Set(timetableSnapshot.docs.map(doc => doc.data().courseId));
-        
-        const courses = allCourses.filter(course => courseIds.has(course.id));
+        if (!allCourses) {
+          setFacultyCourses([]);
+          return;
+        }
+
+        const facultyCourseIds = new Set<string>();
+        // This loop performs a query for each course. It is less efficient than a collection group query
+        // but avoids the need for a composite index, which can be difficult to manage automatically.
+        for (const course of allCourses) {
+          const timetablesForCourseQuery = query(
+            collection(firestore, 'courses', course.id, 'timetables'),
+            where('facultyId', '==', authUser.uid)
+          );
+          const timetableSnapshot = await getDocs(timetablesForCourseQuery);
+          if (!timetableSnapshot.empty) {
+            facultyCourseIds.add(course.id);
+          }
+        }
+        const courses = allCourses.filter(course => facultyCourseIds.has(course.id));
         setFacultyCourses(courses);
+
       } catch (error: any) {
         console.error("Error fetching faculty courses:", error);
-        if (error.code === 'failed-precondition') {
-          toast({
-            variant: 'destructive',
-            title: 'Index Required',
-            description: 'A Firestore index is needed for this query. Please check the console for a link to create it.',
-          });
-          console.error("Firestore indexing error: You need to create a composite index for the 'timetables' collection group. The link to create it should be in the error message in your browser's developer console.");
-        }
+        toast({
+          variant: 'destructive',
+          title: 'Error',
+          description: 'Could not fetch your assigned courses.',
+        });
         setFacultyCourses([]);
       } finally {
         setAreCoursesLoading(false);
