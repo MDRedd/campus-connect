@@ -358,6 +358,10 @@
         "marksAwarded": {
           "type": "number",
           "description": "The marks awarded for the submission."
+        },
+        "facultyFeedback": {
+          "type": "string",
+          "description": "Feedback provided by the faculty on the submission."
         }
       },
       "required": [
