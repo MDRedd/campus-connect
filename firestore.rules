@@ -113,7 +113,9 @@ service cloud.firestore {
       allow create, update, delete: if isFacultyOrAdmin();
 
       match /submissions/{submissionId} {
-        allow get, list, update, delete: if (isExistingDoc() && isOwner(resource.data.studentId)) || isFacultyOrAdmin();
+        allow get, list, update: if (isExistingDoc() && isOwner(resource.data.studentId)) || isFacultyOrAdmin();
+        // Allow students to delete their own submissions
+        allow delete: if isOwner(resource.data.studentId);
         allow create: if isSignedIn() 
                       && request.resource.data.studentId == request.auth.uid
                       && request.resource.data.assignmentId == assignmentId;
@@ -164,7 +166,9 @@ service cloud.firestore {
 
     match /users/{userId}/notifications/{notificationId} {
       allow get, list, update, delete: if isOwner(userId);
-      allow create: if false;
+      // Allow faculty or admins to create notifications for users.
+      // This is used for generating personalized notifications.
+      allow create: if isFacultyOrAdmin();
     }
 
     match /attendanceSessions/{sessionId} {

@@ -28,6 +28,7 @@ import { BookCopy, FileText, Download, Sparkles, PlusCircle, Lightbulb } from 'l
 import { Skeleton } from '@/components/ui/skeleton';
 import { summarizeCourseMaterials } from '@/ai/flows/summarize-course-materials';
 import { generateStudyQuestions } from '@/ai/flows/generate-study-questions';
+import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -44,6 +45,7 @@ type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
 type UserProfile = { role: 'student' | 'faculty' | 'admin'; };
+type Student = { id: string; name: string; };
 
 const assignmentSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
@@ -98,6 +100,12 @@ export default function AcademicsPage() {
     return collection(firestore, 'courses');
   }, [firestore, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
+
+  const allStudentsQuery = useMemoFirebase(() => {
+    if (!firestore || !isFaculty) return null;
+    return query(collection(firestore, 'users'), where('role', '==', 'student'));
+  }, [firestore, isFaculty]);
+  const { data: allStudents, isLoading: areStudentsLoading } = useCollection<Student>(allStudentsQuery);
 
   // Role-specific data
   const [displayCourses, setDisplayCourses] = useState<Course[] | null>(null);
@@ -260,10 +268,42 @@ export default function AcademicsPage() {
         await addDoc(courseRef, {
             title: values.title,
             description: values.description,
-            courseId: values.courseId, // Storing courseId for the corrected submission path
+            courseId: values.courseId,
             deadline: new Date(values.deadline).toISOString(),
         });
         toast({ title: 'Success', description: 'Assignment added.' });
+
+        if (allStudents && allStudents.length > 0) {
+            toast({ title: 'Generating Notifications', description: 'Sending alerts to enrolled students...' });
+            const course = displayCourses?.find(c => c.id === values.courseId);
+
+            // Run notification generation in the background
+            (async () => {
+                for (const student of allStudents) {
+                    const enrollmentQuery = query(collection(firestore, 'users', student.id, 'enrollments'), where('courseId', '==', values.courseId));
+                    const enrollmentSnapshot = await getDocs(enrollmentQuery);
+                    if (!enrollmentSnapshot.empty) {
+                        try {
+                            const notificationResult = await generatePersonalizedNotification({
+                                studentId: student.id,
+                                updateType: 'assignmentDeadline',
+                                details: `A new assignment "${values.title}" for course "${course?.name || 'Unknown Course'}" is due on ${format(new Date(values.deadline), 'PPP')}.`,
+                            });
+                            const notificationsRef = collection(firestore, 'users', student.id, 'notifications');
+                            await addDoc(notificationsRef, {
+                                userId: student.id,
+                                message: notificationResult.notificationMessage,
+                                read: false,
+                                createdAt: new Date().toISOString(),
+                            });
+                        } catch (e) {
+                            console.error(`Failed to generate or send notification for student ${student.id}`, e);
+                        }
+                    }
+                }
+            })();
+        }
+
         setOpenAssignmentDialog(false);
         assignmentForm.reset();
     } catch (error) {
@@ -313,7 +353,7 @@ export default function AcademicsPage() {
   }
 
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading;
+  const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || areStudentsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -366,7 +406,7 @@ export default function AcademicsPage() {
                 {isFaculty && (
                     <Dialog open={openAssignmentDialog} onOpenChange={setOpenAssignmentDialog}>
                         <DialogTrigger asChild>
-                            <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Assignment</Button>
+                            <Button size="sm" disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> Add Assignment</Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader><DialogTitle>Add New Assignment</DialogTitle></DialogHeader>
