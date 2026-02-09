@@ -96,9 +96,9 @@ export default function AcademicsPage() {
 
   // Data fetching for all courses (needed for both roles to map IDs to names)
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null; // Wait for user
+    if (!firestore || isAuthUserLoading || !authUser) return null; // Wait for user
     return collection(firestore, 'courses');
-  }, [firestore, authUser]);
+  }, [firestore, isAuthUserLoading, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
   const allStudentsQuery = useMemoFirebase(() => {
@@ -600,3 +600,5 @@ export default function AcademicsPage() {
     </div>
   );
 }
+
+    

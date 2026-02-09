@@ -96,9 +96,9 @@ export default function ResultsPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
+    if (!firestore || isAuthUserLoading || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore, authUser]);
+  }, [firestore, isAuthUserLoading, authUser]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
   
   // --- Student Specific ---
@@ -364,3 +364,5 @@ export default function ResultsPage() {
     </Card>
   );
 }
+
+    

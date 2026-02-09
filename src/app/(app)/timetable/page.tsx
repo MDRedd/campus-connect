@@ -43,9 +43,9 @@ export default function TimetablePage() {
     const firestore = useFirestore();
 
     const coursesQuery = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
+        if (!firestore || isAuthUserLoading || !authUser) return null;
         return collection(firestore, 'courses');
-    }, [firestore, authUser]);
+    }, [firestore, isAuthUserLoading, authUser]);
     const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
     
     const enrollmentsQuery = useMemoFirebase(() => {
@@ -181,3 +181,5 @@ export default function TimetablePage() {
     </div>
   );
 }
+
+    

@@ -74,9 +74,9 @@ export default function CoursesPage() {
   const { data: currentUserProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUserProfile || (currentUserProfile.role !== 'admin' && currentUserProfile.role !== 'faculty')) return null;
+    if (!firestore || isUserProfileLoading || !currentUserProfile || (currentUserProfile.role !== 'admin' && currentUserProfile.role !== 'faculty')) return null;
     return collection(firestore, 'courses');
-  }, [firestore, currentUserProfile]);
+  }, [firestore, isUserProfileLoading, currentUserProfile]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
   const courseForm = useForm<z.infer<typeof courseSchema>>({
@@ -233,3 +233,5 @@ export default function CoursesPage() {
     </div>
   );
 }
+
+    

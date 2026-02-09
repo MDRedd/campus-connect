@@ -36,9 +36,9 @@ export default function DashboardPage() {
   const { data: announcements, isLoading: isAnnouncementsLoading } = useCollection<{id: string; title: string; description: string; date: string;}>(announcementsQuery);
 
   const coursesQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
+    if (!firestore || isAuthUserLoading || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore, authUser]);
+  }, [firestore, isAuthUserLoading, authUser]);
   const { data: courses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
   const enrollmentsQuery = useMemoFirebase(() => {
@@ -232,3 +232,5 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
