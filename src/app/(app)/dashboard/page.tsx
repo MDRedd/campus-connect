@@ -29,9 +29,9 @@ export default function DashboardPage() {
   const { data: announcements, isLoading: isAnnouncementsLoading } = useCollection<{id: string; title: string; description: string; date: string;}>(announcementsQuery);
 
   const coursesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore]);
+  }, [firestore, authUser]);
   const { data: courses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
   const enrollmentsQuery = useMemoFirebase(() => {

@@ -42,9 +42,9 @@ export default function AttendancePage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const coursesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore]);
+  }, [firestore, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
   const enrollmentsQuery = useMemoFirebase(() => {

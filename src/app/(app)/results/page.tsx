@@ -60,9 +60,9 @@ export default function ResultsPage() {
   const { data: results, isLoading: areResultsLoading } = useCollection<Result>(resultsQuery);
 
   const coursesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore]);
+  }, [firestore, authUser]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
   const groupedResults = useMemo<GroupedResults | null>(() => {

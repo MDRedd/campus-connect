@@ -45,9 +45,9 @@ export default function MarkAttendancePage() {
   const [areCoursesLoading, setAreCoursesLoading] = useState(true);
 
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore]);
+  }, [firestore, authUser]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
   
   useEffect(() => {
