@@ -46,7 +46,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@
 type Enrollment = { courseId: string; };
 type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
-type Submission = { id: string; assignmentId: string; studentId: string; submissionDate: string; fileUrl: string; comments?: string; marksAwarded?: number; studentName?: string; };
+type Submission = { id: string; assignmentId: string; studentId: string; submissionDate: string; fileUrl: string; comments?: string; marksAwarded?: number; studentName?: string; courseId: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
 type UserProfile = { role: 'student' | 'faculty' | 'admin'; };
 type Student = { id: string; name: string; };
@@ -401,6 +401,7 @@ export default function AcademicsPage() {
             submissionDate: new Date().toISOString(),
             fileUrl: values.fileUrl,
             comments: values.comments,
+            courseId: selectedAssignment.courseId,
         });
         toast({ title: 'Success', description: 'Assignment submitted successfully.' });
         setOpenSubmissionDialog(false);

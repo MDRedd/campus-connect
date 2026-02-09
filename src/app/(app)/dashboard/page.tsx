@@ -19,7 +19,7 @@ type QuickStat = {
 };
 
 type Assignment = { id: string; courseId: string; deadline: string; };
-type Submission = { id: string; };
+type Submission = { id: string; courseId: string; marksAwarded?: number; };
 
 
 export default function DashboardPage() {
@@ -150,6 +150,55 @@ export default function DashboardPage() {
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
     const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
     const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
+    
+    const [facultyStudentCount, setFacultyStudentCount] = useState<number | null>(null);
+    const [submissionsToGradeCount, setSubmissionsToGradeCount] = useState<number | null>(null);
+    const [isFacultyStatsLoading, setIsFacultyStatsLoading] = useState(true);
+
+    // Effect to fetch faculty-specific stats (student count, submissions to grade)
+    useEffect(() => {
+        if (userProfile?.role !== 'faculty' || !firestore || !facultyCourses) {
+            setIsFacultyStatsLoading(false);
+            return;
+        };
+        if (facultyCourses.length === 0) {
+            setFacultyStudentCount(0);
+            setSubmissionsToGradeCount(0);
+            setIsFacultyStatsLoading(false);
+            return;
+        }
+
+        const fetchStats = async () => {
+            setIsFacultyStatsLoading(true);
+            const facultyCourseIds = facultyCourses.map(c => c.id);
+
+            // Fetch unique student count
+            try {
+                const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', 'in', facultyCourseIds));
+                const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+                const studentIds = new Set(enrollmentsSnapshot.docs.map(d => d.data().studentId));
+                setFacultyStudentCount(studentIds.size);
+            } catch (e) {
+                console.error("Error fetching student count for faculty:", e);
+                setFacultyStudentCount(0); // fallback
+            }
+
+            // Fetch submissions to grade
+            try {
+                const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('courseId', 'in', facultyCourseIds));
+                const submissionsSnapshot = await getDocs(submissionsQuery);
+                const toGrade = submissionsSnapshot.docs.filter(d => d.data().marksAwarded === undefined || d.data().marksAwarded === null);
+                setSubmissionsToGradeCount(toGrade.length);
+            } catch (e) {
+                console.error("Error fetching submissions to grade:", e);
+                setSubmissionsToGradeCount(0); // fallback
+            }
+
+            setIsFacultyStatsLoading(false);
+        };
+
+        fetchStats();
+    }, [firestore, userProfile, facultyCourses]);
 
     // Effect to fetch assignments for students
     useEffect(() => {
@@ -285,11 +334,11 @@ export default function DashboardPage() {
                     { title: 'Assignments Due', value: dueAssignments.toString(), icon: require('lucide-react').FileWarning },
                 ];
             } else if (userProfile.role === 'faculty') {
-                if (areFacultyCoursesLoading) return;
+                if (areFacultyCoursesLoading || isFacultyStatsLoading) return;
                 stats = [
                     { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: require('lucide-react').BookOpen },
-                    { title: 'Students', value: '128', icon: require('lucide-react').Users }, // Static
-                    { title: 'Submissions to Grade', value: '15', icon: require('lucide-react').CheckCircle }, // Static
+                    { title: 'Total Students', value: (facultyStudentCount ?? 0).toString(), icon: require('lucide-react').Users },
+                    { title: 'Submissions to Grade', value: (submissionsToGradeCount ?? 0).toString(), icon: require('lucide-react').CheckCircle },
                 ];
             } else if (userProfile.role === 'admin') {
                 if (areAllUsersLoading || areCoursesLoading) return;
@@ -309,7 +358,8 @@ export default function DashboardPage() {
         userProfile, isUserProfileLoading, areEnrollmentsLoading, isAttendanceLoading, enrollments, attendanceData, 
         allUsers, areAllUsersLoading, courses, areCoursesLoading,
         areAssignmentsLoading, areMySubmissionsLoading, assignments, mySubmissions,
-        areFacultyCoursesLoading, facultyCourses
+        areFacultyCoursesLoading, facultyCourses,
+        isFacultyStatsLoading, facultyStudentCount, submissionsToGradeCount
     ]);
 
 

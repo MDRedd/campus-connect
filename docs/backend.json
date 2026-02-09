@@ -329,6 +329,10 @@
           "type": "string",
           "description": "Unique identifier for the Submission entity."
         },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to Course. (Denormalized for querying)"
+        },
         "assignmentId": {
           "type": "string",
           "description": "Reference to Assignment. (Relationship: Assignment 1:N Submission)"
@@ -358,6 +362,7 @@
       },
       "required": [
         "id",
+        "courseId",
         "assignmentId",
         "studentId",
         "submissionDate",
