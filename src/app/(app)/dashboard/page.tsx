@@ -12,6 +12,7 @@ import AttendanceChart from './components/attendance-chart';
 import RecentAnnouncements from './components/recent-announcements';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/lib/data';
+import { format } from 'date-fns';
 
 type QuickStat = {
   title: string;
@@ -37,7 +38,7 @@ export default function DashboardPage() {
     if (!firestore) return null;
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
   }, [firestore]);
-  const { data: announcements, isLoading: isAnnouncementsLoading } = useCollection<{id: string; title: string; description: string; date: string;}>(announcementsQuery);
+  const { data: announcements, isLoading: isAnnouncementsLoading } = useCollection<{id: string; title: string; description: string; date: any;}>(announcementsQuery);
 
   const coursesQuery = useMemoFirebase(() => {
     if (!firestore || isAuthUserLoading || !authUser) return null;
@@ -390,7 +391,7 @@ export default function DashboardPage() {
     return <div>Could not load user profile. Please try logging in again.</div>
   }
   
-  const displayAnnouncements = announcements?.map(a => ({...a, content: a.description, date: new Date(a.date).toLocaleDateString()}));
+  const displayAnnouncements = announcements?.map(a => ({...a, content: a.description, date: a.date ? format(a.date.toDate(), 'MMM d, yyyy') : '...'}));
   const areQuickStatsLoading = !quickStats;
 
   return (

@@ -436,7 +436,12 @@
         },
         "targetAudience": {
           "type": "string",
-          "description": "The target audience for the announcement (e.g., all, students, faculty)."
+          "description": "The target audience for the announcement (e.g., all, students, faculty).",
+          "enum": [
+            "all",
+            "students",
+            "faculty"
+          ]
         },
         "date": {
           "type": "string",

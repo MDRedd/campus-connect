@@ -8,6 +8,7 @@ import {
     UsersRound,
     QrCode,
     FileWarning,
+    Megaphone,
   } from 'lucide-react';
 
 type UserRole = 'student' | 'faculty' | 'admin';
@@ -28,12 +29,14 @@ const facultyNavItems = [
     { href: '/attendance/mark', icon: QrCode, label: 'Mark Attendance' },
     { href: '/academics', icon: Library, label: 'Academics' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
+    { href: '/announcements', icon: Megaphone, label: 'Announcements' },
 ];
 
 const adminNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { href: '/users', icon: UsersRound, label: 'Users' },
     { href: '/courses', icon: Library, label: 'Courses' },
+    { href: '/announcements', icon: Megaphone, label: 'Announcements' },
 ];
 
 export const getNavItems = (role: UserRole) => {
