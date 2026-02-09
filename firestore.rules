@@ -102,7 +102,8 @@ service cloud.firestore {
 
     match /courses/{courseId}/timetables/{timetableId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow create: if isFacultyOrAdmin() && request.resource.data.facultyId == request.auth.uid;
+      allow update, delete: if (isFaculty() && resource.data.facultyId == request.auth.uid) || isAdmin();
     }
 
     match /users/{userId}/results/{resultId} {
