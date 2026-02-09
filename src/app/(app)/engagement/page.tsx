@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, deleteDoc } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
