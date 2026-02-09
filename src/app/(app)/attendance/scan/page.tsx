@@ -47,7 +47,11 @@ export default function ScanAttendancePage() {
       } catch (err) {
         console.error('Error accessing camera:', err);
         setHasCameraPermission(false);
-        setError('Camera access denied. Please enable camera permissions in your browser settings.');
+        let message = 'Camera access denied. Please enable camera permissions for this site in your browser settings.';
+        if (window.location.protocol !== 'https:') {
+            message += ' Also, camera access requires a secure connection (HTTPS).';
+        }
+        setError(message);
       }
     };
     getCameraPermission();
@@ -196,5 +200,3 @@ export default function ScanAttendancePage() {
     </div>
   );
 }
-
-    
