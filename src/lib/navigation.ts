@@ -25,7 +25,7 @@ const studentNavItems = [
 const facultyNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
-    { href: '/attendance', icon: ClipboardList, label: 'Attendance' },
+    { href: '/attendance', icon: ClipboardList, label: 'Attendance Dashboard' },
     { href: '/attendance/mark', icon: QrCode, label: 'Mark Attendance' },
     { href: '/academics', icon: Library, label: 'Academics' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
