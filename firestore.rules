@@ -157,13 +157,18 @@ service cloud.firestore {
     }
 
     match /clubs/{clubId} {
-      allow get, list: if true;
-      allow create, update, delete: if isFacultyOrAdmin();
-
-      match /club_memberships/{clubMembershipId} {
-        allow get, list, update, delete: if isExistingDoc() && isOwner(resource.data.studentId);
-        allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
-      }
+      allow get, list: if isSignedIn();
+      allow create, delete: if isFacultyOrAdmin();
+      // Allow faculty/admins to update club details.
+      // Allow students to update only the 'members' array to add themselves.
+      allow update: if isFacultyOrAdmin() ||
+                      (
+                        isSignedIn() &&
+                        // Check that only the 'members' field is being changed by the student.
+                        request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
+                        // Check that the student is only adding their own UID to the array.
+                        request.resource.data.members == resource.data.members.concat(request.auth.uid)
+                      );
     }
 
     match /users/{userId}/notifications/{notificationId} {
@@ -188,3 +193,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

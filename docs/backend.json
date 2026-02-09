@@ -596,6 +596,13 @@
         "facultyIncharge": {
           "type": "string",
           "description": "Reference to User (Faculty). (Relationship: User 1:N Club)"
+        },
+        "members": {
+          "type": "array",
+          "description": "A list of student UIDs who are members of the club.",
+          "items": {
+            "type": "string"
+          }
         }
       },
       "required": [
@@ -603,36 +610,6 @@
         "name",
         "description",
         "facultyIncharge"
-      ]
-    },
-    "ClubMembership": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "ClubMembership",
-      "type": "object",
-      "description": "Represents a student's membership in a club.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the ClubMembership entity."
-        },
-        "clubId": {
-          "type": "string",
-          "description": "Reference to Club. (Relationship: Club 1:N ClubMembership)"
-        },
-        "studentId": {
-          "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ClubMembership)"
-        },
-        "role": {
-          "type": "string",
-          "description": "The role of the student in the club."
-        }
-      },
-      "required": [
-        "id",
-        "clubId",
-        "studentId",
-        "role"
       ]
     },
     "Notification": {
@@ -982,26 +959,6 @@
             {
               "name": "clubId",
               "description": "The unique identifier for the club."
-            }
-          ]
-        }
-      },
-      {
-        "path": "/clubs/{clubId}/club_memberships/{clubMembershipId}",
-        "definition": {
-          "entityName": "ClubMembership",
-          "schema": {
-            "$ref": "#/backend/entities/ClubMembership"
-          },
-          "description": "Stores club membership data for a specific club.",
-          "params": [
-            {
-              "name": "clubId",
-              "description": "The unique identifier for the club."
-            },
-            {
-              "name": "clubMembershipId",
-              "description": "The unique identifier for the club membership."
             }
           ]
         }

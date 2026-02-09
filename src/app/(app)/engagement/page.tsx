@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser } from '@/firebase';
-import { collection, getDocs, query } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc, arrayUnion } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -25,16 +25,19 @@ import {
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
+import { useToast } from '@/hooks/use-toast';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
 type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
-type Club = { id: string; name: string; description: string; facultyIncharge: string; };
+type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
 
 export default function EngagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading: isAuthLoading } = useUser();
+    const { toast } = useToast();
+    const [joiningClubId, setJoiningClubId] = useState<string | null>(null);
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
@@ -97,6 +100,30 @@ export default function EngagementPage() {
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
+
+    const handleJoinClub = async (clubId: string) => {
+        if (!firestore || !user) return;
+        setJoiningClubId(clubId);
+        try {
+            const clubRef = doc(firestore, 'clubs', clubId);
+            await updateDoc(clubRef, {
+                members: arrayUnion(user.uid)
+            });
+            toast({
+                title: "Successfully Joined Club!",
+                description: "Welcome to the club. You can now participate in its activities.",
+            });
+        } catch (error) {
+            console.error("Error joining club:", error);
+            toast({
+                variant: 'destructive',
+                title: "Failed to Join",
+                description: "There was a problem joining the club. Please try again later.",
+            });
+        } finally {
+            setJoiningClubId(null);
+        }
+    };
 
     const isLoading = isAuthLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
 
@@ -194,7 +221,10 @@ export default function EngagementPage() {
                             </Card>
                          ))
                     ) : clubs && clubs.length > 0 ? (
-                        clubs.map(club => (
+                        clubs.map(club => {
+                            const isMember = user ? club.members?.includes(user.uid) : false;
+                            const isJoining = joiningClubId === club.id;
+                            return (
                             <Card key={club.id} className="overflow-hidden flex flex-col">
                                 {clubImage && (
                                     <Image
@@ -213,10 +243,16 @@ export default function EngagementPage() {
                                     <p className="text-sm text-muted-foreground">{club.description}</p>
                                 </CardContent>
                                 <CardFooter>
-                                    <Button className="w-full">Join Club</Button>
+                                    <Button 
+                                        className="w-full"
+                                        onClick={() => handleJoinClub(club.id)}
+                                        disabled={isJoining || isMember || !user}
+                                    >
+                                        {isJoining ? 'Joining...' : isMember ? 'Joined' : 'Join Club'}
+                                    </Button>
                                 </CardFooter>
                             </Card>
-                        ))
+                        )})
                     ) : (
                         <Card className="md:col-span-2 lg:col-span-3">
                             <CardContent className="p-8 text-center">
@@ -293,3 +329,5 @@ export default function EngagementPage() {
     </div>
   );
 }
+
+    
