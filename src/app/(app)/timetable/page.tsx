@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, where, collectionGroup, addDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, collectionGroup, addDoc, doc } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
   Card,
