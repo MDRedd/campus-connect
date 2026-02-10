@@ -2,8 +2,8 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, addDoc, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, addDoc, updateDoc } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -119,17 +119,12 @@ export default function CoursesPage() {
     setOpenCourseDialog(true);
   }
 
-  const handleDelete = async (courseId: string) => {
+  const handleDelete = (courseId: string) => {
     if (!firestore) return;
     if (!confirm('Are you sure you want to delete this course? This action cannot be undone.')) return;
-    try {
-        const courseRef = doc(firestore, 'courses', courseId);
-        await deleteDoc(courseRef);
-        toast({ title: 'Success', description: 'Course deleted.' });
-    } catch (error) {
-        console.error("Error deleting course:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete course.' });
-    }
+    const courseRef = doc(firestore, 'courses', courseId);
+    deleteDocumentNonBlocking(courseRef);
+    toast({ title: 'Success', description: 'Course deleted.' });
   }
 
   async function onCourseSubmit(values: z.infer<typeof courseSchema>) {
