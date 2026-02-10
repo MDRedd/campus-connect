@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, orderBy, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -84,6 +84,7 @@ export default function EngagementPage() {
     const [openClubDialog, setOpenClubDialog] = useState(false);
     const [openEventDialog, setOpenEventDialog] = useState(false);
     const [openForumDialog, setOpenForumDialog] = useState(false);
+    const [editingClub, setEditingClub] = useState<Club | null>(null);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
     const [openEventDetailsDialog, setOpenEventDetailsDialog] = useState(false);
@@ -97,6 +98,7 @@ export default function EngagementPage() {
     }, [firestore, user]);
     const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
     const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role === 'admin';
+    const isAdmin = userProfile?.role === 'admin';
 
     const coursesQuery = useMemoFirebase(() => {
         if (!firestore || isAuthLoading || !user) return null;
@@ -211,23 +213,51 @@ export default function EngagementPage() {
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
+    
+    const handleAddNewClub = () => {
+        setEditingClub(null);
+        clubForm.reset();
+        setOpenClubDialog(true);
+    };
 
-    async function onCreateClub(values: z.infer<typeof clubSchema>) {
+    const handleEditClub = (club: Club) => {
+        setEditingClub(club);
+        clubForm.reset({
+            name: club.name,
+            description: club.description,
+        });
+        setOpenClubDialog(true);
+    };
+
+    const handleDeleteClub = (clubId: string) => {
+        if (!firestore || !confirm('Are you sure you want to delete this club?')) return;
+        deleteDocumentNonBlocking(doc(firestore, 'clubs', clubId));
+        toast({ title: 'Success', description: 'Club deleted.' });
+    };
+    
+    async function onClubSubmit(values: z.infer<typeof clubSchema>) {
       if (!firestore || !user) return;
       try {
-          const clubsRef = collection(firestore, 'clubs');
-          await addDoc(clubsRef, {
-              name: values.name,
-              description: values.description,
-              facultyIncharge: user.uid,
-              members: [],
-          });
-          toast({ title: 'Success', description: 'Club created successfully.' });
+          if (editingClub) {
+              const clubRef = doc(firestore, 'clubs', editingClub.id);
+              updateDocumentNonBlocking(clubRef, { name: values.name, description: values.description });
+              toast({ title: 'Success', description: 'Club updated successfully.' });
+          } else {
+              const clubData = {
+                  name: values.name,
+                  description: values.description,
+                  facultyIncharge: user.uid,
+                  members: [],
+              };
+              addDocumentNonBlocking(collection(firestore, 'clubs'), clubData);
+              toast({ title: 'Success', description: 'Club created successfully.' });
+          }
           setOpenClubDialog(false);
+          setEditingClub(null);
           clubForm.reset();
       } catch (error) {
-          console.error("Error creating club:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not create club.' });
+          console.error("Error saving club:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not save club.' });
       }
     }
     
@@ -429,18 +459,18 @@ export default function EngagementPage() {
                         <CardTitle>Student Clubs</CardTitle>
                         <CardDescription>Find your community and explore your interests.</CardDescription>
                     </div>
-                    {isFacultyOrAdmin && (
+                    {isAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
                             <DialogTrigger asChild>
-                                <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Club</Button>
+                                <Button size="sm" onClick={handleAddNewClub}><PlusCircle className="mr-2 h-4 w-4" /> Create Club</Button>
                             </DialogTrigger>
                             <DialogContent>
-                                <DialogHeader><DialogTitle>Create New Club</DialogTitle></DialogHeader>
+                                <DialogHeader><DialogTitle>{editingClub ? 'Edit Club' : 'Create New Club'}</DialogTitle></DialogHeader>
                                 <Form {...clubForm}>
-                                    <form onSubmit={clubForm.handleSubmit(onCreateClub)} className="space-y-4">
+                                    <form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
                                         <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Club Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                                         <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Club</Button></DialogFooter>
+                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingClub ? 'Save Changes': 'Create Club'}</Button></DialogFooter>
                                     </form>
                                 </Form>
                             </DialogContent>
@@ -472,10 +502,18 @@ export default function EngagementPage() {
                                     />
                                 )}
                                 <CardHeader>
-                                    <CardTitle>{club.name}</CardTitle>
+                                    <div className="flex justify-between items-start">
+                                      <CardTitle>{club.name}</CardTitle>
+                                      {isAdmin && (
+                                          <div className="flex items-center -mr-2 -mt-2">
+                                              <Button variant="ghost" size="icon" onClick={() => handleEditClub(club)}><Edit className="h-4 w-4" /></Button>
+                                              <Button variant="ghost" size="icon" onClick={() => handleDeleteClub(club.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                          </div>
+                                      )}
+                                    </div>
                                 </CardHeader>
                                 <CardContent className="flex-grow">
-                                    <p className="text-sm text-muted-foreground">{club.description}</p>
+                                    <p className="text-sm text-muted-foreground line-clamp-3">{club.description}</p>
                                 </CardContent>
                                 <CardFooter>
                                     <Button asChild className="w-full">
