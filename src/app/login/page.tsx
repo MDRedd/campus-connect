@@ -10,9 +10,10 @@ import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { BookOpen } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
-import { initiateEmailSignIn, initiateGoogleSignIn } from '@/firebase/non-blocking-login';
+import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
+import { signInWithEmailAndPassword } from 'firebase/auth';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const loginImage = PlaceHolderImages.find((img) => img.id === 'login-image');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -29,14 +31,25 @@ export default function LoginPage() {
     }
   }, [user, isUserLoading, router]);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!auth) return;
-    initiateEmailSignIn(auth, email, password);
-    toast({
-      title: 'Logging In...',
-      description: 'Please wait while we check your credentials.',
-    });
+    setIsLoggingIn(true);
+    try {
+        await signInWithEmailAndPassword(auth, email, password);
+        toast({
+          title: 'Logged In!',
+          description: 'Redirecting to your dashboard...',
+        });
+    } catch (error) {
+        toast({
+            variant: 'destructive',
+            title: 'Login Failed',
+            description: 'Invalid email or password. Please try again.',
+        });
+    } finally {
+        setIsLoggingIn(false);
+    }
   };
 
   const handleGoogleLogin = () => {
@@ -94,6 +107,7 @@ export default function LoginPage() {
                     required
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
+                    disabled={isLoggingIn || isUserLoading}
                   />
                 </div>
                 <div className="grid gap-2">
@@ -106,15 +120,22 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
+                    disabled={isLoggingIn || isUserLoading}
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isUserLoading}>
-                  {isUserLoading ? 'Logging in...' : 'Login'}
+                <Button type="submit" className="w-full" disabled={isLoggingIn || isUserLoading}>
+                  {isLoggingIn ? 'Logging in...' : 'Login'}
                 </Button>
-                <Button variant="outline" className="w-full" onClick={handleGoogleLogin} disabled={isUserLoading}>
+                <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn || isUserLoading}>
                   Login with Google
                 </Button>
               </form>
+               <div className="mt-4 text-center text-sm">
+                Don&apos;t have an account?{' '}
+                <Link href="/signup" className="underline">
+                  Sign up
+                </Link>
+              </div>
             </CardContent>
           </Card>
         </div>
