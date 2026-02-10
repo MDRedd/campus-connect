@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, limit } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, addDocumentNonBlocking } from '@/firebase';
+import { collection, getDocs, query, DocumentData, where, collectionGroup, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -248,76 +248,68 @@ export default function AcademicsPage() {
   const materialForm = useForm<z.infer<typeof materialSchema>>({ resolver: zodResolver(materialSchema) });
 
 
-  async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
+  function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
     if (!firestore || !authUser) return;
-    try {
-        const courseRef = collection(firestore, 'courses', values.courseId, 'assignments');
-        await addDoc(courseRef, {
-            title: values.title,
-            description: values.description,
-            courseId: values.courseId,
-            deadline: new Date(values.deadline).toISOString(),
-            facultyId: authUser.uid,
-        });
-        toast({ title: 'Success', description: 'Assignment added.' });
+    
+    const courseRef = collection(firestore, 'courses', values.courseId, 'assignments');
+    addDocumentNonBlocking(courseRef, {
+        title: values.title,
+        description: values.description,
+        courseId: values.courseId,
+        deadline: new Date(values.deadline).toISOString(),
+        facultyId: authUser.uid,
+    });
+    toast({ title: 'Success', description: 'Assignment added.' });
 
-        if (allStudents && allStudents.length > 0) {
-            toast({ title: 'Generating Notifications', description: 'Sending alerts to enrolled students...' });
-            const course = displayCourses?.find(c => c.id === values.courseId);
+    if (allStudents && allStudents.length > 0) {
+        toast({ title: 'Generating Notifications', description: 'Sending alerts to enrolled students...' });
+        const course = displayCourses?.find(c => c.id === values.courseId);
 
-            // Run notification generation in the background
-            (async () => {
-                for (const student of allStudents) {
-                    const enrollmentQuery = query(collection(firestore, 'users', student.id, 'enrollments'), where('courseId', '==', values.courseId));
-                    const enrollmentSnapshot = await getDocs(enrollmentQuery);
-                    if (!enrollmentSnapshot.empty) {
-                        try {
-                            const notificationResult = await generatePersonalizedNotification({
-                                studentId: student.id,
-                                updateType: 'assignmentDeadline',
-                                details: `A new assignment "${values.title}" for course "${course?.name || 'Unknown Course'}" is due on ${format(new Date(values.deadline), 'PPP')}.`,
-                            });
-                            const notificationsRef = collection(firestore, 'users', student.id, 'notifications');
-                            await addDoc(notificationsRef, {
-                                userId: student.id,
-                                message: notificationResult.notificationMessage,
-                                read: false,
-                                createdAt: new Date().toISOString(),
-                            });
-                        } catch (e) {
-                            console.error(`Failed to generate or send notification for student ${student.id}`, e);
-                        }
+        // Run notification generation in the background
+        (async () => {
+            for (const student of allStudents) {
+                const enrollmentQuery = query(collection(firestore, 'users', student.id, 'enrollments'), where('courseId', '==', values.courseId));
+                const enrollmentSnapshot = await getDocs(enrollmentQuery);
+                if (!enrollmentSnapshot.empty) {
+                    try {
+                        const notificationResult = await generatePersonalizedNotification({
+                            studentId: student.id,
+                            updateType: 'assignmentDeadline',
+                            details: `A new assignment "${values.title}" for course "${course?.name || 'Unknown Course'}" is due on ${format(new Date(values.deadline), 'PPP')}.`,
+                        });
+                        const notificationsRef = collection(firestore, 'users', student.id, 'notifications');
+                        addDocumentNonBlocking(notificationsRef, {
+                            userId: student.id,
+                            message: notificationResult.notificationMessage,
+                            read: false,
+                            createdAt: new Date().toISOString(),
+                        });
+                    } catch (e) {
+                        console.error(`Failed to generate or send notification for student ${student.id}`, e);
                     }
                 }
-            })();
-        }
-
-        setOpenAssignmentDialog(false);
-        assignmentForm.reset();
-    } catch (error) {
-        console.error("Error adding assignment:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not add assignment.' });
+            }
+        })();
     }
+
+    setOpenAssignmentDialog(false);
+    assignmentForm.reset();
   }
   
-  async function onAddMaterial(values: z.infer<typeof materialSchema>) {
+  function onAddMaterial(values: z.infer<typeof materialSchema>) {
       if (!firestore || !authUser) return;
-      try {
-        const courseRef = collection(firestore, 'courses', values.courseId, 'study_materials');
-        await addDoc(courseRef, {
-            title: values.title,
-            description: values.description,
-            fileUrl: values.fileUrl,
-            uploadedBy: authUser.uid,
-            uploadDate: new Date().toISOString()
-        });
-        toast({ title: 'Success', description: 'Study material added.' });
-        setOpenMaterialDialog(false);
-        materialForm.reset();
-      } catch (error) {
-        console.error("Error adding material:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not add study material.' });
-      }
+      
+      const courseRef = collection(firestore, 'courses', values.courseId, 'study_materials');
+      addDocumentNonBlocking(courseRef, {
+          title: values.title,
+          description: values.description,
+          fileUrl: values.fileUrl,
+          uploadedBy: authUser.uid,
+          uploadDate: new Date().toISOString()
+      });
+      toast({ title: 'Success', description: 'Study material added.' });
+      setOpenMaterialDialog(false);
+      materialForm.reset();
   }
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || areStudentsLoading;
@@ -477,7 +469,7 @@ export default function AcademicsPage() {
                     <Card key={material.id} className="flex items-center justify-between p-4">
                         <div className="flex-1">
                         <h4 className="font-semibold">{material.title}</h4>
-                        <p className="text-sm text-muted-foreground">{material.courseName}</p>
+                        <p className="text-sm text-muted-foreground">{material.description}</p>
                         </div>
                         <div className="flex items-center gap-2">
                             <Button variant="outline" size="sm" asChild><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Download</a></Button>

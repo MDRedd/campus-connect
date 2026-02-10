@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, query, where, addDoc, updateDoc, limit } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, where, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import * as z from 'zod';
 import { useForm } from 'react-hook-form';
@@ -125,24 +125,21 @@ export default function AssignmentDetailPage() {
     const submissionForm = useForm<z.infer<typeof submissionSchema>>({ resolver: zodResolver(submissionSchema) });
     const gradingForm = useForm<z.infer<typeof gradingSchema>>({ resolver: zodResolver(gradingSchema) });
 
-    async function onAddSubmission(values: z.infer<typeof submissionSchema>) {
+    function onAddSubmission(values: z.infer<typeof submissionSchema>) {
         if (!firestore || !authUser || !assignment || !courseId) return;
-        try {
-            const submissionRef = collection(firestore, 'courses', courseId, 'assignments', assignment.id, 'submissions');
-            await addDoc(submissionRef, {
-                assignmentId: assignment.id,
-                studentId: authUser.uid,
-                submissionDate: new Date().toISOString(),
-                fileUrl: values.fileUrl,
-                comments: values.comments,
-                courseId: courseId,
-            });
-            toast({ title: 'Success', description: 'Assignment submitted successfully.' });
-            submissionForm.reset();
-        } catch (error) {
-            console.error("Error submitting assignment:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not submit assignment.' });
-        }
+
+        const submissionRef = collection(firestore, 'courses', courseId, 'assignments', assignment.id, 'submissions');
+        addDocumentNonBlocking(submissionRef, {
+            assignmentId: assignment.id,
+            studentId: authUser.uid,
+            submissionDate: new Date().toISOString(),
+            fileUrl: values.fileUrl,
+            comments: values.comments,
+            courseId: courseId,
+        });
+
+        toast({ title: 'Success', description: 'Assignment submitted successfully.' });
+        submissionForm.reset();
     }
 
     const handleOpenGradingDialog = (submission: Submission) => {
@@ -154,20 +151,17 @@ export default function AssignmentDetailPage() {
         setOpenGradingDialog(true);
     };
 
-    async function onSaveGrade(values: z.infer<typeof gradingSchema>) {
+    function onSaveGrade(values: z.infer<typeof gradingSchema>) {
         if (!firestore || !selectedSubmission || !courseId) return;
-        try {
-            const subRef = doc(firestore, 'courses', courseId, 'assignments', selectedSubmission.assignmentId, 'submissions', selectedSubmission.id);
-            await updateDoc(subRef, {
-                marksAwarded: values.marksAwarded,
-                facultyFeedback: values.facultyFeedback,
-            });
-            toast({ title: 'Grade Saved', description: 'The marks and feedback have been updated.' });
-            setOpenGradingDialog(false);
-        } catch (error) {
-            console.error("Error saving grade:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not save the grade.' });
-        }
+        
+        const subRef = doc(firestore, 'courses', courseId, 'assignments', selectedSubmission.assignmentId, 'submissions', selectedSubmission.id);
+        updateDocumentNonBlocking(subRef, {
+            marksAwarded: values.marksAwarded,
+            facultyFeedback: values.facultyFeedback,
+        });
+
+        toast({ title: 'Grade Saved', description: 'The marks and feedback have been updated.' });
+        setOpenGradingDialog(false);
     }
 
     if (!courseId) {

@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import {
   Card,
@@ -111,32 +111,28 @@ export default function AnnouncementsPage() {
     toast({ title: 'Success', description: 'Announcement deleted.' });
   }
 
-  async function onSubmit(values: z.infer<typeof announcementSchema>) {
+  function onSubmit(values: z.infer<typeof announcementSchema>) {
     if (!firestore || !authUser) return;
-    try {
-        if (editingAnnouncement) {
-            const announcementRef = doc(firestore, 'announcements', editingAnnouncement.id);
-            await updateDoc(announcementRef, {
-                ...values,
-                date: serverTimestamp(), // Update the date on edit
-            });
-            toast({ title: 'Success', description: 'Announcement updated.' });
-        } else {
-            const announcementsRef = collection(firestore, 'announcements');
-            await addDoc(announcementsRef, {
-                ...values,
-                date: serverTimestamp(),
-                postedBy: authUser.uid,
-            });
-            toast({ title: 'Success', description: 'Announcement posted.' });
-        }
-        setOpenDialog(false);
-        setEditingAnnouncement(null);
-        form.reset();
-    } catch (error) {
-        console.error("Error saving announcement:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not save announcement.' });
+    
+    if (editingAnnouncement) {
+        const announcementRef = doc(firestore, 'announcements', editingAnnouncement.id);
+        updateDocumentNonBlocking(announcementRef, {
+            ...values,
+            date: serverTimestamp(), // Update the date on edit
+        });
+        toast({ title: 'Success', description: 'Announcement updated.' });
+    } else {
+        const announcementsRef = collection(firestore, 'announcements');
+        addDocumentNonBlocking(announcementsRef, {
+            ...values,
+            date: serverTimestamp(),
+            postedBy: authUser.uid,
+        });
+        toast({ title: 'Success', description: 'Announcement posted.' });
     }
+    setOpenDialog(false);
+    setEditingAnnouncement(null);
+    form.reset();
   }
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areAnnouncementsLoading;

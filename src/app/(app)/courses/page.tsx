@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, addDoc, updateDoc } from 'firebase/firestore';
 import {
   Card,
@@ -127,52 +127,44 @@ export default function CoursesPage() {
     toast({ title: 'Success', description: 'Course deleted.' });
   }
 
-  async function onCourseSubmit(values: z.infer<typeof courseSchema>) {
+  function onCourseSubmit(values: z.infer<typeof courseSchema>) {
     if (!firestore) return;
-    try {
-        if (editingCourse) {
-            const courseRef = doc(firestore, 'courses', editingCourse.id);
-            await updateDoc(courseRef, values);
-            toast({ title: 'Success', description: 'Course updated.' });
-        } else {
-            const courseRef = collection(firestore, 'courses');
-            await addDoc(courseRef, values);
-            toast({ title: 'Success', description: 'Course added.' });
-        }
-        setOpenCourseDialog(false);
-        setEditingCourse(null);
-        courseForm.reset();
-    } catch (error) {
-        console.error("Error saving course:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not save course.' });
+    
+    if (editingCourse) {
+        const courseRef = doc(firestore, 'courses', editingCourse.id);
+        updateDocumentNonBlocking(courseRef, values);
+        toast({ title: 'Success', description: 'Course updated.' });
+    } else {
+        const courseRef = collection(firestore, 'courses');
+        addDocumentNonBlocking(courseRef, values);
+        toast({ title: 'Success', description: 'Course added.' });
     }
+    setOpenCourseDialog(false);
+    setEditingCourse(null);
+    courseForm.reset();
   }
 
-  const handleEnroll = async (course: Course) => {
+  const handleEnroll = (course: Course) => {
     if (!firestore || !authUser) return;
     setEnrollingCourseId(course.id);
-    try {
-      const enrollmentRef = collection(firestore, 'users', authUser.uid, 'enrollments');
-      await addDoc(enrollmentRef, {
-        studentId: authUser.uid,
-        courseId: course.id,
-        semester: 'Fall', // Using a default value for now
-        year: new Date().getFullYear(),
-      });
-      toast({
-        title: "Enrolled Successfully!",
-        description: `You have been enrolled in ${course.name}.`,
-      });
-    } catch (error) {
-      console.error("Error enrolling in course: ", error);
-      toast({
-        variant: 'destructive',
-        title: "Enrollment Failed",
-        description: "There was an issue enrolling you in the course.",
-      });
-    } finally {
-      setEnrollingCourseId(null);
-    }
+    
+    const enrollmentRef = collection(firestore, 'users', authUser.uid, 'enrollments');
+    addDocumentNonBlocking(enrollmentRef, {
+      studentId: authUser.uid,
+      courseId: course.id,
+      semester: 'Fall', // Using a default value for now
+      year: new Date().getFullYear(),
+    });
+
+    toast({
+      title: "Enrolled Successfully!",
+      description: `You have been enrolled in ${course.name}.`,
+    });
+    
+    // Non-blocking, so we can't easily wait for the operation to finish
+    // For a better UX, we could handle the promise returned by addDocumentNonBlocking
+    // but for this optimistic update, we reset the state immediately.
+    setEnrollingCourseId(null);
   };
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || (currentUserProfile?.role === 'student' && areEnrollmentsLoading);
