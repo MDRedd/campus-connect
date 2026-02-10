@@ -2,8 +2,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, deleteDoc, orderBy, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
+import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, orderBy, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -115,7 +115,6 @@ export default function EngagementPage() {
         if (!firestore || !user) return null;
         return query(
             collection(firestore, 'events'), 
-            where('date', '>=', new Date().toISOString()),
             orderBy('date', 'asc')
         );
     }, [firestore, user]);
@@ -196,6 +195,11 @@ export default function EngagementPage() {
         );
     }, [forums, searchQuery]);
 
+    const filteredEvents = useMemo(() => {
+        if (!events) return null;
+        return events.filter(event => new Date(event.date) >= new Date());
+    }, [events]);
+
     const clubForm = useForm<z.infer<typeof clubSchema>>({
       resolver: zodResolver(clubSchema),
     });
@@ -267,15 +271,10 @@ export default function EngagementPage() {
         setOpenEventDialog(true);
     };
 
-    const handleDeleteEvent = async (eventId: string) => {
+    const handleDeleteEvent = (eventId: string) => {
         if (!firestore || !confirm('Are you sure you want to delete this event?')) return;
-        try {
-            await deleteDoc(doc(firestore, 'events', eventId));
-            toast({ title: 'Success', description: 'Event deleted.' });
-        } catch (error) {
-            console.error("Error deleting event:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not delete event.' });
-        }
+        deleteDocumentNonBlocking(doc(firestore, 'events', eventId));
+        toast({ title: 'Success', description: 'Event deleted.' });
     };
 
     const handleViewDetails = (event: Event) => {
@@ -570,8 +569,8 @@ export default function EngagementPage() {
                                 <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
                             </Card>
                         ))
-                     ) : events && events.length > 0 ? (
-                        events.map(event => (
+                     ) : filteredEvents && filteredEvents.length > 0 ? (
+                        filteredEvents.map(event => (
                             <Card key={event.id} className="overflow-hidden flex flex-col">
                                 {eventImage && (
                                     <Image
@@ -650,7 +649,3 @@ export default function EngagementPage() {
     </div>
   );
 }
-
-    
-
-    

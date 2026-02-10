@@ -1,8 +1,8 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, addDoc, updateDoc, deleteDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, addDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -103,17 +103,12 @@ export default function AnnouncementsPage() {
     setOpenDialog(true);
   }
 
-  const handleDelete = async (announcementId: string) => {
+  const handleDelete = (announcementId: string) => {
     if (!firestore) return;
     if (!confirm('Are you sure you want to delete this announcement? This action cannot be undone.')) return;
-    try {
-        const announcementRef = doc(firestore, 'announcements', announcementId);
-        await deleteDoc(announcementRef);
-        toast({ title: 'Success', description: 'Announcement deleted.' });
-    } catch (error) {
-        console.error("Error deleting announcement:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete announcement.' });
-    }
+    const announcementRef = doc(firestore, 'announcements', announcementId);
+    deleteDocumentNonBlocking(announcementRef);
+    toast({ title: 'Success', description: 'Announcement deleted.' });
   }
 
   async function onSubmit(values: z.infer<typeof announcementSchema>) {

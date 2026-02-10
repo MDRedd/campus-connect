@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc, getDocs, addDoc, collectionGroup, updateDoc, deleteDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, getDocs, addDoc, collectionGroup, updateDoc } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -261,18 +261,12 @@ export default function ResultsPage() {
     setOpenResultDialog(true);
   };
 
-  const handleDelete = async (result: Result) => {
+  const handleDelete = (result: Result) => {
     if (!firestore || !result.id || !result.studentId) return;
     if (!confirm('Are you sure you want to delete this result? This action cannot be undone.')) return;
-
-    try {
-        const resultRef = doc(firestore, 'users', result.studentId, 'results', result.id);
-        await deleteDoc(resultRef);
-        toast({ title: 'Success', description: 'Result deleted.' });
-    } catch (error) {
-        console.error("Error deleting result:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not delete result.' });
-    }
+    const resultRef = doc(firestore, 'users', result.studentId, 'results', result.id);
+    deleteDocumentNonBlocking(resultRef);
+    toast({ title: 'Success', description: 'Result deleted.' });
   };
 
 
