@@ -40,6 +40,7 @@ type Timetable = {
     startTime: string;
     endTime:string;
     room: string;
+    meetingUrl?: string;
     semester: string;
     year: number;
     course: {
@@ -58,6 +59,7 @@ const timetableSchema = z.object({
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
   room: z.string().min(1, 'Room is required.'),
+  meetingUrl: z.string().url('Please enter a valid URL.').optional().or(z.literal('')),
   semester: z.string().min(3, 'Semester is required.'),
   year: z.coerce.number().min(new Date().getFullYear(), 'Year cannot be in the past.'),
 });
@@ -234,6 +236,7 @@ export default function TimetablePage() {
                                 <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel>End Time</FormLabel><FormControl><Input placeholder="e.g., 10:30" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             </div>
                             <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel>Room</FormLabel><FormControl><Input placeholder="e.g., A-101" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel>Online Meeting URL (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem> )} />
                              <div className="grid grid-cols-2 gap-4">
                                 <FormField control={form.control} name="semester" render={({ field }) => ( <FormItem><FormLabel>Semester</FormLabel><FormControl><Input placeholder="e.g., Fall" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                 <FormField control={form.control} name="year" render={({ field }) => ( <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />

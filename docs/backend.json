@@ -202,6 +202,11 @@
           "type": "string",
           "description": "The room where the class takes place."
         },
+        "meetingUrl": {
+          "type": "string",
+          "description": "URL for the online class meeting.",
+          "format": "uri"
+        },
         "semester": {
           "type": "string",
           "description": "The semester for the timetable slot."

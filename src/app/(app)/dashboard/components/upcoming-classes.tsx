@@ -3,12 +3,14 @@
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Clock, Video } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export type UpcomingClass = {
   id: string;
   startTime: string;
   endTime: string;
   room: string;
+  meetingUrl?: string;
   course: {
     name: string;
   };
@@ -45,7 +47,15 @@ export default function UpcomingClasses({ timetable }: UpcomingClassesProps) {
                 </div>
                 <div className="text-right">
                   <p className="font-medium">{entry.startTime} - {entry.endTime}</p>
-                  <Button variant="ghost" size="sm" className="mt-1 text-primary">Join Online <Video className="ml-2 h-4 w-4"/></Button>
+                  {entry.meetingUrl ? (
+                    <Button variant="ghost" size="sm" asChild className="mt-1 text-primary">
+                        <a href={entry.meetingUrl} target="_blank" rel="noopener noreferrer">
+                            Join Online <Video className="ml-2 h-4 w-4"/>
+                        </a>
+                    </Button>
+                ) : (
+                    <Button variant="ghost" size="sm" className="mt-1" disabled>Join Online <Video className="ml-2 h-4 w-4"/></Button>
+                )}
                 </div>
               </li>
             ))}
