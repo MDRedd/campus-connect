@@ -3,7 +3,7 @@
 import { useMemo } from 'react';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, where, doc } from 'firebase/firestore';
-import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import {
   Card,
   CardHeader,
@@ -31,6 +31,7 @@ type UserProfile = {
 export default function ViewAnnouncementsPage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
+  const router = useRouter();
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -62,10 +63,8 @@ export default function ViewAnnouncementsPage() {
 
   return (
     <div className="flex flex-col gap-6">
-       <Button variant="outline" size="sm" className="w-fit" asChild>
-        <Link href="/dashboard">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
-        </Link>
+       <Button variant="outline" size="sm" className="w-fit" onClick={() => router.back()}>
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back
       </Button>
 
       <Card>

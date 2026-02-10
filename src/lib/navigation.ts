@@ -21,6 +21,7 @@ const studentNavItems = [
     { href: '/courses', icon: BookCopy, label: 'Course Catalog' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
     { href: '/engagement', icon: Users, label: 'Engagement' },
+    { href: '/announcements/view', icon: Megaphone, label: 'Announcements' },
 ];
 
 const facultyNavItems = [
@@ -51,5 +52,3 @@ export const getNavItems = (role: UserRole) => {
             return studentNavItems;
     }
 }
-
-    

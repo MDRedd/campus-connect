@@ -35,9 +35,22 @@ export default function DashboardPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<{ name: string; role: 'student' | 'faculty' | 'admin' }>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
-    return query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
-  }, [firestore]);
+    if (!firestore || !userProfile) return null;
+
+    let q = query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
+
+    if (userProfile.role !== 'admin') {
+        const targetAudiences = ['all', userProfile.role];
+        q = query(
+            collection(firestore, 'announcements'),
+            where('targetAudience', 'in', targetAudiences),
+            orderBy('date', 'desc'),
+            limit(3)
+        );
+    }
+    
+    return q;
+  }, [firestore, userProfile]);
   const { data: announcements, isLoading: isAnnouncementsLoading } = useCollection<{id: string; title: string; description: string; date: any;}>(announcementsQuery);
 
   const coursesQuery = useMemoFirebase(() => {
@@ -420,7 +433,3 @@ export default function DashboardPage() {
     </div>
   );
 }
-
-    
-
-    
