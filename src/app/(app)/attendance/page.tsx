@@ -217,28 +217,30 @@ export default function AttendancePage() {
       {attendanceData && attendanceData.length > 0 ? (
         <div className="grid gap-6 md:grid-cols-2">
           {attendanceData.map((data) => (
-            <Card key={data.id}>
-              <CardHeader>
-                <CardTitle>{data.name}</CardTitle>
-                <CardDescription>{data.code}</CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div>
-                  <div className="flex justify-between items-center mb-1">
-                    <p className="text-sm font-medium">
-                      Attendance: {data.attended} / {data.total} classes
-                    </p>
-                    <p className="text-sm font-bold">{data.percentage}%</p>
+            <Link key={data.id} href={`/attendance/history/${data.id}`} className="block rounded-lg transition-all hover:ring-2 hover:ring-primary/50">
+              <Card className="h-full">
+                <CardHeader>
+                  <CardTitle>{data.name}</CardTitle>
+                  <CardDescription>{data.code}</CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div>
+                    <div className="flex justify-between items-center mb-1">
+                      <p className="text-sm font-medium">
+                        Attendance: {data.attended} / {data.total} classes
+                      </p>
+                      <p className="text-sm font-bold">{data.percentage}%</p>
+                    </div>
+                    <Progress value={data.percentage} className="h-2" />
                   </div>
-                  <Progress value={data.percentage} className="h-2" />
-                </div>
-                {data.percentage < 75 && data.total > 0 && (
-                    <p className="text-sm text-destructive">
-                        Your attendance is low. Please attend classes regularly.
-                    </p>
-                )}
-              </CardContent>
-            </Card>
+                  {data.percentage < 75 && data.total > 0 && (
+                      <p className="text-sm text-destructive">
+                          Your attendance is low. Please attend classes regularly.
+                      </p>
+                  )}
+                </CardContent>
+              </Card>
+            </Link>
           ))}
         </div>
       ) : (
