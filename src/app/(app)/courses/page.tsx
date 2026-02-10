@@ -28,7 +28,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogDescription,
     DialogTrigger,
     DialogFooter,
     DialogClose,
@@ -75,10 +74,24 @@ export default function CoursesPage() {
   const { data: currentUserProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isUserProfileLoading || !currentUserProfile || (currentUserProfile.role !== 'admin' && currentUserProfile.role !== 'faculty')) return null;
+    if (!firestore) return null;
     return collection(firestore, 'courses');
-  }, [firestore, isUserProfileLoading, currentUserProfile]);
+  }, [firestore]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
+
+  // Student-specific data
+  const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
+
+  const enrollmentsQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser || currentUserProfile?.role !== 'student') return null;
+    return collection(firestore, 'users', authUser.uid, 'enrollments');
+  }, [firestore, authUser, currentUserProfile]);
+  const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<{courseId: string}>(enrollmentsQuery);
+
+  const enrolledCourseIds = useMemo(() => {
+    if (!enrollments) return new Set<string>();
+    return new Set(enrollments.map(e => e.courseId));
+  }, [enrollments]);
 
   const courseForm = useForm<z.infer<typeof courseSchema>>({
     resolver: zodResolver(courseSchema),
@@ -140,101 +153,189 @@ export default function CoursesPage() {
     }
   }
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading;
+  const handleEnroll = async (course: Course) => {
+    if (!firestore || !authUser) return;
+    setEnrollingCourseId(course.id);
+    try {
+      const enrollmentRef = collection(firestore, 'users', authUser.uid, 'enrollments');
+      await addDoc(enrollmentRef, {
+        studentId: authUser.uid,
+        courseId: course.id,
+        semester: 'Fall', // Using a default value for now
+        year: new Date().getFullYear(),
+      });
+      toast({
+        title: "Enrolled Successfully!",
+        description: `You have been enrolled in ${course.name}.`,
+      });
+    } catch (error) {
+      console.error("Error enrolling in course: ", error);
+      toast({
+        variant: 'destructive',
+        title: "Enrollment Failed",
+        description: "There was an issue enrolling you in the course.",
+      });
+    } finally {
+      setEnrollingCourseId(null);
+    }
+  };
 
-  if (currentUserProfile && currentUserProfile.role === 'student') {
+  const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || (currentUserProfile?.role === 'student' && areEnrollmentsLoading);
+
+  if (isLoading) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Access Denied</CardTitle>
-                <CardDescription>You do not have permission to view this page.</CardDescription>
-            </CardHeader>
-        </Card>
+        <div>
+            <Skeleton className="h-10 w-1/3" />
+            <Skeleton className="h-5 w-1/2 mt-2" />
+            <Card className="mt-6">
+                <CardHeader>
+                    <Skeleton className="h-8 w-48" />
+                    <Skeleton className="h-5 w-64" />
+                </CardHeader>
+                <CardContent>
+                    <Skeleton className="h-48 w-full" />
+                </CardContent>
+            </Card>
+        </div>
     )
   }
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Course Management</h1>
-        <p className="text-muted-foreground">
-          Add, edit, and manage all courses offered.
-        </p>
-      </div>
-      <Card>
-        <CardHeader className="flex-row justify-between items-start">
-          <div>
-            <CardTitle>All Courses</CardTitle>
-            <CardDescription>A list of all available courses.</CardDescription>
-          </div>
-          <Dialog open={openCourseDialog} onOpenChange={setOpenCourseDialog}>
-            <DialogTrigger asChild>
-                <Button onClick={handleAddNewClick}><PlusCircle className="mr-2" /> Add Course</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader><DialogTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle></DialogHeader>
-                <Form {...courseForm}>
-                    <form onSubmit={courseForm.handleSubmit(onCourseSubmit)} className="space-y-4">
-                        <FormField control={courseForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Course Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={courseForm.control} name="code" render={({ field }) => ( <FormItem><FormLabel>Course Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={courseForm.control} name="department" render={({ field }) => ( <FormItem><FormLabel>Department</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={courseForm.control} name="credits" render={({ field }) => ( <FormItem><FormLabel>Credits</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingCourse ? 'Save Changes' : 'Add Course'}</Button></DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-          </Dialog>
-        </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Code</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead>Credits</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {isLoading ? (
-                [...Array(3)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
-                  </TableRow>
-                ))
-              ) : allCourses && allCourses.length > 0 ? (
-                allCourses.map(course => (
-                  <TableRow key={course.id}>
-                    <TableCell className="font-medium">
-                        <Link href={`/courses/${course.id}`} className="hover:underline">
-                            {course.name}
-                        </Link>
-                    </TableCell>
-                    <TableCell>{course.code}</TableCell>
-                    <TableCell>{course.department}</TableCell>
-                    <TableCell>{course.credits}</TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(course)}>
-                            <Edit className="h-4 w-4" />
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDelete(course.id)}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                        </Button>
-                    </TableCell>
-                  </TableRow>
-                ))
-              ) : (
+  // ADMIN VIEW
+  if (currentUserProfile?.role === 'admin') {
+    return (
+        <div className="flex flex-col gap-6">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Course Management</h1>
+            <p className="text-muted-foreground">
+            Add, edit, and manage all courses offered.
+            </p>
+        </div>
+        <Card>
+            <CardHeader className="flex-row justify-between items-start">
+            <div>
+                <CardTitle>All Courses</CardTitle>
+                <CardDescription>A list of all available courses.</CardDescription>
+            </div>
+            <Dialog open={openCourseDialog} onOpenChange={setOpenCourseDialog}>
+                <DialogTrigger asChild>
+                    <Button onClick={handleAddNewClick}><PlusCircle className="mr-2" /> Add Course</Button>
+                </DialogTrigger>
+                <DialogContent>
+                    <DialogHeader><DialogTitle>{editingCourse ? 'Edit Course' : 'Add New Course'}</DialogTitle></DialogHeader>
+                    <Form {...courseForm}>
+                        <form onSubmit={courseForm.handleSubmit(onCourseSubmit)} className="space-y-4">
+                            <FormField control={courseForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Course Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={courseForm.control} name="code" render={({ field }) => ( <FormItem><FormLabel>Course Code</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={courseForm.control} name="department" render={({ field }) => ( <FormItem><FormLabel>Department</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <FormField control={courseForm.control} name="credits" render={({ field }) => ( <FormItem><FormLabel>Credits</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingCourse ? 'Save Changes' : 'Add Course'}</Button></DialogFooter>
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+            </CardHeader>
+            <CardContent>
+            <Table>
+                <TableHeader>
                 <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    No courses found.
-                  </TableCell>
+                    <TableHead>Name</TableHead>
+                    <TableHead>Code</TableHead>
+                    <TableHead>Department</TableHead>
+                    <TableHead>Credits</TableHead>
+                    <TableHead className="text-right">Actions</TableHead>
                 </TableRow>
-              )}
-            </TableBody>
-          </Table>
-        </CardContent>
-      </Card>
-    </div>
-  );
+                </TableHeader>
+                <TableBody>
+                {areCoursesLoading ? (
+                    [...Array(3)].map((_, i) => (
+                    <TableRow key={i}>
+                        <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
+                    </TableRow>
+                    ))
+                ) : allCourses && allCourses.length > 0 ? (
+                    allCourses.map(course => (
+                    <TableRow key={course.id}>
+                        <TableCell className="font-medium">
+                            <Link href={`/courses/${course.id}`} className="hover:underline">
+                                {course.name}
+                            </Link>
+                        </TableCell>
+                        <TableCell>{course.code}</TableCell>
+                        <TableCell>{course.department}</TableCell>
+                        <TableCell>{course.credits}</TableCell>
+                        <TableCell className="text-right">
+                            <Button variant="ghost" size="icon" onClick={() => handleEditClick(course)}>
+                                <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button variant="ghost" size="icon" onClick={() => handleDelete(course.id)}>
+                                <Trash2 className="h-4 w-4 text-destructive" />
+                            </Button>
+                        </TableCell>
+                    </TableRow>
+                    ))
+                ) : (
+                    <TableRow>
+                    <TableCell colSpan={5} className="h-24 text-center">
+                        No courses found.
+                    </TableCell>
+                    </TableRow>
+                )}
+                </TableBody>
+            </Table>
+            </CardContent>
+        </Card>
+        </div>
+    );
+  }
+
+  // STUDENT VIEW
+  if (currentUserProfile?.role === 'student') {
+    return (
+      <div className="flex flex-col gap-6">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Course Catalog</h1>
+            <p className="text-muted-foreground">Browse and enroll in available courses.</p>
+        </div>
+        {allCourses && allCourses.length > 0 ? (
+            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                {allCourses.map((course) => {
+                    const isEnrolled = enrolledCourseIds.has(course.id);
+                    const isEnrolling = enrollingCourseId === course.id;
+                    return (
+                        <Card key={course.id} className="flex flex-col">
+                            <CardHeader>
+                                <CardTitle className="flex items-start gap-4">
+                                    <div className="bg-primary/10 text-primary p-3 rounded-lg"><BookCopy className="h-6 w-6" /></div>
+                                    <span className="flex-1">{course.name}</span>
+                                </CardTitle>
+                                <CardDescription>{course.code} | {course.credits} Credits</CardDescription>
+                            </CardHeader>
+                            <CardContent className="flex-grow">
+                                <p className="text-sm text-muted-foreground">Department: {course.department}</p>
+                            </CardContent>
+                            <CardFooter>
+                                <Button className="w-full" disabled={isEnrolled || isEnrolling} onClick={() => handleEnroll(course)}>
+                                    {isEnrolling ? 'Enrolling...' : isEnrolled ? 'Enrolled' : 'Enroll'}
+                                </Button>
+                            </CardFooter>
+                        </Card>
+                    )
+                })}
+            </div>
+        ) : (
+            <Card><CardContent className="p-8 text-center"><p className="text-muted-foreground">No courses are available in the catalog at this time.</p></CardContent></Card>
+        )}
+      </div>
+    );
+  }
+
+  // Fallback for faculty or other roles
+  return (
+    <Card>
+        <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>You do not have permission to view this page.</CardDescription>
+        </CardHeader>
+    </Card>
+  )
 }

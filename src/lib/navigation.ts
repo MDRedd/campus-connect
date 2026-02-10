@@ -7,7 +7,7 @@ import {
     Users,
     UsersRound,
     QrCode,
-    FileWarning,
+    BookCopy,
     Megaphone,
   } from 'lucide-react';
 
@@ -18,6 +18,7 @@ const studentNavItems = [
     { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
     { href: '/attendance', icon: ClipboardList, label: 'Attendance' },
     { href: '/academics', icon: Library, label: 'Academics' },
+    { href: '/courses', icon: BookCopy, label: 'Course Catalog' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
     { href: '/engagement', icon: Users, label: 'Engagement' },
 ];
@@ -35,7 +36,7 @@ const facultyNavItems = [
 const adminNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { href: '/users', icon: UsersRound, label: 'Users' },
-    { href: '/courses', icon: Library, label: 'Courses' },
+    { href: '/courses', icon: Library, label: 'Course Management' },
     { href: '/announcements', icon: Megaphone, label: 'Announcements' },
 ];
 
