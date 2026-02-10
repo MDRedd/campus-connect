@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, where, collectionGroup, addDoc, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, getDocs, query, where, collectionGroup, doc } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
   Card,
@@ -12,7 +12,7 @@ import {
   CardDescription
 } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, MapPin, PlusCircle } from 'lucide-react';
+import { Clock, MapPin, PlusCircle, Pencil, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -79,6 +79,7 @@ export default function TimetablePage() {
     const { toast } = useToast();
     
     const [openDialog, setOpenDialog] = useState(false);
+    const [editingSlot, setEditingSlot] = useState<Timetable | null>(null);
 
     const userDocRef = useMemoFirebase(() => {
         if (!firestore || !authUser) return null;
@@ -172,22 +173,56 @@ export default function TimetablePage() {
           resolver: zodResolver(timetableSchema),
           defaultValues: { year: new Date().getFullYear(), semester: 'Fall' }
       });
+      
+    const handleAddNew = () => {
+        setEditingSlot(null);
+        form.reset({ year: new Date().getFullYear(), semester: 'Fall', meetingUrl: '' });
+        setOpenDialog(true);
+    };
 
-      async function onAddTimetableSlot(values: z.infer<typeof timetableSchema>) {
+    const handleEdit = (slot: Timetable) => {
+        setEditingSlot(slot);
+        form.reset({
+            courseId: slot.courseId,
+            dayOfWeek: slot.dayOfWeek,
+            startTime: slot.startTime,
+            endTime: slot.endTime,
+            room: slot.room,
+            meetingUrl: slot.meetingUrl || '',
+            semester: slot.semester,
+            year: slot.year,
+        });
+        setOpenDialog(true);
+    };
+
+    const handleDelete = (slot: Timetable) => {
+        if (!firestore) return;
+        if (!confirm('Are you sure you want to delete this timetable slot?')) return;
+        const slotRef = doc(firestore, 'courses', slot.courseId, 'timetables', slot.id);
+        deleteDocumentNonBlocking(slotRef);
+        toast({ title: 'Success', description: 'Timetable slot deleted.' });
+    };
+
+      function onTimetableSubmit(values: z.infer<typeof timetableSchema>) {
         if (!firestore || !authUser) return;
-        try {
+
+        if (editingSlot) {
+            const slotRef = doc(firestore, 'courses', editingSlot.courseId, 'timetables', editingSlot.id);
+            // Non-blocking update
+            updateDocumentNonBlocking(slotRef, values);
+            toast({ title: 'Success', description: 'Timetable slot updated.' });
+        } else {
+            // Non-blocking create
             const timetableRef = collection(firestore, 'courses', values.courseId, 'timetables');
-            await addDoc(timetableRef, {
+            addDocumentNonBlocking(timetableRef, {
                 ...values,
                 facultyId: authUser.uid,
             });
             toast({ title: 'Success', description: 'Timetable slot added.' });
-            setOpenDialog(false);
-            form.reset();
-        } catch (error) {
-            console.error("Error adding timetable slot:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not add timetable slot.' });
         }
+        
+        setOpenDialog(false);
+        setEditingSlot(null);
       }
 
       const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || areEnrollmentsLoading || isTimetableLoading;
@@ -205,16 +240,16 @@ export default function TimetablePage() {
         {userProfile?.role === 'faculty' && (
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
                 <DialogTrigger asChild>
-                    <Button><PlusCircle className="mr-2 h-4 w-4" /> Add Timetable Slot</Button>
+                    <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> {editingSlot ? 'Edit Slot' : 'Add Slot'}</Button>
                 </DialogTrigger>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>Add New Timetable Slot</DialogTitle></DialogHeader>
+                    <DialogHeader><DialogTitle>{editingSlot ? 'Edit Timetable Slot' : 'Add New Timetable Slot'}</DialogTitle></DialogHeader>
                     <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onAddTimetableSlot)} className="space-y-4">
+                        <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4">
                             <FormField control={form.control} name="courseId" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Course</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
                                     <SelectContent>{allCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                 </Select>
@@ -241,7 +276,7 @@ export default function TimetablePage() {
                                 <FormField control={form.control} name="semester" render={({ field }) => ( <FormItem><FormLabel>Semester</FormLabel><FormControl><Input placeholder="e.g., Fall" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                 <FormField control={form.control} name="year" render={({ field }) => ( <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                             </div>
-                            <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Slot</Button></DialogFooter>
+                            <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingSlot ? 'Save Changes' : 'Add Slot'}</Button></DialogFooter>
                         </form>
                     </Form>
                 </DialogContent>
@@ -273,12 +308,12 @@ export default function TimetablePage() {
                 ) : timetableByDay && timetableByDay[day].length > 0 ? (
                   <ul className="space-y-4">
                     {timetableByDay[day].map((entry) => (
-                      <li key={entry.id} className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                      <li key={entry.id} className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:gap-4">
                         <div className="flex-1">
                           <p className="font-bold text-lg">{entry.course.name}</p>
                           <p className="text-sm text-muted-foreground">{entry.course.code}</p>
                         </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm">
+                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm mt-2 sm:mt-0">
                             <div className="flex items-center gap-2">
                                 <Clock className="h-4 w-4 text-muted-foreground" />
                                 <span>{entry.startTime} - {entry.endTime}</span>
@@ -287,6 +322,16 @@ export default function TimetablePage() {
                                 <MapPin className="h-4 w-4 text-muted-foreground" />
                                 <span>Room: {entry.room}</span>
                             </div>
+                             {userProfile?.role === 'faculty' && (
+                                <div className="flex gap-2 sm:ml-4">
+                                    <Button variant="outline" size="sm" onClick={() => handleEdit(entry)}>
+                                        <Pencil className="mr-2 h-4 w-4" /> Edit
+                                    </Button>
+                                    <Button variant="destructive" size="sm" onClick={() => handleDelete(entry)}>
+                                        <Trash2 className="h-4 w-4" />
+                                    </Button>
+                                </div>
+                            )}
                         </div>
                       </li>
                     ))}
