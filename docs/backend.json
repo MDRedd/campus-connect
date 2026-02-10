@@ -719,312 +719,101 @@
     ]
   },
   "firestore": {
-    "structure": [
-      {
-        "path": "/users/{userId}",
-        "definition": {
-          "entityName": "User",
-          "schema": {
-            "$ref": "#/backend/entities/User"
-          },
-          "description": "Stores user data.  Path-based ownership.  Each user can only read/write their own document.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            }
-          ]
-        }
+    "/users/{userId}": {
+      "schema": {
+        "$ref": "#/backend/entities/User"
       },
-      {
-        "path": "/courses/{courseId}",
-        "definition": {
-          "entityName": "Course",
-          "schema": {
-            "$ref": "#/backend/entities/Course"
-          },
-          "description": "Stores course information.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            }
-          ]
-        }
+      "description": "Stores user data.  Path-based ownership.  Each user can only read/write their own document."
+    },
+    "/courses/{courseId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Course"
       },
-      {
-        "path": "/users/{userId}/enrollments/{enrollmentId}",
-        "definition": {
-          "entityName": "Enrollment",
-          "schema": {
-            "$ref": "#/backend/entities/Enrollment"
-          },
-          "description": "Stores enrollment data for a specific user. Path-based ownership: user can only read/write enrollments associated with their user ID.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "enrollmentId",
-              "description": "The unique identifier for the enrollment."
-            }
-          ]
-        }
+      "description": "Stores course information."
+    },
+    "/users/{userId}/enrollments/{enrollmentId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Enrollment"
       },
-      {
-        "path": "/users/{userId}/attendance/{attendanceId}",
-        "definition": {
-          "entityName": "Attendance",
-          "schema": {
-            "$ref": "#/backend/entities/Attendance"
-          },
-          "description": "Stores attendance data for a specific user. Path-based ownership, only faculty or admins should be able to create/update attendance, students can only view their own.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (student)."
-            },
-            {
-              "name": "attendanceId",
-              "description": "The unique identifier for the attendance record."
-            }
-          ]
-        }
+      "description": "Stores enrollment data for a specific user. Path-based ownership: user can only read/write enrollments associated with their user ID."
+    },
+    "/users/{userId}/attendance/{attendanceId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Attendance"
       },
-      {
-        "path": "/courses/{courseId}/timetables/{timetableId}",
-        "definition": {
-          "entityName": "Timetable",
-          "schema": {
-            "$ref": "#/backend/entities/Timetable"
-          },
-          "description": "Stores timetable data for a specific course.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            },
-            {
-              "name": "timetableId",
-              "description": "The unique identifier for the timetable slot."
-            }
-          ]
-        }
+      "description": "Stores attendance data for a specific user. Path-based ownership, only faculty or admins should be able to create/update attendance, students can only view their own."
+    },
+    "/courses/{courseId}/timetables/{timetableId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Timetable"
       },
-      {
-        "path": "/users/{userId}/results/{resultId}",
-        "definition": {
-          "entityName": "Result",
-          "schema": {
-            "$ref": "#/backend/entities/Result"
-          },
-          "description": "Stores result data for a specific user. Path-based ownership, but faculty/admin need write access.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user (student)."
-            },
-            {
-              "name": "resultId",
-              "description": "The unique identifier for the result."
-            }
-          ]
-        }
+      "description": "Stores timetable data for a specific course."
+    },
+    "/users/{userId}/results/{resultId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Result"
       },
-      {
-        "path": "/courses/{courseId}/assignments/{assignmentId}",
-        "definition": {
-          "entityName": "Assignment",
-          "schema": {
-            "$ref": "#/backend/entities/Assignment"
-          },
-          "description": "Stores assignment data for a specific course.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            },
-            {
-              "name": "assignmentId",
-              "description": "The unique identifier for the assignment."
-            }
-          ]
-        }
+      "description": "Stores result data for a specific user. Path-based ownership, but faculty/admin need write access."
+    },
+    "/courses/{courseId}/assignments/{assignmentId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Assignment"
       },
-      {
-        "path": "/courses/{courseId}/assignments/{assignmentId}/submissions/{submissionId}",
-        "definition": {
-          "entityName": "Submission",
-          "schema": {
-            "$ref": "#/backend/entities/Submission"
-          },
-          "description": "Stores submission data for a specific assignment within a course.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            },
-            {
-              "name": "assignmentId",
-              "description": "The unique identifier for the assignment."
-            },
-            {
-              "name": "submissionId",
-              "description": "The unique identifier for the submission."
-            }
-          ]
-        }
+      "description": "Stores assignment data for a specific course."
+    },
+    "/courses/{courseId}/assignments/{assignmentId}/submissions/{submissionId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Submission"
       },
-      {
-        "path": "/courses/{courseId}/study_materials/{studyMaterialId}",
-        "definition": {
-          "entityName": "StudyMaterial",
-          "schema": {
-            "$ref": "#/backend/entities/StudyMaterial"
-          },
-          "description": "Stores study material data for a specific course.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            },
-            {
-              "name": "studyMaterialId",
-              "description": "The unique identifier for the study material."
-            }
-          ]
-        }
+      "description": "Stores submission data for a specific assignment within a course."
+    },
+    "/courses/{courseId}/study_materials/{studyMaterialId}": {
+      "schema": {
+        "$ref": "#/backend/entities/StudyMaterial"
       },
-      {
-        "path": "/announcements/{announcementId}",
-        "definition": {
-          "entityName": "Announcement",
-          "schema": {
-            "$ref": "#/backend/entities/Announcement"
-          },
-          "description": "Stores announcements.",
-          "params": [
-            {
-              "name": "announcementId",
-              "description": "The unique identifier for the announcement."
-            }
-          ]
-        }
+      "description": "Stores study material data for a specific course."
+    },
+    "/announcements/{announcementId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Announcement"
       },
-      {
-        "path": "/courses/{courseId}/forums/{forumId}",
-        "definition": {
-          "entityName": "Forum",
-          "schema": {
-            "$ref": "#/backend/entities/Forum"
-          },
-          "description": "Stores forum data for a specific course.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            },
-            {
-              "name": "forumId",
-              "description": "The unique identifier for the forum."
-            }
-          ]
-        }
+      "description": "Stores announcements."
+    },
+    "/courses/{courseId}/forums/{forumId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Forum"
       },
-      {
-        "path": "/courses/{courseId}/forums/{forumId}/forum_posts/{forumPostId}",
-        "definition": {
-          "entityName": "ForumPost",
-          "schema": {
-            "$ref": "#/backend/entities/ForumPost"
-          },
-          "description": "Stores forum posts for a specific forum. Includes denormalized 'members' map for authorization independence.",
-          "params": [
-            {
-              "name": "courseId",
-              "description": "The unique identifier for the course."
-            },
-            {
-              "name": "forumId",
-              "description": "The unique identifier for the forum."
-            },
-            {
-              "name": "forumPostId",
-              "description": "The unique identifier for the forum post."
-            }
-          ]
-        }
+      "description": "Stores forum data for a specific course."
+    },
+    "/courses/{courseId}/forums/{forumId}/forum_posts/{forumPostId}": {
+      "schema": {
+        "$ref": "#/backend/entities/ForumPost"
       },
-      {
-        "path": "/events/{eventId}",
-        "definition": {
-          "entityName": "Event",
-          "schema": {
-            "$ref": "#/backend/entities/Event"
-          },
-          "description": "Stores event data.",
-          "params": [
-            {
-              "name": "eventId",
-              "description": "The unique identifier for the event."
-            }
-          ]
-        }
+      "description": "Stores forum posts for a specific forum. Includes denormalized 'members' map for authorization independence."
+    },
+    "/events/{eventId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Event"
       },
-      {
-        "path": "/clubs/{clubId}",
-        "definition": {
-          "entityName": "Club",
-          "schema": {
-            "$ref": "#/backend/entities/Club"
-          },
-          "description": "Stores club data.",
-          "params": [
-            {
-              "name": "clubId",
-              "description": "The unique identifier for the club."
-            }
-          ]
-        }
+      "description": "Stores event data."
+    },
+    "/clubs/{clubId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Club"
       },
-      {
-        "path": "/users/{userId}/notifications/{notificationId}",
-        "definition": {
-          "entityName": "Notification",
-          "schema": {
-            "$ref": "#/backend/entities/Notification"
-          },
-          "description": "Stores notifications for a specific user. Path-based ownership; users can only access their own notifications.",
-          "params": [
-            {
-              "name": "userId",
-              "description": "The unique identifier for the user."
-            },
-            {
-              "name": "notificationId",
-              "description": "The unique identifier for the notification."
-            }
-          ]
-        }
+      "description": "Stores club data."
+    },
+    "/users/{userId}/notifications/{notificationId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Notification"
       },
-      {
-        "path": "/attendanceSessions/{sessionId}",
-        "definition": {
-          "entityName": "AttendanceSession",
-          "schema": {
-            "$ref": "#/backend/entities/AttendanceSession"
-          },
-          "description": "Stores live attendance data for a class session. Created by faculty, updated by students.",
-          "params": [
-            {
-              "name": "sessionId",
-              "description": "The unique identifier for the attendance session."
-            }
-          ]
-        }
-      }
-    ],
-    "reasoning": "The Firestore structure is designed to support the CampusConnect platform's core features, including user authentication, attendance management, timetable management, semester results, academics, and student engagement. The design prioritizes authorization independence and supports secure list operations. Hierarchical paths are employed where appropriate (e.g., user-owned data).  Denormalization is used to avoid `get()` calls in security rules. Specifically, for collaborative entities such as Course forums the members map is denormalized into the ForumPost documents.  The structure assumes appropriate indexing will be configured to support common queries."
+      "description": "Stores notifications for a specific user. Path-based ownership; users can only access their own notifications."
+    },
+    "/attendanceSessions/{sessionId}": {
+      "schema": {
+        "$ref": "#/backend/entities/AttendanceSession"
+      },
+      "description": "Stores live attendance data for a class session. Created by faculty, updated by students."
+    }
   }
 }
