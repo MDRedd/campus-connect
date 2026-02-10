@@ -2,8 +2,9 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, collectionGroup, where, getDocs, DocumentData } from 'firebase/firestore';
+import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -28,7 +29,7 @@ type Course = {
   credits: number;
 };
 type UserProfile = { role: 'student' | 'faculty' | 'admin', name: string, id: string, email: string };
-type Assignment = { id: string; title: string; description: string; deadline: string; };
+type Assignment = { id: string; title: string; description: string; deadline: string; courseId: string; };
 type StudyMaterial = { id: string; title: string; description: string; fileUrl: string; };
 
 export default function CourseDetailPage() {
@@ -54,7 +55,7 @@ export default function CourseDetailPage() {
 
   const assignmentsQuery = useMemoFirebase(() => {
     if (!firestore || !courseId) return null;
-    return collection(firestore, 'courses', courseId, 'assignments');
+    return query(collection(firestore, 'courses', courseId, 'assignments'), orderBy('deadline', 'desc'));
   }, [firestore, courseId]);
   const { data: assignments, isLoading: areAssignmentsLoading } = useCollection<Assignment>(assignmentsQuery);
 
@@ -154,7 +155,9 @@ export default function CourseDetailPage() {
                                     <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
                                     <CardFooter className="flex justify-between items-center">
                                         <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                                        <Button variant="secondary" size="sm">View Details</Button>
+                                        <Button variant="secondary" size="sm" asChild>
+                                            <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>View Details</Link>
+                                        </Button>
                                     </CardFooter>
                                 </Card>
                             ))

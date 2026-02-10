@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, updateDoc, limit } from 'firebase/firestore';
+import { collection, getDocs, query, DocumentData, where, addDoc, collectionGroup, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BookCopy, FileText, Download, Sparkles, PlusCircle, Lightbulb, Pencil } from 'lucide-react';
+import { BookCopy, FileText, Download, Sparkles, PlusCircle, Lightbulb } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { summarizeCourseMaterials } from '@/ai/flows/summarize-course-materials';
 import { generateStudyQuestions } from '@/ai/flows/generate-study-questions';
@@ -36,18 +36,14 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
-import { doc } from 'firebase/firestore';
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
-import { Badge } from '@/components/ui/badge';
 
 // Simplified types based on backend.json
 type Enrollment = { courseId: string; };
 type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
-type Submission = { id: string; assignmentId: string; studentId: string; submissionDate: string; fileUrl: string; comments?: string; marksAwarded?: number; studentName?: string; courseId: string; facultyFeedback?: string; };
+type Submission = { id: string; assignmentId: string; studentId: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
 type UserProfile = { role: 'student' | 'faculty' | 'admin'; };
 type Student = { id: string; name: string; };
@@ -66,17 +62,6 @@ const materialSchema = z.object({
   fileUrl: z.string().url('Please enter a valid URL.'),
 });
 
-const submissionSchema = z.object({
-  fileUrl: z.string().url({ message: "Please enter a valid URL for your submission." }),
-  comments: z.string().optional(),
-});
-
-const gradingSchema = z.object({
-  marksAwarded: z.coerce.number().min(0, "Marks must be at least 0.").max(100, "Marks cannot exceed 100."),
-  facultyFeedback: z.string().optional(),
-});
-
-
 export default function AcademicsPage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
@@ -94,18 +79,6 @@ export default function AcademicsPage() {
 
   const [openAssignmentDialog, setOpenAssignmentDialog] = useState(false);
   const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
-  const [openSubmissionDialog, setOpenSubmissionDialog] = useState(false);
-  const [openSubmissionsDialog, setOpenSubmissionsDialog] = useState(false);
-  const [openMySubmissionDialog, setOpenMySubmissionDialog] = useState(false);
-  const [openGradingDialog, setOpenGradingDialog] = useState(false);
-
-  const [selectedAssignment, setSelectedAssignment] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
-  const [selectedAssignmentForGrading, setSelectedAssignmentForGrading] = useState<(Assignment & { courseName: string; courseCode: string; }) | null>(null);
-  const [currentSubmissions, setCurrentSubmissions] = useState<Submission[] | null>(null);
-  const [areSubmissionsLoading, setAreSubmissionsLoading] = useState(false);
-  const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
-  const [selectedSubmissionForGrading, setSelectedSubmissionForGrading] = useState<Submission | null>(null);
-
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -324,8 +297,6 @@ export default function AcademicsPage() {
 
   const assignmentForm = useForm<z.infer<typeof assignmentSchema>>({ resolver: zodResolver(assignmentSchema) });
   const materialForm = useForm<z.infer<typeof materialSchema>>({ resolver: zodResolver(materialSchema) });
-  const submissionForm = useForm<z.infer<typeof submissionSchema>>({ resolver: zodResolver(submissionSchema) });
-  const gradingForm = useForm<z.infer<typeof gradingSchema>>({ resolver: zodResolver(gradingSchema) });
 
 
   async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
@@ -399,93 +370,6 @@ export default function AcademicsPage() {
         toast({ variant: 'destructive', title: 'Error', description: 'Could not add study material.' });
       }
   }
-
-  async function onAddSubmission(values: z.infer<typeof submissionSchema>) {
-    if (!firestore || !authUser || !selectedAssignment) return;
-    try {
-        const submissionRef = collection(firestore, 'courses', selectedAssignment.courseId, 'assignments', selectedAssignment.id, 'submissions');
-        await addDoc(submissionRef, {
-            assignmentId: selectedAssignment.id,
-            studentId: authUser.uid,
-            submissionDate: new Date().toISOString(),
-            fileUrl: values.fileUrl,
-            comments: values.comments,
-            courseId: selectedAssignment.courseId,
-        });
-        toast({ title: 'Success', description: 'Assignment submitted successfully.' });
-        setOpenSubmissionDialog(false);
-        submissionForm.reset();
-    } catch (error) {
-        console.error("Error submitting assignment:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not submit assignment.' });
-    }
-  }
-
-  const handleViewSubmissions = async (assignment: Assignment & { courseName: string; courseCode: string; }) => {
-    setSelectedAssignmentForGrading(assignment);
-    setOpenSubmissionsDialog(true);
-    setAreSubmissionsLoading(true);
-    setCurrentSubmissions(null);
-    if (!firestore) return;
-
-    try {
-        const submissionsQuery = query(collection(firestore, 'courses', assignment.courseId, 'assignments', assignment.id, 'submissions'));
-        const querySnapshot = await getDocs(submissionsQuery);
-        const studentMap = new Map(allStudents?.map(s => [s.id, s.name]));
-        
-        const subs = querySnapshot.docs.map(doc => {
-            const data = doc.data() as Submission;
-            return {
-                ...data,
-                id: doc.id,
-                studentName: studentMap.get(data.studentId) || 'Unknown Student'
-            }
-        });
-        setCurrentSubmissions(subs);
-    } catch (error) {
-        console.error("Error fetching submissions:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch submissions.' });
-    } finally {
-        setAreSubmissionsLoading(false);
-    }
-  }
-
-  const handleOpenGradingDialog = (submission: Submission) => {
-    setSelectedSubmissionForGrading(submission);
-    gradingForm.reset({
-        marksAwarded: submission.marksAwarded,
-        facultyFeedback: submission.facultyFeedback || '',
-    });
-    setOpenGradingDialog(true);
-  };
-
-  async function onSaveGrade(values: z.infer<typeof gradingSchema>) {
-    if (!firestore || !selectedSubmissionForGrading) return;
-    
-    try {
-        const subRef = doc(firestore, 'courses', selectedSubmissionForGrading.courseId, 'assignments', selectedSubmissionForGrading.assignmentId, 'submissions', selectedSubmissionForGrading.id);
-        await updateDoc(subRef, {
-            marksAwarded: values.marksAwarded,
-            facultyFeedback: values.facultyFeedback,
-        });
-        toast({ title: 'Grade Saved', description: 'The marks and feedback have been updated.' });
-        setOpenGradingDialog(false);
-        
-        // Refresh the submissions list to show the new grade
-        if(selectedAssignmentForGrading) {
-            handleViewSubmissions(selectedAssignmentForGrading);
-        }
-    } catch (error) {
-        console.error("Error saving grade:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not save the grade.' });
-    }
-  }
-
-  const handleViewMySubmission = (submission: Submission) => {
-    setSelectedSubmission(submission);
-    setOpenMySubmissionDialog(true);
-  }
-
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || areStudentsLoading;
 
@@ -572,25 +456,19 @@ export default function AcademicsPage() {
                 ) : assignments && assignments.length > 0 ? (
                     assignments.map(assignment => {
                       const mySubmission = mySubmissions?.[assignment.id];
+                      const buttonText = isFaculty ? 'View Submissions' : mySubmission ? 'View Submission' : 'Submit';
+                      
                       return (
                         <Card key={assignment.id}>
                             <CardHeader><CardTitle>{assignment.title}</CardTitle><CardDescription>{assignment.courseName} ({assignment.courseCode})</CardDescription></CardHeader>
                             <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
                             <CardFooter className="flex justify-between items-center">
                             <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                            {isFaculty ? (
-                                <Button variant="secondary" size="sm" onClick={() => handleViewSubmissions(assignment)}>View Submissions</Button>
-                            ) : mySubmission ? (
-                                <Button variant="secondary" onClick={() => {
-                                  setSelectedAssignment(assignment);
-                                  handleViewMySubmission(mySubmission);
-                                }}>View Submission</Button>
-                            ) : (
-                                <Button onClick={() => {
-                                    setSelectedAssignment(assignment);
-                                    setOpenSubmissionDialog(true);
-                                }}>Submit</Button>
-                            )}
+                            <Button asChild>
+                                <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>
+                                    {buttonText}
+                                </Link>
+                            </Button>
                             </CardFooter>
                         </Card>
                       )
@@ -708,184 +586,6 @@ export default function AcademicsPage() {
             </div>
         </DialogContent>
       </Dialog>
-
-      <Dialog open={openSubmissionDialog} onOpenChange={setOpenSubmissionDialog}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Submit: {selectedAssignment?.title}</DialogTitle>
-                <DialogDescription>Upload your assignment file and add any comments.</DialogDescription>
-            </DialogHeader>
-            <Form {...submissionForm}>
-                <form onSubmit={submissionForm.handleSubmit(onAddSubmission)} className="space-y-4">
-                    <FormField control={submissionForm.control} name="fileUrl" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Submission File URL</FormLabel>
-                            <FormControl><Input type="url" placeholder="https://docs.google.com/document/d/..." {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <FormField control={submissionForm.control} name="comments" render={({ field }) => (
-                        <FormItem>
-                            <FormLabel>Comments (Optional)</FormLabel>
-                            <FormControl><Textarea placeholder="Add any comments for your instructor..." {...field} /></FormControl>
-                            <FormMessage />
-                        </FormItem>
-                    )} />
-                    <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={submissionForm.formState.isSubmitting}>
-                            {submissionForm.formState.isSubmitting ? "Submitting..." : "Submit Assignment"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={openSubmissionsDialog} onOpenChange={setOpenSubmissionsDialog}>
-        <DialogContent className="sm:max-w-4xl">
-            <DialogHeader>
-                <DialogTitle>Submissions for &quot;{selectedAssignmentForGrading?.title}&quot;</DialogTitle>
-                <DialogDescription>Review student submissions and award marks.</DialogDescription>
-            </DialogHeader>
-            <div className="py-4 max-h-[60vh] overflow-y-auto">
-                {areSubmissionsLoading ? (
-                    <Skeleton className="h-48 w-full" />
-                ) : currentSubmissions && currentSubmissions.length > 0 ? (
-                    <Table>
-                        <TableHeader>
-                            <TableRow>
-                                <TableHead>Student</TableHead>
-                                <TableHead>Date</TableHead>
-                                <TableHead>Submission</TableHead>
-                                <TableHead>Grade</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
-                            </TableRow>
-                        </TableHeader>
-                        <TableBody>
-                            {currentSubmissions.map(sub => (
-                                <TableRow key={sub.id}>
-                                    <TableCell>{sub.studentName}</TableCell>
-                                    <TableCell>{format(new Date(sub.submissionDate), 'Pp')}</TableCell>
-                                    <TableCell><Button asChild variant="link" size="sm"><a href={sub.fileUrl} target="_blank" rel="noopener noreferrer">View File</a></Button></TableCell>
-                                    <TableCell>
-                                        {sub.marksAwarded !== undefined ? (
-                                            <span className="font-semibold">{`${sub.marksAwarded} / 100`}</span>
-                                        ) : (
-                                            <Badge variant="secondary">Not Graded</Badge>
-                                        )}
-                                    </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="outline" size="sm" onClick={() => handleOpenGradingDialog(sub)}>
-                                            <Pencil className="mr-2 h-4 w-4" />
-                                            {sub.marksAwarded !== undefined ? 'Edit Grade' : 'Grade'}
-                                        </Button>
-                                    </TableCell>
-                                </TableRow>
-                            ))}
-                        </TableBody>
-                    </Table>
-                ) : (
-                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                      <FileText className="h-12 w-12 text-muted-foreground" />
-                      <h3 className="mt-4 text-lg font-semibold">No Submissions Yet</h3>
-                      <p className="mt-1 text-sm text-muted-foreground">Student submissions will appear here once they are submitted.</p>
-                    </div>
-                )}
-            </div>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={openMySubmissionDialog} onOpenChange={setOpenMySubmissionDialog}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>My Submission for &quot;{selectedAssignment?.title}&quot;</DialogTitle>
-                <DialogDescription>
-                    Details of your submission. Your grade will appear here once awarded.
-                </DialogDescription>
-            </DialogHeader>
-            {selectedSubmission && (
-                <div className="grid gap-4 py-4 text-sm">
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right text-muted-foreground">Submitted On</Label>
-                        <p className="col-span-3 font-medium">{format(new Date(selectedSubmission.submissionDate), 'Pp')}</p>
-                    </div>
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right text-muted-foreground">File</Label>
-                        <Button asChild variant="link" className="col-span-3 justify-start p-0 h-auto">
-                            <a href={selectedSubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="truncate">{selectedSubmission.fileUrl}</a>
-                        </Button>
-                    </div>
-                    <div className="grid grid-cols-4 items-start gap-4">
-                        <Label className="text-right pt-1 text-muted-foreground">Comments</Label>
-                        <p className="col-span-3">{selectedSubmission.comments || 'No comments provided.'}</p>
-                    </div>
-                     <hr className="col-span-4 my-2" />
-                    <div className="grid grid-cols-4 items-center gap-4">
-                        <Label className="text-right text-muted-foreground">Grade</Label>
-                        <p className="col-span-3 font-bold text-lg">
-                            {selectedSubmission.marksAwarded !== undefined ? `${selectedSubmission.marksAwarded} / 100` : 'Not Graded Yet'}
-                        </p>
-                    </div>
-                    <div className="grid grid-cols-4 items-start gap-4">
-                        <Label className="text-right pt-1 text-muted-foreground">Feedback</Label>
-                        <p className="col-span-3">{selectedSubmission.facultyFeedback || 'No feedback provided yet.'}</p>
-                    </div>
-                </div>
-            )}
-            <DialogFooter>
-                <Button variant="outline" onClick={() => setOpenMySubmissionDialog(false)}>Close</Button>
-            </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      <Dialog open={openGradingDialog} onOpenChange={setOpenGradingDialog}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Grade Submission</DialogTitle>
-                <DialogDescription>
-                    For student: <span className="font-semibold">{selectedSubmissionForGrading?.studentName}</span>
-                </DialogDescription>
-            </DialogHeader>
-             <Form {...gradingForm}>
-                <form onSubmit={gradingForm.handleSubmit(onSaveGrade)} className="space-y-4">
-                     <FormField
-                        control={gradingForm.control}
-                        name="marksAwarded"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Marks (out of 100)</FormLabel>
-                                <FormControl>
-                                    <Input type="number" {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={gradingForm.control}
-                        name="facultyFeedback"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Feedback</FormLabel>
-                                <FormControl>
-                                    <Textarea placeholder="Provide constructive feedback for the student..." {...field} />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={gradingForm.formState.isSubmitting}>
-                            {gradingForm.formState.isSubmitting ? "Saving..." : "Save Grade"}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
-        </DialogContent>
-      </Dialog>
-
     </div>
   );
 }
