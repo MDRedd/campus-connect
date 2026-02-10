@@ -13,13 +13,22 @@ import {
   CardContent,
   CardFooter,
 } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, BookCopy, Building, Star, FileText, Download, Users } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Users, Sparkles, Lightbulb } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { format } from 'date-fns';
+import { summarizeCourseMaterials } from '@/ai/flows/summarize-course-materials';
+import { generateStudyQuestions } from '@/ai/flows/generate-study-questions';
 
 type Course = {
   id: string;
@@ -40,6 +49,16 @@ export default function CourseDetailPage() {
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
   const courseId = params.courseId as string;
+
+  const [isSummarizing, setIsSummarizing] = useState(false);
+  const [summary, setSummary] = useState('');
+  const [summaryTitle, setSummaryTitle] = useState('');
+  const [showSummaryDialog, setShowSummaryDialog] = useState(false);
+  
+  const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
+  const [questions, setQuestions] = useState('');
+  const [questionsTitle, setQuestionsTitle] = useState('');
+  const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -102,6 +121,44 @@ export default function CourseDetailPage() {
     fetchEnrolledStudents();
 
   }, [firestore, courseId, userProfile]);
+
+  const handleSummarize = async (material: StudyMaterial) => {
+    if (!course) return;
+    setIsSummarizing(true);
+    setSummary('');
+    setSummaryTitle(material.title);
+    setShowSummaryDialog(true);
+    try {
+      const result = await summarizeCourseMaterials({
+        courseName: course.name,
+        material: `${material.title}\n\n${material.description}`,
+      });
+      setSummary(result.summary);
+    } catch (error) {
+      console.error('Error generating summary:', error);
+      setSummary('Failed to generate summary. Please try again.');
+    } finally {
+      setIsSummarizing(false);
+    }
+  };
+
+  const handleGenerateQuestions = async (material: StudyMaterial) => {
+    setIsGeneratingQuestions(true);
+    setQuestions('');
+    setQuestionsTitle(material.title);
+    setShowQuestionsDialog(true);
+    try {
+      const result = await generateStudyQuestions({
+        courseMaterials: `${material.title}\n\n${material.description}`,
+      });
+      setQuestions(result.studyQuestions);
+    } catch (error) {
+      console.error('Error generating study questions:', error);
+      setQuestions('Failed to generate study questions. Please try again.');
+    } finally {
+      setIsGeneratingQuestions(false);
+    }
+  };
 
   const isDataLoading = areAssignmentsLoading || areMaterialsLoading || (userProfile?.role !== 'student' && areStudentsLoading);
 
@@ -184,7 +241,11 @@ export default function CourseDetailPage() {
                                         <h4 className="font-semibold">{material.title}</h4>
                                         <p className="text-sm text-muted-foreground">{material.description}</p>
                                     </div>
-                                    <Button variant="outline" size="sm" asChild><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Download</a></Button>
+                                    <div className="flex items-center gap-2">
+                                        <Button variant="secondary" size="sm" onClick={() => handleSummarize(material)} disabled={isSummarizing}><Sparkles className="mr-2 h-4 w-4" />Summarize</Button>
+                                        <Button variant="secondary" size="sm" onClick={() => handleGenerateQuestions(material)} disabled={isGeneratingQuestions}><Lightbulb className="mr-2 h-4 w-4" />Questions</Button>
+                                        <Button variant="outline" size="sm" asChild><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Download</a></Button>
+                                    </div>
                                 </Card>
                             ))
                         ) : (
@@ -238,6 +299,44 @@ export default function CourseDetailPage() {
             </CardContent>
         </Card>
       )}
+
+    <Dialog open={showSummaryDialog} onOpenChange={setShowSummaryDialog}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+            <DialogTitle>Summary for &quot;{summaryTitle}&quot;</DialogTitle>
+            <DialogDescription>This summary was generated by AI. It may not be perfect, so please use it as a guide.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+            {isSummarizing ? (
+                <div className="flex items-center space-x-2 text-muted-foreground">
+                    <Sparkles className="h-4 w-4 animate-spin" />
+                    <span>Generating summary...</span>
+                </div>
+            ) : (
+                <p className="text-sm whitespace-pre-wrap">{summary}</p>
+            )}
+            </div>
+        </DialogContent>
+      </Dialog>
+      
+      <Dialog open={showQuestionsDialog} onOpenChange={setShowQuestionsDialog}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+            <DialogTitle>Study Questions for &quot;{questionsTitle}&quot;</DialogTitle>
+            <DialogDescription>These questions were generated by AI to help you study. Use them as a starting point.</DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+            {isGeneratingQuestions ? (
+                <div className="flex items-center space-x-2 text-muted-foreground">
+                    <Lightbulb className="h-4 w-4 animate-spin" />
+                    <span>Generating questions...</span>
+                </div>
+            ) : (
+                <p className="text-sm whitespace-pre-wrap">{questions}</p>
+            )}
+            </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
