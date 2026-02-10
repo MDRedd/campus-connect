@@ -80,7 +80,6 @@ export default function EngagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading: isAuthLoading } = useUser();
     const { toast } = useToast();
-    const [joiningClubId, setJoiningClubId] = useState<string | null>(null);
     const [searchQuery, setSearchQuery] = useState('');
     const [openClubDialog, setOpenClubDialog] = useState(false);
     const [openEventDialog, setOpenEventDialog] = useState(false);
@@ -212,30 +211,6 @@ export default function EngagementPage() {
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
-
-    const handleJoinClub = async (clubId: string) => {
-        if (!firestore || !user) return;
-        setJoiningClubId(clubId);
-        try {
-            const clubRef = doc(firestore, 'clubs', clubId);
-            await updateDoc(clubRef, {
-                members: arrayUnion(user.uid)
-            });
-            toast({
-                title: "Successfully Joined Club!",
-                description: "Welcome to the club. You can now participate in its activities.",
-            });
-        } catch (error) {
-            console.error("Error joining club:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to Join",
-                description: "There was a problem joining the club. Please try again later.",
-            });
-        } finally {
-            setJoiningClubId(null);
-        }
-    };
 
     async function onCreateClub(values: z.infer<typeof clubSchema>) {
       if (!firestore || !user) return;
@@ -484,8 +459,6 @@ export default function EngagementPage() {
                          ))
                     ) : clubs && clubs.length > 0 ? (
                         clubs.map(club => {
-                            const isMember = user ? club.members?.includes(user.uid) : false;
-                            const isJoining = joiningClubId === club.id;
                             return (
                             <Card key={club.id} className="overflow-hidden flex flex-col">
                                 {clubImage && (
@@ -505,12 +478,10 @@ export default function EngagementPage() {
                                     <p className="text-sm text-muted-foreground">{club.description}</p>
                                 </CardContent>
                                 <CardFooter>
-                                    <Button 
-                                        className="w-full"
-                                        onClick={() => handleJoinClub(club.id)}
-                                        disabled={isJoining || isMember || !user}
-                                    >
-                                        {isJoining ? 'Joining...' : isMember ? 'Joined' : 'Join Club'}
+                                    <Button asChild className="w-full">
+                                        <Link href={`/engagement/club/${club.id}`}>
+                                            View Details <ArrowRight className="ml-2 h-4 w-4" />
+                                        </Link>
                                     </Button>
                                 </CardFooter>
                             </Card>
