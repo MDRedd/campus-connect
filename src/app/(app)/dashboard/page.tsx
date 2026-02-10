@@ -409,7 +409,7 @@ export default function DashboardPage() {
         {(isAttendanceLoading || areCoursesLoading || areEnrollmentsLoading) ? (
           <Skeleton className="h-80" />
         ) : (
-          attendanceData && <AttendanceChart data={attendanceData} />
+          attendanceData && userProfile.role === 'student' && <AttendanceChart data={attendanceData} />
         )}
       </div>
       {isAnnouncementsLoading ? (
@@ -420,5 +420,7 @@ export default function DashboardPage() {
     </div>
   );
 }
+
+    
 
     
