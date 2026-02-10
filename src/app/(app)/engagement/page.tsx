@@ -26,6 +26,7 @@ import {
   PlusCircle,
   Edit,
   Trash2,
+  MapPin,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -38,6 +39,7 @@ import {
   DialogTrigger,
   DialogFooter,
   DialogClose,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -84,6 +86,8 @@ export default function EngagementPage() {
     const [openEventDialog, setOpenEventDialog] = useState(false);
     const [openForumDialog, setOpenForumDialog] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
+    const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
+    const [openEventDetailsDialog, setOpenEventDetailsDialog] = useState(false);
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
@@ -109,7 +113,11 @@ export default function EngagementPage() {
 
     const eventsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(collection(firestore, 'events'), orderBy('date', 'desc'));
+        return query(
+            collection(firestore, 'events'), 
+            where('date', '>=', new Date().toISOString()),
+            orderBy('date', 'asc')
+        );
     }, [firestore, user]);
     const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
     
@@ -269,6 +277,11 @@ export default function EngagementPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not delete event.' });
         }
     };
+
+    const handleViewDetails = (event: Event) => {
+        setSelectedEvent(event);
+        setOpenEventDetailsDialog(true);
+    }
 
     async function onEventSubmit(values: z.infer<typeof eventSchema>) {
         if (!firestore) return;
@@ -590,7 +603,7 @@ export default function EngagementPage() {
                                             <Button variant="destructive" size="sm" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </>
                                     ) : (
-                                        <Button variant="secondary" className="w-full">View Details</Button>
+                                        <Button variant="secondary" className="w-full" onClick={() => handleViewDetails(event)}>View Details</Button>
                                     )}
                                 </CardFooter>
                             </Card>
@@ -608,8 +621,36 @@ export default function EngagementPage() {
             </Card>
         </TabsContent>
       </Tabs>
+      <Dialog open={openEventDetailsDialog} onOpenChange={setOpenEventDetailsDialog}>
+        <DialogContent>
+            <DialogHeader>
+                <DialogTitle>{selectedEvent?.title}</DialogTitle>
+                <DialogDescription>
+                    Organized by {selectedEvent?.organizer}
+                </DialogDescription>
+            </DialogHeader>
+            <div className="py-4 space-y-4">
+                <p className="text-sm text-muted-foreground">{selectedEvent?.description}</p>
+                <div className="flex items-center gap-2">
+                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedEvent ? `${format(new Date(selectedEvent.date), 'PPP')} at ${selectedEvent.time}` : ''}</span>
+                </div>
+                <div className="flex items-center gap-2">
+                    <MapPin className="h-4 w-4 text-muted-foreground" />
+                    <span>{selectedEvent?.location}</span>
+                </div>
+            </div>
+            <DialogFooter>
+                <DialogClose asChild>
+                    <Button>Close</Button>
+                </DialogClose>
+            </DialogFooter>
+        </DialogContent>
+    </Dialog>
     </div>
   );
 }
+
+    
 
     
