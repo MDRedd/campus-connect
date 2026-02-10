@@ -1,3 +1,4 @@
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -151,8 +152,13 @@ service cloud.firestore {
     }
 
     match /courses/{courseId}/forums/{forumId} {
+      function isForumCreator() {
+        return resource.data.createdBy == request.auth.uid;
+      }
+      
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow create: if isFacultyOrAdmin() && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if (isFaculty() && isForumCreator()) || isAdmin();
 
       match /forum_posts/{forumPostId} {
         allow get, list: if isSignedIn();
@@ -209,3 +215,5 @@ service cloud.firestore {
     }
   }
 }
+
+    

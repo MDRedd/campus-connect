@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc } from '@/firebase';
-import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, deleteDoc, orderBy } from 'firebase/firestore';
+import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, deleteDoc, orderBy, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -44,6 +45,7 @@ import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
@@ -66,6 +68,12 @@ const eventSchema = z.object({
     organizer: z.string().min(3, 'Organizer is required.'),
 });
 
+const forumSchema = z.object({
+  courseId: z.string().min(1, 'Please select a course.'),
+  title: z.string().min(5, 'Title must be at least 5 characters long.'),
+  description: z.string().min(10, 'Description must be at least 10 characters long.'),
+});
+
 export default function EngagementPage() {
     const firestore = useFirestore();
     const { user, isUserLoading: isAuthLoading } = useUser();
@@ -74,6 +82,7 @@ export default function EngagementPage() {
     const [searchQuery, setSearchQuery] = useState('');
     const [openClubDialog, setOpenClubDialog] = useState(false);
     const [openEventDialog, setOpenEventDialog] = useState(false);
+    const [openForumDialog, setOpenForumDialog] = useState(false);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
 
     const [forums, setForums] = useState<Forum[] | null>(null);
@@ -140,6 +149,35 @@ export default function EngagementPage() {
 
         fetchForums();
     }, [firestore, allCourses, areCoursesLoading]);
+    
+    const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
+    const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
+
+    useEffect(() => {
+        if (userProfile?.role !== 'faculty' || !firestore || !user || areCoursesLoading || !allCourses) {
+            if(userProfile?.role === 'faculty') setAreFacultyCoursesLoading(false);
+            return;
+        }
+        const fetchFacultyCourses = async () => {
+          setAreFacultyCoursesLoading(true);
+          try {
+            const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', user.uid));
+            const timetableSnapshot = await getDocs(timetablesQuery);
+            const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+            if (facultyCourseIds.length > 0) {
+                const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
+                setFacultyCourses(courses);
+            } else {
+                setFacultyCourses([]);
+            }
+          } catch (error: any) {
+            setFacultyCourses([]);
+          } finally {
+            setAreFacultyCoursesLoading(false);
+          }
+        };
+        fetchFacultyCourses();
+    }, [firestore, user, allCourses, areCoursesLoading, userProfile]);
 
     const filteredForums = useMemo(() => {
         if (!forums) return null;
@@ -155,6 +193,9 @@ export default function EngagementPage() {
     });
     const eventForm = useForm<z.infer<typeof eventSchema>>({
       resolver: zodResolver(eventSchema),
+    });
+    const forumForm = useForm<z.infer<typeof forumSchema>>({
+      resolver: zodResolver(forumSchema),
     });
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
@@ -251,8 +292,31 @@ export default function EngagementPage() {
             toast({ variant: 'destructive', title: 'Error', description: 'Could not save event.' });
         }
     }
+    
+    async function onCreateForum(values: z.infer<typeof forumSchema>) {
+      if (!firestore || !user) return;
+      try {
+        const forumsRef = collection(firestore, 'courses', values.courseId, 'forums');
+        await addDoc(forumsRef, {
+            courseId: values.courseId,
+            title: values.title,
+            description: values.description,
+            createdBy: user.uid,
+            createdAt: serverTimestamp(),
+        });
+        toast({ title: 'Success', description: 'Forum created successfully.' });
+        setOpenForumDialog(false);
+        forumForm.reset();
+        // Note: Manual refetch of forums would be needed here, or state update
+      } catch (error) {
+          console.error("Error creating forum:", error);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not create the forum.' });
+      }
+    }
 
     const isLoading = isAuthLoading || isUserProfileLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
+    const isForumCreationLoading = areCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
+    const coursesForForum = userProfile?.role === 'admin' ? allCourses : facultyCourses;
 
   return (
     <div className="flex flex-col gap-6">
@@ -282,10 +346,43 @@ export default function EngagementPage() {
         <TabsContent value="forums" className="mt-6">
           <Card>
             <CardHeader>
-              <CardTitle>Discussion Forums</CardTitle>
-              <CardDescription>
-                Engage in conversations, ask questions, and share knowledge.
-              </CardDescription>
+                <div className="flex justify-between items-start">
+                    <div>
+                        <CardTitle>Discussion Forums</CardTitle>
+                        <CardDescription>
+                            Engage in conversations, ask questions, and share knowledge.
+                        </CardDescription>
+                    </div>
+                    {isFacultyOrAdmin && (
+                        <Dialog open={openForumDialog} onOpenChange={setOpenForumDialog}>
+                            <DialogTrigger asChild>
+                                <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader><DialogTitle>Create New Forum</DialogTitle></DialogHeader>
+                                {isForumCreationLoading ? <Skeleton className="h-64" /> : (
+                                <Form {...forumForm}>
+                                    <form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4">
+                                        <FormField control={forumForm.control} name="courseId" render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Course</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
+                                                <SelectContent>{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
+                                        <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Forum Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Forum</Button></DialogFooter>
+                                    </form>
+                                </Form>
+                                )}
+                            </DialogContent>
+                        </Dialog>
+                    )}
+                </div>
               <div className="relative pt-2">
                 <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
                 <Input 
@@ -514,3 +611,5 @@ export default function EngagementPage() {
     </div>
   );
 }
+
+    
