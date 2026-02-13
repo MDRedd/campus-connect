@@ -49,14 +49,26 @@ export default function SignUpPage() {
         // Update profile display name
         await updateProfile(newUser, { displayName: name });
 
+        // Determine role based on email
+        let role: 'student' | 'faculty' | 'super-admin' = 'student';
+        let department = 'Undeclared';
+
+        if (email === 'faculty@example.com') {
+          role = 'faculty';
+          department = 'Computer Science';
+        } else if (email === 'admin@example.com') {
+          role = 'super-admin';
+          department = 'Administration';
+        }
+        
         // Create user document in Firestore.
         const userDocRef = doc(firestore, 'users', newUser.uid);
         const userData = {
             id: newUser.uid,
             name: name,
             email: newUser.email,
-            role: 'student', // Default role for new sign-ups
-            department: 'Undeclared'
+            role: role,
+            department: department
         };
         setDocumentNonBlocking(userDocRef, userData, {});
 

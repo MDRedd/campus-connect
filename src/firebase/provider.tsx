@@ -84,27 +84,15 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
           try {
             const userDoc = await getDoc(userDocRef);
             if (!userDoc.exists()) {
-              // If user doc doesn't exist, create one based on email for demo purposes.
-              let role: 'student' | 'faculty' | 'super-admin' = 'student';
-              let name = 'Alex Johnson';
-              let department = 'Computer Science'
-
-              if (firebaseUser.email === 'faculty@example.com') {
-                role = 'faculty';
-                name = 'Dr. Evelyn Reed';
-                department = 'Computer Science';
-              } else if (firebaseUser.email === 'admin@example.com') {
-                role = 'super-admin';
-                name = 'Admin User';
-                department = 'Administration';
-              }
-
+              // This can happen if a user signs in via a social provider for the first time
+              // or if their user document was manually deleted.
+              // We'll create a default student profile. The main sign-up flow handles specific role creation.
               const userData = {
                 id: firebaseUser.uid,
                 email: firebaseUser.email,
-                name: firebaseUser.displayName || name,
-                role: role,
-                department: department
+                name: firebaseUser.displayName || 'New User',
+                role: 'student',
+                department: 'Undeclared',
               };
               // Await the write to prevent race conditions on other pages
               await setDoc(userDocRef, userData);
