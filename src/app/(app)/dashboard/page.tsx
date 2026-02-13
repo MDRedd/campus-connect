@@ -11,6 +11,7 @@ import QuickStats from './components/quick-stats';
 import UpcomingClasses from './components/upcoming-classes';
 import AttendanceChart from './components/attendance-chart';
 import RecentAnnouncements from './components/recent-announcements';
+import StudentsAtRisk from './components/students-at-risk';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/lib/data';
 import { format } from 'date-fns';
@@ -23,10 +24,17 @@ type QuickStat = {
 
 type Assignment = { id: string; courseId: string; deadline: string; };
 type Submission = { id: string; courseId: string; assignmentId: string; marksAwarded?: number; };
-type UserProfileData = { name: string; role: 'student' | 'faculty' | 'admin' };
+type UserProfileData = { name: string; role: 'student' | 'faculty' | 'admin'; id: string; };
 type Enrollment = { courseId: string };
-type AttendanceRecord = { courseId: string; status: 'present' | 'absent' };
+type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type Announcement = { id: string; title: string; description: string; date: any; };
+type AtRiskStudent = {
+  studentId: string;
+  studentName: string;
+  courseId: string;
+  courseCode: string;
+  percentage: number;
+};
 
 export default function DashboardPage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
@@ -34,6 +42,9 @@ export default function DashboardPage() {
 
   const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
   const [areStatsLoading, setAreStatsLoading] = useState(true);
+  
+  const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[] | null>(null);
+  const [areAtRiskStudentsLoading, setAreAtRiskStudentsLoading] = useState(true);
 
   // --- Common Data ---
   const userDocRef = useMemoFirebase(() => {
@@ -175,6 +186,86 @@ export default function DashboardPage() {
     calculateStats();
   }, [userProfile, isUserProfileLoading, firestore, allCourses, areAllCoursesLoading, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading, authUser]);
 
+  // --- At-Risk Students calculation for faculty ---
+  useEffect(() => {
+    if (userProfile?.role !== 'faculty' || !firestore || !authUser || areAllCoursesLoading || !allCourses) {
+        if(userProfile?.role === 'faculty') setAreAtRiskStudentsLoading(false);
+        return;
+    }
+    
+    const calculateAtRiskStudents = async () => {
+        setAreAtRiskStudentsLoading(true);
+        try {
+            const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
+            const timetableSnapshot = await getDocs(timetablesQuery);
+            const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+
+            if (facultyCourseIds.length === 0) {
+                setAtRiskStudents([]);
+                setAreAtRiskStudentsLoading(false);
+                return;
+            }
+
+            const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', 'in', facultyCourseIds));
+            const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
+            const studentIds = [...new Set(enrollmentsSnapshot.docs.map(d => d.data().studentId as string))];
+
+            if (studentIds.length === 0) {
+                setAtRiskStudents([]);
+                setAreAtRiskStudentsLoading(false);
+                return;
+            }
+
+            const studentsData: UserProfileData[] = [];
+            for (let i = 0; i < studentIds.length; i += 30) {
+                const chunk = studentIds.slice(i, i + 30);
+                const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
+                const studentsSnapshot = await getDocs(studentsQuery);
+                studentsSnapshot.forEach(doc => studentsData.push({...(doc.data() as Omit<UserProfileData, 'id'>), id: doc.id }));
+            }
+            const studentMap = new Map(studentsData.map(s => [s.id, s.name]));
+
+            const attendanceQuery = query(collectionGroup(firestore, 'attendance'), where('courseId', 'in', facultyCourseIds));
+            const attendanceSnapshot = await getDocs(attendanceQuery);
+            const allRecords = attendanceSnapshot.docs.map(d => {
+                const studentId = d.ref.parent.parent!.id;
+                return { ...(d.data() as AttendanceRecord), studentId };
+            });
+
+            const stats: Record<string, { attended: number; total: number }> = {};
+            allRecords.forEach(rec => {
+                if (studentIds.includes(rec.studentId)) { 
+                    const key = `${rec.studentId}-${rec.courseId}`;
+                    if (!stats[key]) stats[key] = { attended: 0, total: 0 };
+                    stats[key].total++;
+                    if (rec.status === 'present') stats[key].attended++;
+                }
+            });
+
+            const atRisk: AtRiskStudent[] = [];
+            const courseMap = new Map(allCourses.map(c => [c.id, c.code]));
+            Object.entries(stats).forEach(([key, { attended, total }]) => {
+                const percentage = total > 0 ? (attended / total) * 100 : 0;
+                if (total > 3 && percentage < 75) {
+                    const [studentId, courseId] = key.split('-');
+                    const studentName = studentMap.get(studentId);
+                    const courseCode = courseMap.get(courseId);
+                    if (studentName && courseCode) {
+                        atRisk.push({ studentId, studentName, courseId, courseCode, percentage: Math.round(percentage) });
+                    }
+                }
+            });
+            setAtRiskStudents(atRisk);
+        } catch (error) {
+            console.error("Error calculating at-risk students:", error);
+            setAtRiskStudents([]);
+        } finally {
+            setAreAtRiskStudentsLoading(false);
+        }
+    };
+    calculateAtRiskStudents();
+  }, [userProfile, firestore, authUser, allCourses, areAllCoursesLoading]);
+
 
   // --- Data for other components ---
   const [todaysClasses, setTodaysClasses] = useState<any[] | null>(null);
@@ -255,12 +346,8 @@ export default function DashboardPage() {
     return (
         <div className="flex flex-col gap-6">
             <Skeleton className="h-12 w-1/2" />
-            <div className="grid gap-4 md:grid-cols-3">
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-                <Skeleton className="h-24" />
-            </div>
-            <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            <Skeleton className="h-24" />
+            <div className="grid gap-6 lg:grid-cols-3">
                 <div className="lg:col-span-2">
                     <Skeleton className="h-80" />
                 </div>
@@ -279,26 +366,38 @@ export default function DashboardPage() {
     <div className="flex flex-col gap-6">
       <WelcomeBanner user={userProfile} />
       <QuickStats stats={quickStats} isLoading={areStatsLoading} />
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+      
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         <div className="lg:col-span-2">
-          {areTodaysClassesLoading ? (
-            <Skeleton className="h-80" />
-          ) : (
-            todaysClasses && <UpcomingClasses timetable={todaysClasses} />
-          )}
-        </div>
-        {userProfile.role === 'student' && (
-            isStudentAttendanceLoading || areAllCoursesLoading ? (
+            {areTodaysClassesLoading ? (
                 <Skeleton className="h-80" />
             ) : (
-                attendanceData && <AttendanceChart data={attendanceData} />
-            )
+                todaysClasses && <UpcomingClasses timetable={todaysClasses} />
+            )}
+        </div>
+        {userProfile.role === 'student' && (
+            <div className="lg:col-span-1">
+                {isStudentAttendanceLoading || areAllCoursesLoading ? (
+                    <Skeleton className="h-80" />
+                ) : (
+                    attendanceData && <AttendanceChart data={attendanceData} />
+                )}
+            </div>
         )}
       </div>
+
+       {userProfile.role === 'faculty' && (
+            areAtRiskStudentsLoading ? (
+                <Skeleton className="h-64" />
+            ) : (
+                atRiskStudents && <StudentsAtRisk students={atRiskStudents} />
+            )
+        )}
+      
       {areAnnouncementsLoading ? (
          <Skeleton className="h-64" />
       ) : (
-        displayAnnouncements && <RecentAnnouncements announcements={displayAnnouncements} />
+        displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
       )}
     </div>
   );
