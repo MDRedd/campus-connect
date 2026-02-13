@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, query, where, doc, getDocs, addDoc, collectionGroup, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, where, doc, getDocs, collectionGroup } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -270,24 +270,21 @@ export default function ResultsPage() {
   };
 
 
-  async function onResultSubmit(values: z.infer<typeof resultSchema>) {
+  function onResultSubmit(values: z.infer<typeof resultSchema>) {
     if (!firestore) return;
-    try {
-        if (editingResult && editingResult.id && editingResult.studentId) {
-            const resultRef = doc(firestore, 'users', editingResult.studentId, 'results', editingResult.id);
-            await updateDoc(resultRef, values);
-            toast({ title: 'Success', description: 'Result updated.' });
-        } else {
-            const resultsRef = collection(firestore, 'users', values.studentId, 'results');
-            await addDoc(resultsRef, values);
-            toast({ title: 'Success', description: 'Result added successfully.' });
-        }
-        setOpenResultDialog(false);
-        setEditingResult(null);
-    } catch (error) {
-        console.error("Error saving result:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not save result.' });
+
+    if (editingResult && editingResult.id && editingResult.studentId) {
+        const resultRef = doc(firestore, 'users', editingResult.studentId, 'results', editingResult.id);
+        updateDocumentNonBlocking(resultRef, values);
+        toast({ title: 'Success', description: 'Result updated.' });
+    } else {
+        const resultsRef = collection(firestore, 'users', values.studentId, 'results');
+        addDocumentNonBlocking(resultsRef, values);
+        toast({ title: 'Success', description: 'Result added successfully.' });
     }
+    setOpenResultDialog(false);
+    setEditingResult(null);
+    resultForm.reset();
   }
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areAllCoursesLoading;
@@ -355,7 +352,7 @@ export default function ResultsPage() {
                                     <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 </FormItem>
                             )} />
-                           <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Save Result</Button></DialogFooter>
+                           <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={resultForm.formState.isSubmitting}>{resultForm.formState.isSubmitting ? 'Saving...' : 'Save Result'}</Button></DialogFooter>
                         </form>
                     </Form>
                     )}
