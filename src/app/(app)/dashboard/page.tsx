@@ -24,7 +24,7 @@ type QuickStat = {
 
 type Assignment = { id: string; courseId: string; deadline: string; };
 type Submission = { id: string; courseId: string; assignmentId: string; marksAwarded?: number; };
-type UserProfileData = { name: string; role: 'student' | 'faculty' | 'admin'; id: string; };
+type UserProfileData = { name: string; role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; id: string; };
 type Enrollment = { courseId: string };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type Announcement = { id: string; title: string; description: string; date: any; };
@@ -58,7 +58,7 @@ export default function DashboardPage() {
 
     let q = query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
 
-    if (userProfile.role !== 'admin') {
+    if (!userProfile.role.includes('admin')) {
         const targetAudiences = ['all', userProfile.role];
         q = query(
             collection(firestore, 'announcements'),
@@ -168,7 +168,7 @@ export default function DashboardPage() {
           { title: 'Total Students', value: studentCount.toString(), icon: Users },
           { title: 'Submissions to Grade', value: submissionsToGrade.toString(), icon: CheckCircle },
         ];
-      } else if (userProfile.role === 'admin') {
+      } else if (userProfile.role.includes('admin')) {
         const usersSnapshot = await getDocs(collection(firestore, 'users'));
         const studentCount = usersSnapshot.docs.filter(d => d.data().role === 'student').length;
         const facultyCount = usersSnapshot.docs.filter(d => d.data().role === 'faculty').length;

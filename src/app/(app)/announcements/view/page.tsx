@@ -25,7 +25,7 @@ type Announcement = {
 };
 
 type UserProfile = {
-  role: 'student' | 'faculty' | 'admin';
+  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 };
 
 export default function ViewAnnouncementsPage() {
@@ -43,7 +43,7 @@ export default function ViewAnnouncementsPage() {
     if (!firestore || !userProfile) return null;
     
     // Admins see all announcements
-    if (userProfile.role === 'admin') {
+    if (userProfile.role.includes('admin')) {
         return query(collection(firestore, 'announcements'), orderBy('date', 'desc'));
     }
 
