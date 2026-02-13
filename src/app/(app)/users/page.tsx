@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import {
   Card,
@@ -23,7 +23,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
-import { Edit } from 'lucide-react';
+import { Edit, Trash2 } from 'lucide-react';
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import {
     Dialog,
     DialogContent,
@@ -63,6 +73,8 @@ export default function UsersPage() {
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
+  const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
+  const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
   
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -88,8 +100,24 @@ export default function UsersPage() {
     });
     setIsEditDialogOpen(true);
   };
+  
+  const handleDeleteClick = (user: UserProfile) => {
+    setDeletingUser(user);
+    setIsDeleteDialogOpen(true);
+  };
+  
+  const confirmDelete = () => {
+    if (!firestore || !deletingUser) return;
+    
+    const userToDeleteRef = doc(firestore, 'users', deletingUser.id);
+    deleteDocumentNonBlocking(userToDeleteRef);
+    
+    toast({ title: 'Success', description: `User ${deletingUser.name} has been deleted.` });
+    setIsDeleteDialogOpen(false);
+    setDeletingUser(null);
+  };
 
-  const onSubmit = (values: z.infer<typeof userEditSchema>) => {
+  const onEditSubmit = (values: z.infer<typeof userEditSchema>) => {
     if (!firestore || !editingUser) return;
     
     const userToUpdateRef = doc(firestore, 'users', editingUser.id);
@@ -174,6 +202,10 @@ export default function UsersPage() {
                             <Edit className="h-4 w-4" />
                             <span className="sr-only">Edit User</span>
                         </Button>
+                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(user)} disabled={user.id === authUser?.uid}>
+                            <Trash2 className="h-4 w-4 text-destructive" />
+                            <span className="sr-only">Delete User</span>
+                        </Button>
                     </TableCell>
                   </TableRow>
                 ))
@@ -196,7 +228,7 @@ export default function UsersPage() {
                 <DialogDescription>{editingUser?.email}</DialogDescription>
             </DialogHeader>
             <Form {...form}>
-                <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
                     <FormField
                         control={form.control}
                         name="role"
@@ -242,6 +274,21 @@ export default function UsersPage() {
             </Form>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
+        <AlertDialogContent>
+            <AlertDialogHeader>
+                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                <AlertDialogDescription>
+                    This will delete the user data for <span className="font-semibold">{deletingUser?.name}</span>. This action cannot be undone and does not remove their login credentials.
+                </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+                <AlertDialogCancel onClick={() => setDeletingUser(null)}>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={confirmDelete}>Delete User Data</AlertDialogAction>
+            </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
