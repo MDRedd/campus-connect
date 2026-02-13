@@ -27,7 +27,7 @@ type Submission = { id: string; courseId: string; assignmentId: string; marksAwa
 type UserProfileData = { name: string; role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; id: string; };
 type Enrollment = { courseId: string };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
-type Announcement = { id: string; title: string; description: string; date: any; };
+type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
 type AtRiskStudent = {
   studentId: string;
   studentName: string;
@@ -54,22 +54,11 @@ export default function DashboardPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfileData>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
-
-    let q = query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
-
-    if (!userProfile.role.includes('admin')) {
-        const targetAudiences = ['all', userProfile.role];
-        q = query(
-            collection(firestore, 'announcements'),
-            where('targetAudience', 'in', targetAudiences),
-            orderBy('date', 'desc'),
-            limit(3)
-        );
-    }
-    
-    return q;
-  }, [firestore, userProfile]);
+    if (!firestore) return null;
+    // Always fetch the 3 most recent announcements regardless of role.
+    // Filtering will happen on the client side in the `displayAnnouncements` memo.
+    return query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
+  }, [firestore]);
   const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
 
   // --- Student-specific data hooks ---
@@ -338,7 +327,23 @@ export default function DashboardPage() {
     }));
   }, [studentAttendance, allCourses, studentEnrollments, isStudentAttendanceLoading, areAllCoursesLoading, userProfile]);
 
-  const displayAnnouncements = announcements?.map(a => ({...a, content: a.description, date: a.date ? format(a.date.toDate(), 'MMM d, yyyy') : '...'}));
+  const displayAnnouncements = useMemo(() => {
+    if (!announcements || !userProfile) return [];
+    
+    const announcementsWithFormattedDate = announcements.map(a => ({
+        ...a, 
+        content: a.description, 
+        date: a.date ? format(a.date.toDate(), 'MMM d, yyyy') : '...'
+    }));
+
+    if (userProfile.role.includes('admin')) {
+        return announcementsWithFormattedDate;
+    }
+
+    const targetAudiences = ['all', userProfile.role];
+    return announcementsWithFormattedDate.filter(a => targetAudiences.includes(a.targetAudience));
+
+  }, [announcements, userProfile]);
 
   const isPageLoading = isAuthUserLoading || isUserProfileLoading;
 

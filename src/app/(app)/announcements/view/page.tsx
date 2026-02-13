@@ -40,24 +40,22 @@ export default function ViewAnnouncementsPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile) return null;
-    
-    // Admins see all announcements
+    if (!firestore) return null;
+    // Fetch all announcements and filter on the client.
+    return query(collection(firestore, 'announcements'), orderBy('date', 'desc'));
+  }, [firestore]);
+  const { data: allAnnouncements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
+
+  const announcements = useMemo(() => {
+    if (!allAnnouncements || !userProfile) return null;
+
     if (userProfile.role.includes('admin')) {
-        return query(collection(firestore, 'announcements'), orderBy('date', 'desc'));
+        return allAnnouncements;
     }
 
-    // Students and Faculty see 'all' plus their role-specific announcements
     const targetAudiences = ['all', userProfile.role];
-    return query(
-        collection(firestore, 'announcements'),
-        where('targetAudience', 'in', targetAudiences),
-        orderBy('date', 'desc')
-    );
-
-  }, [firestore, userProfile]);
-
-  const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
+    return allAnnouncements.filter(a => targetAudiences.includes(a.targetAudience));
+  }, [allAnnouncements, userProfile]);
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areAnnouncementsLoading;
 
