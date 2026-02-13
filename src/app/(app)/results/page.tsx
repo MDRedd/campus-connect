@@ -68,7 +68,7 @@ type Course = {
 type UserProfile = {
   id: string;
   name: string;
-  role: 'student' | 'faculty' | 'admin';
+  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 };
 
 type GroupedResults = {
@@ -141,25 +141,28 @@ export default function ResultsPage() {
     });
   }, [groupedResults]);
 
-  // --- Faculty Specific ---
+  // --- Faculty & Admin Specific ---
+  const canManageResults = userProfile?.role === 'faculty' || userProfile?.role === 'course-admin' || userProfile?.role === 'super-admin';
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
   const allStudentsQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile || userProfile.role !== 'faculty') return null;
+    if (!firestore || !canManageResults) return null;
     return query(collection(firestore, 'users'), where('role', '==', 'student'));
-  }, [firestore, userProfile]);
+  }, [firestore, canManageResults]);
   const { data: allStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(allStudentsQuery);
   
     const [facultyResults, setFacultyResults] = useState<(Result & { studentName: string; courseCode: string; })[] | null>(null);
     const [areFacultyResultsLoading, setAreFacultyResultsLoading] = useState(true);
+
+    const coursesForManager = userProfile?.role === 'faculty' ? facultyCourses : allCourses;
   
     useEffect(() => {
-        if (userProfile?.role !== 'faculty' || !firestore || areFacultyCoursesLoading || areStudentsLoading) return;
-        if (!facultyCourses || !allStudents) {
+        if (!canManageResults || !firestore || areAllCoursesLoading || areStudentsLoading) return;
+        if (!coursesForManager || !allStudents) {
             setAreFacultyResultsLoading(false);
             return;
         }
-        if (facultyCourses.length === 0) {
+        if (coursesForManager.length === 0) {
             setFacultyResults([]);
             setAreFacultyResultsLoading(false);
             return;
@@ -169,10 +172,10 @@ export default function ResultsPage() {
             setAreFacultyResultsLoading(true);
             const results: (Result & { studentName: string; courseCode: string; })[] = [];
             const studentMap = new Map(allStudents.map(s => [s.id, s.name]));
-            const courseMap = new Map(facultyCourses.map(c => [c.id, c.code]));
+            const courseMap = new Map(coursesForManager.map(c => [c.id, c.code]));
 
             try {
-                const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', 'in', facultyCourses.map(c => c.id)));
+                const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', 'in', coursesForManager.map(c => c.id)));
                 const querySnapshot = await getDocs(resultsQuery);
                 
                 querySnapshot.forEach(docSnap => {
@@ -199,7 +202,7 @@ export default function ResultsPage() {
         }
         fetchResults();
 
-  }, [firestore, facultyCourses, allStudents, userProfile, areFacultyCoursesLoading, areStudentsLoading]);
+  }, [firestore, coursesForManager, allStudents, canManageResults, areAllCoursesLoading, areStudentsLoading]);
 
 
   const resultForm = useForm<z.infer<typeof resultSchema>>({
@@ -275,9 +278,9 @@ export default function ResultsPage() {
     )
   }
 
-  // FACULTY VIEW
-  if (userProfile?.role === 'faculty') {
-    const isFacultyDataLoading = areFacultyCoursesLoading || areStudentsLoading || areFacultyResultsLoading;
+  // FACULTY & ADMIN VIEW
+  if (canManageResults) {
+    const isManagerDataLoading = areFacultyCoursesLoading || areStudentsLoading || areFacultyResultsLoading;
     return (
         <Card className="w-full">
             <CardHeader className="flex-row justify-between items-start">
@@ -291,7 +294,7 @@ export default function ResultsPage() {
                 </DialogTrigger>
                 <DialogContent className="sm:max-w-md">
                     <DialogHeader><DialogTitle>{editingResult ? 'Edit Result' : 'Add New Result'}</DialogTitle></DialogHeader>
-                    {areFacultyCoursesLoading || areStudentsLoading ? <Skeleton className="h-96"/> : (
+                    {isManagerDataLoading ? <Skeleton className="h-96"/> : (
                     <Form {...resultForm}>
                         <form onSubmit={resultForm.handleSubmit(onResultSubmit)} className="space-y-4">
                            <FormField control={resultForm.control} name="studentId" render={({ field }) => (
@@ -309,7 +312,7 @@ export default function ResultsPage() {
                                 <FormLabel>Course</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                    <SelectContent>{facultyCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{coursesForManager?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                 </Select>
                                 <FormMessage />
                                 </FormItem>
@@ -344,7 +347,7 @@ export default function ResultsPage() {
                         </TableRow>
                     </TableHeader>
                     <TableBody>
-                        {isFacultyDataLoading ? (
+                        {isManagerDataLoading ? (
                             [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8" /></TableCell></TableRow>)
                         ) : facultyResults && facultyResults.length > 0 ? (
                             facultyResults.map(result => (

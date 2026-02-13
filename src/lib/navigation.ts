@@ -53,6 +53,9 @@ export const getNavItems = (role: UserRole) => {
     if (role === 'super-admin' || role === 'course-admin') {
         items.push({ href: '/courses', icon: Library, label: 'Course Management' });
     }
+    if (role === 'super-admin' || role === 'attendance-admin') {
+        items.push({ href: '/attendance', icon: ClipboardList, label: 'Attendance Dashboard' });
+    }
     
     // All admins can make announcements
     items.push({ href: '/announcements', icon: Megaphone, label: 'Announcements' });
@@ -62,7 +65,6 @@ export const getNavItems = (role: UserRole) => {
         items.push(
             ...[
                 { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
-                { href: '/attendance', icon: ClipboardList, label: 'Attendance Dashboard' },
                 { href: '/academics', icon: Library, label: 'Academics' },
                 { href: '/results', icon: GraduationCap, label: 'Results' },
             ]

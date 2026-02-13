@@ -55,7 +55,7 @@ type Course = { id: string; name: string; code: string; };
 type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
 type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
-type UserProfile = { role: 'student' | 'faculty' | 'admin' };
+type UserProfile = { role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; };
 
 const clubSchema = z.object({
   name: z.string().min(3, 'Club name must be at least 3 characters long.'),
@@ -99,8 +99,8 @@ export default function EngagementPage() {
       return doc(firestore, 'users', user.uid);
     }, [firestore, user]);
     const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
-    const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role === 'admin';
-    const isAdmin = userProfile?.role === 'admin';
+    const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
+    const isSuperAdmin = userProfile?.role === 'super-admin';
 
     const coursesQuery = useMemoFirebase(() => {
         if (!firestore || isAuthLoading || !user) return null;
@@ -297,7 +297,7 @@ export default function EngagementPage() {
 
     const isLoading = isAuthLoading || isUserProfileLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
     const isForumCreationLoading = areCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
-    const coursesForForum = userProfile?.role === 'admin' ? allCourses : facultyCourses;
+    const coursesForForum = userProfile?.role?.includes('admin') ? allCourses : facultyCourses;
 
   return (
     <div className="flex flex-col gap-6">
@@ -423,7 +423,7 @@ export default function EngagementPage() {
                         <CardTitle>Student Clubs</CardTitle>
                         <CardDescription>Find your community and explore your interests.</CardDescription>
                     </div>
-                    {isAdmin && (
+                    {isSuperAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
                             <DialogTrigger asChild>
                                 <Button size="sm" onClick={handleAddNewClub}><PlusCircle className="mr-2 h-4 w-4" /> Create Club</Button>
@@ -468,7 +468,7 @@ export default function EngagementPage() {
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                       <CardTitle>{club.name}</CardTitle>
-                                      {isAdmin && (
+                                      {isSuperAdmin && (
                                           <div className="flex items-center -mr-2 -mt-2">
                                               <Button variant="ghost" size="icon" onClick={() => handleEditClub(club)}><Edit className="h-4 w-4" /></Button>
                                               <Button variant="ghost" size="icon" onClick={() => handleDeleteClub(club.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

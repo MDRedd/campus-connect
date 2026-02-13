@@ -25,7 +25,7 @@ type AttendanceRecord = {
 };
 
 type UserProfile = {
-  role: 'student' | 'faculty' | 'admin';
+  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 };
 
 type Enrollment = {
@@ -43,11 +43,11 @@ export default function AttendancePage() {
   }, [firestore, authUser]);
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
-  const coursesQuery = useMemoFirebase(() => {
+  const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'courses');
   }, [firestore]);
-  const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+  const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
   
   // --- Student-specific data ---
   const enrollmentsQuery = useMemoFirebase(() => {
@@ -100,10 +100,14 @@ export default function AttendancePage() {
         
   }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areCoursesLoading, areEnrollmentsLoading, userProfile]);
 
-  // --- Faculty-specific data ---
+  // --- Faculty & Admin specific data ---
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
+  const canManageAttendance = userProfile?.role === 'faculty' || userProfile?.role === 'attendance-admin' || userProfile?.role === 'super-admin';
+  const coursesForManager = userProfile?.role === 'faculty' ? facultyCourses : allCourses;
+  const areManagerCoursesLoading = userProfile?.role === 'faculty' ? areFacultyCoursesLoading : areAllCoursesLoading;
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
+
+  const isLoading = isAuthUserLoading || isUserProfileLoading || areAllCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (canManageAttendance && areManagerCoursesLoading);
 
   if (isLoading) {
       return (
@@ -116,7 +120,7 @@ export default function AttendancePage() {
       );
   }
 
-  if (userProfile?.role === 'faculty') {
+  if (canManageAttendance) {
     return (
       <div className="flex flex-col gap-6">
         <div className="flex justify-between items-start">
@@ -134,13 +138,13 @@ export default function AttendancePage() {
         
         <Card>
           <CardHeader>
-            <CardTitle>Your Courses</CardTitle>
+            <CardTitle>Courses</CardTitle>
             <CardDescription>Select a course to view detailed attendance records for enrolled students.</CardDescription>
           </CardHeader>
           <CardContent>
-            {facultyCourses && facultyCourses.length > 0 ? (
+            {coursesForManager && coursesForManager.length > 0 ? (
               <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {facultyCourses.map(course => (
+                {coursesForManager.map(course => (
                   <Card key={course.id} className="flex flex-col">
                     <CardHeader className="flex-grow">
                       <CardTitle className="text-lg">{course.name}</CardTitle>
@@ -157,8 +161,8 @@ export default function AttendancePage() {
             ) : (
                 <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
                     <ClipboardList className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No Courses Assigned</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">You are not currently assigned to teach any courses.</p>
+                    <h3 className="mt-4 text-lg font-semibold">No Courses Found</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">You are not currently assigned to any courses to manage.</p>
                 </div>
             )}
           </CardContent>
