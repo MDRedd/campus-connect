@@ -70,7 +70,7 @@ export default function AttendancePage() {
     useCollection<AttendanceRecord>(attendanceQuery);
 
   const attendanceData = useMemo(() => {
-    if (userProfile?.role !== 'student' || isAttendanceLoading || areCoursesLoading || areEnrollmentsLoading || !attendanceRecords || !enrolledCourses) {
+    if (userProfile?.role !== 'student' || isAttendanceLoading || areAllCoursesLoading || areEnrollmentsLoading || !attendanceRecords || !enrolledCourses) {
       return null;
     }
 
@@ -98,7 +98,7 @@ export default function AttendancePage() {
         })
         .sort((a,b) => a.name.localeCompare(b.name));
         
-  }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areCoursesLoading, areEnrollmentsLoading, userProfile]);
+  }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areAllCoursesLoading, areEnrollmentsLoading, userProfile]);
 
   // --- Faculty & Admin specific data ---
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
