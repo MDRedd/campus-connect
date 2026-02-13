@@ -36,6 +36,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 // Simplified types based on backend.json
 type Enrollment = { courseId: string; };
@@ -75,13 +76,7 @@ export default function AcademicsPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
   const isFaculty = userProfile?.role === 'faculty';
 
-  // Data fetching for all courses (needed for both roles to map IDs to names)
-  const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return collection(firestore, 'courses');
-  }, [firestore, authUser]);
-  const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
-
+  // Data fetching for all students (for notifications)
   const allStudentsQuery = useMemoFirebase(() => {
     if (!firestore || !isFaculty) return null;
     return query(collection(firestore, 'users'), where('role', '==', 'student'));
@@ -97,62 +92,44 @@ export default function AcademicsPage() {
   const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
   const [areStudyMaterialsLoading, setAreStudyMaterialsLoading] = useState(true);
 
-  // Student enrollments
+  // --- REFACTORED COURSE FETCHING ---
+  // Student enrollments & all courses for students
   const enrollmentsQuery = useMemoFirebase(() => {
     if (!firestore || !authUser || isFaculty) return null;
     return collection(firestore, 'users', authUser.uid, 'enrollments');
   }, [firestore, authUser, isFaculty]);
   const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<Enrollment>(enrollmentsQuery);
 
+  const allCoursesQuery = useMemoFirebase(() => {
+    if (!firestore || isFaculty) return null; // Only students need this
+    return collection(firestore, 'courses');
+  }, [firestore, isFaculty]);
+  const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
+
+  // Faculty courses
+  const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
+
   // Effect to determine which courses to display based on role
   useEffect(() => {
-    if (isUserProfileLoading || areCoursesLoading || (isFaculty === false && areEnrollmentsLoading) || !authUser) return;
+    if (isUserProfileLoading) return;
 
-    const getCourses = async () => {
-        setAreDisplayCoursesLoading(true);
-        if (isFaculty) {
-            // Efficiently fetch courses for faculty using a collection group query
-            if (!firestore || !allCourses) {
-                setDisplayCourses([]);
-                setAreDisplayCoursesLoading(false);
-                return;
-            }
-            try {
-                // 1. Find all timetable entries for this faculty
-                const timetablesQuery = query(
-                    collectionGroup(firestore, 'timetables'),
-                    where('facultyId', '==', authUser.uid)
-                );
-                const timetableSnapshot = await getDocs(timetablesQuery);
+    if (isFaculty) {
+        setDisplayCourses(facultyCourses);
+        setAreDisplayCoursesLoading(areFacultyCoursesLoading);
+    } else { // Student
+        const studentCoursesLoading = areEnrollmentsLoading || areAllCoursesLoading;
+        setAreDisplayCoursesLoading(studentCoursesLoading);
+        if (studentCoursesLoading) return;
 
-                // 2. Get unique course IDs from the timetable entries
-                const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
-
-                // 3. Filter the already fetched allCourses list
-                if (facultyCourseIds.length > 0) {
-                    setDisplayCourses(allCourses.filter(course => facultyCourseIds.includes(course.id)));
-                } else {
-                    setDisplayCourses([]);
-                }
-            } catch (error) {
-                console.error("Error fetching faculty courses:", error);
-                toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your courses.' });
-                setDisplayCourses([]);
-            }
-        } else {
-            // Logic for student
-            if (!enrollments || !allCourses) {
-                setDisplayCourses([]);
-                return;
-            };
+        if (enrollments && allCourses) {
             const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
             setDisplayCourses(allCourses.filter(course => enrolledCourseIds.has(course.id)));
+        } else {
+            setDisplayCourses([]);
         }
-        setAreDisplayCoursesLoading(false);
     }
-    getCourses();
-    
-  }, [isUserProfileLoading, isFaculty, firestore, authUser, allCourses, areCoursesLoading, enrollments, areEnrollmentsLoading, toast]);
+  }, [isUserProfileLoading, isFaculty, areFacultyCoursesLoading, facultyCourses, areEnrollmentsLoading, areAllCoursesLoading, enrollments, allCourses]);
+  // --- END REFACTOR ---
 
   // Effect to fetch assignments and materials for the determined courses
   useEffect(() => {
@@ -251,8 +228,7 @@ export default function AcademicsPage() {
   function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
     if (!firestore || !authUser) return;
     
-    const courseRef = collection(firestore, 'courses', values.courseId, 'assignments');
-    addDocumentNonBlocking(courseRef, {
+    addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'assignments'), {
         title: values.title,
         description: values.description,
         courseId: values.courseId,
@@ -277,8 +253,7 @@ export default function AcademicsPage() {
                             updateType: 'assignmentDeadline',
                             details: `A new assignment "${values.title}" for course "${course?.name || 'Unknown Course'}" is due on ${format(new Date(values.deadline), 'PPP')}.`,
                         });
-                        const notificationsRef = collection(firestore, 'users', student.id, 'notifications');
-                        addDocumentNonBlocking(notificationsRef, {
+                        addDocumentNonBlocking(collection(firestore, 'users', student.id, 'notifications'), {
                             userId: student.id,
                             message: notificationResult.notificationMessage,
                             read: false,
@@ -299,8 +274,7 @@ export default function AcademicsPage() {
   function onAddMaterial(values: z.infer<typeof materialSchema>) {
       if (!firestore || !authUser) return;
       
-      const courseRef = collection(firestore, 'courses', values.courseId, 'study_materials');
-      addDocumentNonBlocking(courseRef, {
+      addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'study_materials'), {
           title: values.title,
           description: values.description,
           fileUrl: values.fileUrl,
@@ -312,7 +286,7 @@ export default function AcademicsPage() {
       materialForm.reset();
   }
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || areStudentsLoading;
+  const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || (isFaculty && areStudentsLoading);
 
   return (
     <div className="flex flex-col gap-6">

@@ -3,7 +3,7 @@
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
-import { collection, serverTimestamp, doc, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, serverTimestamp, doc, query, where } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -24,7 +24,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { QrCode, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useToast } from '@/hooks/use-toast';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 type Course = { id: string; name: string; code: string; };
 type AttendanceSession = { courseId: string; facultyId: string; createdAt: any; attendees: string[]; id: string };
@@ -35,62 +35,13 @@ export default function MarkAttendancePage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
-  const { toast } = useToast();
 
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<AttendanceSession | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
 
-  const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
-  const [areCoursesLoading, setAreCoursesLoading] = useState(true);
-
-  const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthUserLoading || !authUser) return null;
-    return collection(firestore, 'courses');
-  }, [firestore, isAuthUserLoading, authUser]);
-  const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
+  const { facultyCourses, isLoading: areCoursesLoading } = useFacultyCourses();
   
-  useEffect(() => {
-    if (!firestore || !authUser || areAllCoursesLoading || !allCourses) return;
-
-    const fetchFacultyCourses = async () => {
-      setAreCoursesLoading(true);
-      try {
-        // 1. Find all timetable entries for this faculty
-        const timetablesQuery = query(
-            collectionGroup(firestore, 'timetables'),
-            where('facultyId', '==', authUser.uid)
-        );
-        const timetableSnapshot = await getDocs(timetablesQuery);
-
-        // 2. Get unique course IDs from the timetable entries
-        const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
-
-        // 3. Filter the already fetched allCourses list
-        if (facultyCourseIds.length > 0) {
-            const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
-            setFacultyCourses(courses);
-        } else {
-            setFacultyCourses([]);
-        }
-
-      } catch (error: any) {
-        console.error("Error fetching faculty courses:", error);
-        toast({
-          variant: 'destructive',
-          title: 'Error',
-          description: 'Could not fetch your assigned courses.',
-        });
-        setFacultyCourses([]);
-      } finally {
-        setAreCoursesLoading(false);
-      }
-    };
-
-    fetchFacultyCourses();
-  }, [firestore, authUser, allCourses, areAllCoursesLoading, toast]);
-
-
   const handleCourseSelect = async (courseId: string) => {
     setSelectedCourseId(courseId);
     setActiveSession(null);

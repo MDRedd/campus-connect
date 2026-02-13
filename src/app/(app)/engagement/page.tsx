@@ -48,6 +48,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
@@ -159,34 +160,7 @@ export default function EngagementPage() {
         fetchForums();
     }, [firestore, allCourses, areCoursesLoading, refetchTrigger]);
     
-    const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
-    const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
-
-    useEffect(() => {
-        if (userProfile?.role !== 'faculty' || !firestore || !user || areCoursesLoading || !allCourses) {
-            if(userProfile?.role === 'faculty') setAreFacultyCoursesLoading(false);
-            return;
-        }
-        const fetchFacultyCourses = async () => {
-          setAreFacultyCoursesLoading(true);
-          try {
-            const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', user.uid));
-            const timetableSnapshot = await getDocs(timetablesQuery);
-            const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
-            if (facultyCourseIds.length > 0) {
-                const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
-                setFacultyCourses(courses);
-            } else {
-                setFacultyCourses([]);
-            }
-          } catch (error: any) {
-            setFacultyCourses([]);
-          } finally {
-            setAreFacultyCoursesLoading(false);
-          }
-        };
-        fetchFacultyCourses();
-    }, [firestore, user, allCourses, areCoursesLoading, userProfile]);
+    const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
     const filteredForums = useMemo(() => {
         if (!forums) return null;

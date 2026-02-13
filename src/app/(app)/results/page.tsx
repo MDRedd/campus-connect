@@ -46,6 +46,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 type Result = {
   id?: string;
@@ -141,8 +142,7 @@ export default function ResultsPage() {
   }, [groupedResults]);
 
   // --- Faculty Specific ---
-  const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
-  const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
+  const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
   const allStudentsQuery = useMemoFirebase(() => {
     if (!firestore || !userProfile || userProfile.role !== 'faculty') return null;
@@ -153,34 +153,6 @@ export default function ResultsPage() {
     const [facultyResults, setFacultyResults] = useState<(Result & { studentName: string; courseCode: string; })[] | null>(null);
     const [areFacultyResultsLoading, setAreFacultyResultsLoading] = useState(true);
   
-  useEffect(() => {
-    if (!userProfile || userProfile.role !== 'faculty' || !firestore || !authUser || areAllCoursesLoading || !allCourses) return;
-    
-    const fetchFacultyCourses = async () => {
-      setAreFacultyCoursesLoading(true);
-      try {
-        const timetablesQuery = query(
-            collectionGroup(firestore, 'timetables'),
-            where('facultyId', '==', authUser.uid)
-        );
-        const timetableSnapshot = await getDocs(timetablesQuery);
-        const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
-        if (facultyCourseIds.length > 0) {
-            setFacultyCourses(allCourses.filter(course => facultyCourseIds.includes(course.id)));
-        } else {
-            setFacultyCourses([]);
-        }
-      } catch (error) {
-        console.error("Error fetching faculty courses:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your courses.' });
-        setFacultyCourses([]);
-      } finally {
-        setAreFacultyCoursesLoading(false);
-      }
-    };
-    fetchFacultyCourses();
-  }, [firestore, authUser, allCourses, areAllCoursesLoading, userProfile, toast]);
-
     useEffect(() => {
         if (userProfile?.role !== 'faculty' || !firestore || areFacultyCoursesLoading || areStudentsLoading) return;
         if (!facultyCourses || !allStudents) {

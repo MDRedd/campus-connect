@@ -17,7 +17,7 @@ import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ClipboardList, QrCode } from 'lucide-react';
 import type { Course } from '@/lib/data';
-import { useToast } from '@/hooks/use-toast';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 type AttendanceRecord = {
   courseId: string;
@@ -36,7 +36,6 @@ type Enrollment = {
 export default function AttendancePage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
-  const { toast } = useToast();
 
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -102,37 +101,7 @@ export default function AttendancePage() {
   }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areCoursesLoading, areEnrollmentsLoading, userProfile]);
 
   // --- Faculty-specific data ---
-  const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
-  const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
-
-  useEffect(() => {
-    if (userProfile?.role !== 'faculty' || !firestore || !authUser || areCoursesLoading || !allCourses) {
-      if(userProfile?.role === 'faculty') setAreFacultyCoursesLoading(false);
-      return;
-    }
-    
-    const fetchFacultyCourses = async () => {
-      setAreFacultyCoursesLoading(true);
-      try {
-        const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
-        const timetableSnapshot = await getDocs(timetablesQuery);
-        const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
-        if (facultyCourseIds.length > 0) {
-            const courses = allCourses.filter(course => facultyCourseIds.includes(course.id));
-            setFacultyCourses(courses);
-        } else {
-            setFacultyCourses([]);
-        }
-      } catch (error: any) {
-        console.error("Error fetching faculty courses:", error);
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your assigned courses.' });
-        setFacultyCourses([]);
-      } finally {
-        setAreFacultyCoursesLoading(false);
-      }
-    };
-    fetchFacultyCourses();
-  }, [firestore, authUser, allCourses, areCoursesLoading, userProfile, toast]);
+  const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
 
