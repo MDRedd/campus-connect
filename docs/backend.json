@@ -21,7 +21,15 @@
         },
         "role": {
           "type": "string",
-          "description": "The user's role within the platform (e.g., admin, faculty, student)."
+          "description": "The user's role within the platform.",
+          "enum": [
+            "student",
+            "faculty",
+            "super-admin",
+            "user-admin",
+            "course-admin",
+            "attendance-admin"
+          ]
         },
         "department": {
           "type": "string",

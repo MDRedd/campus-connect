@@ -56,12 +56,12 @@ type UserProfile = {
   id: string;
   name: string;
   email: string;
-  role: 'student' | 'faculty' | 'admin';
+  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
   department?: string;
 };
 
 const userEditSchema = z.object({
-  role: z.enum(['student', 'faculty', 'admin']),
+  role: z.enum(['student', 'faculty', 'super-admin', 'user-admin', 'course-admin', 'attendance-admin']),
   department: z.string().optional(),
 });
 
@@ -83,7 +83,7 @@ export default function UsersPage() {
   const { data: currentUserProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allUsersQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUserProfile || currentUserProfile.role !== 'admin') return null;
+    if (!firestore || !currentUserProfile || !['super-admin', 'user-admin'].includes(currentUserProfile.role)) return null;
     return collection(firestore, 'users');
   }, [firestore, currentUserProfile]);
   const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(allUsersQuery);
@@ -132,7 +132,7 @@ export default function UsersPage() {
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areUsersLoading;
 
-  if (currentUserProfile && currentUserProfile.role !== 'admin') {
+  if (currentUserProfile && !['super-admin', 'user-admin'].includes(currentUserProfile.role)) {
     return (
         <Card>
             <CardHeader>
@@ -192,7 +192,7 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role === 'admin' ? 'destructive' : user.role === 'faculty' ? 'default' : 'secondary'}>
+                      <Badge variant={user.role.includes('admin') ? 'destructive' : user.role === 'faculty' ? 'default' : 'secondary'}>
                         {user.role}
                       </Badge>
                     </TableCell>
@@ -244,7 +244,10 @@ export default function UsersPage() {
                                 <SelectContent>
                                     <SelectItem value="student">Student</SelectItem>
                                     <SelectItem value="faculty">Faculty</SelectItem>
-                                    <SelectItem value="admin">Admin</SelectItem>
+                                    <SelectItem value="user-admin">User Admin</SelectItem>
+                                    <SelectItem value="course-admin">Course Admin</SelectItem>
+                                    <SelectItem value="attendance-admin">Attendance Admin</SelectItem>
+                                    <SelectItem value="super-admin">Super Admin</SelectItem>
                                 </SelectContent>
                             </Select>
                             <FormMessage />

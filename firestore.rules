@@ -31,13 +31,6 @@ service cloud.firestore {
     }
 
     /**
-     * Combines owner and existence checks for secure updates and deletes.
-     */
-    // function isExistingOwner(userId) {
-    //   return isOwner(userId) && isExistingDoc();
-    // }
-    
-    /**
      * Retrieves the full user document for the given UID.
      * Note: This function incurs a read operation.
      */
@@ -61,34 +54,67 @@ service cloud.firestore {
     }
 
     /**
-     * Checks if the currently authenticated user has the 'admin' role.
+     * Checks if the user is a super-admin.
      */
-    function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
+    function isSuperAdmin() {
+      return isSignedIn() && getUserRole() == 'super-admin';
     }
 
     /**
-     * Checks if the currently authenticated user is either faculty or admin.
+     * Checks if the user is a user-admin or super-admin.
      */
-    function isFacultyOrAdmin() {
-      return isSignedIn() && (isAdmin() || isFaculty());
+    function isUserAdmin() {
+      let role = getUserRole();
+      return isSignedIn() && (role == 'user-admin' || role == 'super-admin');
     }
+
+    /**
+     * Checks if the user is a course-admin or super-admin.
+     */
+    function isCourseAdmin() {
+      let role = getUserRole();
+      return isSignedIn() && (role == 'course-admin' || role == 'super-admin');
+    }
+
+    /**
+     * Checks if the user is an attendance-admin or super-admin.
+     */
+    function isAttendanceAdmin() {
+      let role = getUserRole();
+      return isSignedIn() && (role == 'attendance-admin' || role == 'super-admin');
+    }
+    
+    /**
+     * Checks if the user has any type of admin role.
+     */
+    function isAnyAdmin() {
+      return isSignedIn() && getUserRole().matches('.*-admin');
+    }
+
+    /**
+     * Checks if the user is faculty or any type of admin.
+     */
+    function isFacultyOrAnyAdmin() {
+        return isFaculty() || isAnyAdmin();
+    }
+
 
     // ---------------------------------------------------------------------
     // Collection Rules
     // ---------------------------------------------------------------------
 
     match /users/{userId} {
-      // Admins can manage any user doc, owners can manage their own.
-      allow get, update, delete: if isOwner(userId) || isAdmin();
-      allow list: if isFacultyOrAdmin();
+      // User admins or super admins can manage any user doc, owners can manage their own.
+      allow get, update: if isOwner(userId) || isUserAdmin();
+      allow delete: if isUserAdmin(); // Only admins can delete user documents
+      allow list: if isUserAdmin();
       // Creating a user doc is still tied to the user signing up, but an admin could also do it.
-      allow create: if (isOwner(userId) && request.resource.data.id == userId) || isAdmin();
+      allow create: if (isOwner(userId) && request.resource.data.id == userId) || isUserAdmin();
     }
 
     match /courses/{courseId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow create, update, delete: if isCourseAdmin();
     }
 
     match /users/{userId}/enrollments/{enrollmentId} {
@@ -97,24 +123,24 @@ service cloud.firestore {
     }
 
     match /users/{userId}/attendance/{attendanceId} {
-      allow get, list: if isOwner(userId) || isFacultyOrAdmin();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow get, list: if isOwner(userId) || isFaculty() || isAttendanceAdmin();
+      allow create, update, delete: if isFaculty() || isAttendanceAdmin();
     }
 
     match /courses/{courseId}/timetables/{timetableId} {
       allow get, list: if isSignedIn();
-      allow create: if isFacultyOrAdmin() && request.resource.data.facultyId == request.auth.uid;
-      allow update, delete: if (isFaculty() && resource.data.facultyId == request.auth.uid) || isAdmin();
+      allow create: if isFaculty() && request.resource.data.facultyId == request.auth.uid;
+      allow update, delete: if (isFaculty() && resource.data.facultyId == request.auth.uid) || isCourseAdmin();
     }
 
     match /users/{userId}/results/{resultId} {
-      allow get, list: if (isOwner(userId) && resource.data.published == true) || isFacultyOrAdmin();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow get, list: if (isOwner(userId) && resource.data.published == true) || isFaculty() || isCourseAdmin();
+      allow create, update, delete: if isFaculty() || isCourseAdmin();
     }
 
     match /courses/{courseId}/assignments/{assignmentId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow create, update, delete: if isFaculty() || isCourseAdmin();
 
       match /submissions/{submissionId} {
         
@@ -123,11 +149,11 @@ service cloud.firestore {
           return isSignedIn() && assignmentDoc.data.facultyId == request.auth.uid;
         }
 
-        allow get: if (isExistingDoc() && isOwner(resource.data.studentId)) || isAssignmentFaculty() || isAdmin();
+        allow get: if (isExistingDoc() && isOwner(resource.data.studentId)) || isAssignmentFaculty() || isCourseAdmin();
         
-        // Faculty/admins can list all submissions.
+        // Faculty/course-admins can list all submissions.
         // Students can list their own submission for a given assignment.
-        allow list: if isAssignmentFaculty() || isAdmin() || (isSignedIn() && request.query.where.studentId == request.auth.uid);
+        allow list: if isAssignmentFaculty() || isCourseAdmin() || (isSignedIn() && request.query.where.studentId == request.auth.uid);
                       
         allow create: if isSignedIn() 
                       && request.resource.data.studentId == request.auth.uid
@@ -135,7 +161,7 @@ service cloud.firestore {
                       
         // Students can update their file/comments before grading. Faculty/Admins can update anything (for grading).
         allow update: if (isExistingDoc() && isOwner(resource.data.studentId) && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['comments', 'fileUrl'])) 
-                      || isAssignmentFaculty() || isAdmin();
+                      || isAssignmentFaculty() || isCourseAdmin();
         
         allow delete: if isOwner(resource.data.studentId);
       }
@@ -143,12 +169,12 @@ service cloud.firestore {
 
     match /courses/{courseId}/study_materials/{studyMaterialId} {
       allow get, list: if isSignedIn();
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow create, update, delete: if isFaculty() || isCourseAdmin();
     }
 
     match /announcements/{announcementId} {
       allow get, list: if true;
-      allow create, update, delete: if isFacultyOrAdmin() && request.resource.data.postedBy == request.auth.uid;
+      allow create, update, delete: if isFacultyOrAnyAdmin() && request.resource.data.postedBy == request.auth.uid;
     }
 
     match /courses/{courseId}/forums/{forumId} {
@@ -157,8 +183,8 @@ service cloud.firestore {
       }
       
       allow get, list: if isSignedIn();
-      allow create: if isFacultyOrAdmin() && request.resource.data.createdBy == request.auth.uid;
-      allow update, delete: if (isFaculty() && isForumCreator()) || isAdmin();
+      allow create: if (isFaculty() || isCourseAdmin()) && request.resource.data.createdBy == request.auth.uid;
+      allow update, delete: if (isFaculty() && isForumCreator()) || isCourseAdmin();
 
       match /forum_posts/{forumPostId} {
         allow get, list: if isSignedIn();
@@ -175,15 +201,15 @@ service cloud.firestore {
 
     match /events/{eventId} {
       allow get, list: if true;
-      allow create, update, delete: if isFacultyOrAdmin();
+      allow create, update, delete: if isFacultyOrAnyAdmin();
     }
 
     match /clubs/{clubId} {
       allow get, list: if isSignedIn();
-      allow create, delete: if isFacultyOrAdmin();
-      // Allow faculty/admins to update club details.
+      // Only super-admins can manage clubs
+      allow create, update, delete: if isSuperAdmin();
       // Allow students to update only the 'members' array to add themselves.
-      allow update: if isFacultyOrAdmin() ||
+      allow update: if isSuperAdmin() ||
                       (
                         isSignedIn() &&
                         // Check that only the 'members' field is being changed by the student.
@@ -195,9 +221,8 @@ service cloud.firestore {
 
     match /users/{userId}/notifications/{notificationId} {
       allow get, list, update, delete: if isOwner(userId);
-      // Allow faculty or admins to create notifications for users.
-      // This is used for generating personalized notifications.
-      allow create: if isFacultyOrAdmin();
+      // Allow faculty or any admin to create notifications for users.
+      allow create: if isFacultyOrAnyAdmin();
     }
 
     match /attendanceSessions/{sessionId} {
@@ -215,5 +240,3 @@ service cloud.firestore {
     }
   }
 }
-
-    

@@ -85,7 +85,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
             const userDoc = await getDoc(userDocRef);
             if (!userDoc.exists()) {
               // If user doc doesn't exist, create one based on email for demo purposes.
-              let role: 'student' | 'faculty' | 'admin' = 'student';
+              let role: 'student' | 'faculty' | 'super-admin' = 'student';
               let name = 'Alex Johnson';
               let department = 'Computer Science'
 
@@ -94,7 +94,7 @@ export const FirebaseProvider: React.FC<FirebaseProviderProps> = ({
                 name = 'Dr. Evelyn Reed';
                 department = 'Computer Science';
               } else if (firebaseUser.email === 'admin@example.com') {
-                role = 'admin';
+                role = 'super-admin';
                 name = 'Admin User';
                 department = 'Administration';
               }

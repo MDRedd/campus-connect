@@ -48,7 +48,7 @@ type Course = {
 };
 
 type UserProfile = {
-  role: 'student' | 'faculty' | 'admin';
+  role: 'student' | 'faculty' | 'super-admin' | 'course-admin' | 'user-admin' | 'attendance-admin';
 };
 
 const courseSchema = z.object({
@@ -169,6 +169,8 @@ export default function CoursesPage() {
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || (currentUserProfile?.role === 'student' && areEnrollmentsLoading);
 
+  const canManageCourses = currentUserProfile?.role === 'super-admin' || currentUserProfile?.role === 'course-admin';
+
   if (isLoading) {
     return (
         <div>
@@ -188,7 +190,7 @@ export default function CoursesPage() {
   }
 
   // ADMIN VIEW
-  if (currentUserProfile?.role === 'admin') {
+  if (canManageCourses) {
     return (
         <div className="flex flex-col gap-6">
         <div>

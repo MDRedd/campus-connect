@@ -50,7 +50,7 @@ type Announcement = {
 };
 
 type UserProfile = {
-  role: 'student' | 'faculty' | 'admin';
+  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 };
 
 const announcementSchema = z.object({
@@ -137,11 +137,13 @@ export default function AnnouncementsPage() {
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areAnnouncementsLoading;
 
+  const canManageAnnouncements = currentUserProfile?.role === 'faculty' || currentUserProfile?.role.includes('admin');
+
   if (isUserProfileLoading) {
       return <Skeleton className="h-96 w-full" />;
   }
 
-  if (currentUserProfile && currentUserProfile.role === 'student') {
+  if (!canManageAnnouncements) {
     return (
         <Card>
             <CardHeader>

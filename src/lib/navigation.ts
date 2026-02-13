@@ -11,7 +11,7 @@ import {
     Megaphone,
   } from 'lucide-react';
 
-type UserRole = 'student' | 'faculty' | 'admin';
+type UserRole = 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 
 const studentNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
@@ -34,21 +34,40 @@ const facultyNavItems = [
     { href: '/announcements', icon: Megaphone, label: 'Announcements' },
 ];
 
-const adminNavItems = [
-    { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
-    { href: '/users', icon: UsersRound, label: 'Users' },
-    { href: '/courses', icon: Library, label: 'Course Management' },
-    { href: '/announcements', icon: Megaphone, label: 'Announcements' },
-];
-
 export const getNavItems = (role: UserRole) => {
-    switch (role) {
-        case 'faculty':
-            return facultyNavItems;
-        case 'admin':
-            return adminNavItems;
-        case 'student':
-        default:
-            return studentNavItems;
+    if (role === 'student') {
+        return studentNavItems;
     }
+    if (role === 'faculty') {
+        return facultyNavItems;
+    }
+
+    // Handle all admin roles
+    const items = [
+        { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
+    ];
+
+    if (role === 'super-admin' || role === 'user-admin') {
+        items.push({ href: '/users', icon: UsersRound, label: 'Users' });
+    }
+    if (role === 'super-admin' || role === 'course-admin') {
+        items.push({ href: '/courses', icon: Library, label: 'Course Management' });
+    }
+    
+    // All admins can make announcements
+    items.push({ href: '/announcements', icon: Megaphone, label: 'Announcements' });
+
+    // A super-admin gets all faculty privileges as well, for simplicity.
+    if (role === 'super-admin') {
+        items.push(
+            ...[
+                { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
+                { href: '/attendance', icon: ClipboardList, label: 'Attendance Dashboard' },
+                { href: '/academics', icon: Library, label: 'Academics' },
+                { href: '/results', icon: GraduationCap, label: 'Results' },
+            ]
+        );
+    }
+    
+    return items;
 }
