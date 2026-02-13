@@ -31,6 +31,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 type Timetable = {
     id: string;
@@ -91,7 +92,7 @@ export default function TimetablePage() {
         if (!firestore) return null;
         return collection(firestore, 'courses');
     }, [firestore]);
-    const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+    const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(coursesQuery);
     
     const enrollmentsQuery = useMemoFirebase(() => {
         if (!firestore || !authUser || userProfile?.role !== 'student') return null;
@@ -108,20 +109,19 @@ export default function TimetablePage() {
     const [fullTimetable, setFullTimetable] = useState<Timetable[] | null>(null);
     const [isTimetableLoading, setIsTimetableLoading] = useState(true);
 
+    const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
+
     useEffect(() => {
-        if (!firestore || !userProfile || !authUser || areCoursesLoading) return;
+        if (!firestore || !userProfile || !authUser) return;
 
         const fetchTimetable = async () => {
           setIsTimetableLoading(true);
           const allTimetableEntries: Timetable[] = [];
-          const courseMap = new Map(allCourses?.map(c => [c.id, c]));
-
+          
           try {
             if (userProfile.role === 'student') {
-                if (!enrolledCourses) {
-                    setIsTimetableLoading(false);
-                    if (enrolledCourses === null) return; // Still loading dependencies
-                    setFullTimetable([]);
+                if (areEnrollmentsLoading || !enrolledCourses) {
+                    if(!areEnrollmentsLoading) setIsTimetableLoading(false);
                     return;
                 }
                  if (enrolledCourses.length === 0) {
@@ -137,15 +137,22 @@ export default function TimetablePage() {
                     });
                 }
             } else if (userProfile.role === 'faculty') {
-                const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
-                const querySnapshot = await getDocs(timetablesQuery);
-                querySnapshot.forEach((doc) => {
-                    const data = doc.data();
-                    const course = courseMap.get(data.courseId);
-                    if (course) {
-                        allTimetableEntries.push({ id: doc.id, ...data, course: { name: course.name, code: course.code } } as Timetable);
-                    }
-                });
+                if (areFacultyCoursesLoading || !facultyCourses) {
+                     if (!areFacultyCoursesLoading) setIsTimetableLoading(false);
+                     return;
+                }
+                if (facultyCourses.length === 0) {
+                    setFullTimetable([]);
+                    setIsTimetableLoading(false);
+                    return;
+                }
+                for (const course of facultyCourses) {
+                    const timetablesQuery = query(collection(firestore, 'courses', course.id, 'timetables'), where('facultyId', '==', authUser.uid));
+                    const querySnapshot = await getDocs(timetablesQuery);
+                     querySnapshot.forEach((doc) => {
+                        allTimetableEntries.push({ id: doc.id, ...doc.data(), course: { name: course.name, code: course.code } } as Timetable);
+                    });
+                }
             }
             
             allTimetableEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
@@ -159,7 +166,7 @@ export default function TimetablePage() {
         };
     
         fetchTimetable();
-      }, [firestore, userProfile, authUser, enrolledCourses, allCourses, areCoursesLoading]);
+      }, [firestore, userProfile, authUser, enrolledCourses, allCourses, areEnrollmentsLoading, facultyCourses, areFacultyCoursesLoading]);
 
       const timetableByDay = useMemo(() => {
         if (!fullTimetable) return null;
@@ -225,7 +232,7 @@ export default function TimetablePage() {
         setEditingSlot(null);
       }
 
-      const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || areEnrollmentsLoading || isTimetableLoading;
+      const isLoading = isAuthUserLoading || isUserProfileLoading || isTimetableLoading;
       const today = new Date().toLocaleString('en-US', { weekday: 'long' });
 
   return (
@@ -251,7 +258,7 @@ export default function TimetablePage() {
                                 <FormLabel>Course</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                    <SelectContent>{allCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{facultyCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                 </Select>
                                 <FormMessage />
                                 </FormItem>

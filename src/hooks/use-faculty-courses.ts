@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import { useToast } from './use-toast';
 
@@ -32,19 +32,24 @@ export function useFacultyCourses() {
         const fetchCourses = async () => {
             setIsLoading(true);
             try {
-                // 1. Find all timetable entries for this faculty
-                const timetablesQuery = query(
-                    collectionGroup(firestore, 'timetables'),
-                    where('facultyId', '==', authUser.uid)
-                );
-                const timetableSnapshot = await getDocs(timetablesQuery);
+                const facultyCourseIds = new Set<string>();
 
-                // 2. Get unique course IDs from the timetable entries
-                const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+                // For each course, check if the faculty teaches it by looking for a timetable entry.
+                for (const course of allCourses) {
+                    const timetablesQuery = query(
+                        collection(firestore, 'courses', course.id, 'timetables'),
+                        where('facultyId', '==', authUser.uid),
+                        limit(1) // We only need one match to know they teach the course.
+                    );
+                    const timetableSnapshot = await getDocs(timetablesQuery);
+                    if (!timetableSnapshot.empty) {
+                        facultyCourseIds.add(course.id);
+                    }
+                }
 
-                // 3. Filter the already fetched allCourses list
-                if (facultyCourseIds.length > 0) {
-                    setFacultyCourses(allCourses.filter(course => facultyCourseIds.includes(course.id)));
+                const courseIds = Array.from(facultyCourseIds);
+                if (courseIds.length > 0) {
+                    setFacultyCourses(allCourses.filter(course => courseIds.includes(course.id)));
                 } else {
                     setFacultyCourses([]);
                 }

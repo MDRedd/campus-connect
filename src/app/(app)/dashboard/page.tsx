@@ -8,13 +8,14 @@ import { BookOpen, Percent, FileWarning, Users, CheckCircle } from 'lucide-react
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
-import UpcomingClasses from './components/upcoming-classes';
+import UpcomingClasses, { UpcomingClass } from './components/upcoming-classes';
 import AttendanceChart from './components/attendance-chart';
 import RecentAnnouncements from './components/recent-announcements';
 import StudentsAtRisk from './components/students-at-risk';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/lib/data';
 import { format } from 'date-fns';
+import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
 type QuickStat = {
   title: string;
@@ -81,6 +82,8 @@ export default function DashboardPage() {
     return collection(firestore, 'courses');
   }, [firestore]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
+  
+  const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
   // --- Role-based stats calculation ---
   useEffect(() => {
@@ -135,14 +138,17 @@ export default function DashboardPage() {
         ];
 
       } else if (userProfile.role === 'faculty') {
-        const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
-        const timetableSnapshot = await getDocs(timetablesQuery);
-        const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+        
+        if (areFacultyCoursesLoading || !facultyCourses) {
+          if (!areFacultyCoursesLoading) setAreStatsLoading(false);
+          return;
+        }
 
         let studentCount = 0;
         let submissionsToGrade = 0;
 
-        if (facultyCourseIds.length > 0) {
+        if (facultyCourses.length > 0) {
+            const facultyCourseIds = facultyCourses.map(c => c.id);
             const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', 'in', facultyCourseIds));
             const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('courseId', 'in', facultyCourseIds));
             
@@ -153,7 +159,7 @@ export default function DashboardPage() {
         }
 
         stats = [
-          { title: 'Active Courses', value: facultyCourseIds.length.toString(), icon: BookOpen },
+          { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: BookOpen },
           { title: 'Total Students', value: studentCount.toString(), icon: Users },
           { title: 'Submissions to Grade', value: submissionsToGrade.toString(), icon: CheckCircle },
         ];
@@ -173,7 +179,7 @@ export default function DashboardPage() {
     };
 
     calculateStats();
-  }, [userProfile, isUserProfileLoading, firestore, allCourses, areAllCoursesLoading, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading, authUser]);
+  }, [userProfile, isUserProfileLoading, firestore, allCourses, areAllCoursesLoading, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading, authUser, facultyCourses, areFacultyCoursesLoading]);
 
   // --- At-Risk Students calculation for faculty ---
   useEffect(() => {
@@ -257,42 +263,65 @@ export default function DashboardPage() {
 
 
   // --- Data for other components ---
-  const [todaysClasses, setTodaysClasses] = useState<any[] | null>(null);
+  const [todaysClasses, setTodaysClasses] = useState<UpcomingClass[] | null>(null);
   const [areTodaysClassesLoading, setAreTodaysClassesLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore || !userProfile || !authUser || !allCourses) return;
+    if (!firestore || !userProfile || !authUser) return;
 
     const fetchTodaysClasses = async () => {
         setAreTodaysClassesLoading(true);
         const today = new Date().toLocaleString('en-US', { weekday: 'long' });
-        let timetableQuery;
+        const allClasses: UpcomingClass[] = [];
 
-        if (userProfile.role === 'student') {
-            if (areStudentEnrollmentsLoading || !studentEnrollments) return;
-            const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
-            if (enrolledCourseIds.length === 0) {
-              setTodaysClasses([]);
-              setAreTodaysClassesLoading(false);
-              return;
-            }
-            timetableQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', enrolledCourseIds), where('dayOfWeek', '==', today));
-        } else if (userProfile.role === 'faculty') {
-            timetableQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid), where('dayOfWeek', '==', today));
-        } else { // Admin
-             setTodaysClasses([]);
-             setAreTodaysClassesLoading(false);
-             return;
-        }
-        
         try {
-            const querySnapshot = await getDocs(timetableQuery);
-            const courseMap = new Map(allCourses.map(c => [c.id, c]));
-            const allClasses = querySnapshot.docs.map(doc => {
-                const data = doc.data();
-                const course = courseMap.get(data.courseId);
-                return { id: doc.id, ...data, course: { name: course?.name, code: course?.code } };
-            }).sort((a, b) => a.startTime.localeCompare(b.startTime));
+            if (userProfile.role === 'student') {
+                if (areStudentEnrollmentsLoading || !studentEnrollments) {
+                  if(!areStudentEnrollmentsLoading) setAreTodaysClassesLoading(false);
+                  return;
+                };
+                const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
+                if (enrolledCourseIds.length === 0) {
+                  setTodaysClasses([]);
+                  setAreTodaysClassesLoading(false);
+                  return;
+                }
+                const timetableQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', enrolledCourseIds), where('dayOfWeek', '==', today));
+                const querySnapshot = await getDocs(timetableQuery);
+                const courseMap = new Map(allCourses?.map(c => [c.id, c]));
+                querySnapshot.forEach(doc => {
+                    const data = doc.data();
+                    const course = courseMap.get(data.courseId);
+                    if (course) {
+                        allClasses.push({ id: doc.id, ...data, course: { name: course.name } } as UpcomingClass);
+                    }
+                });
+
+            } else if (userProfile.role === 'faculty') {
+                if (areFacultyCoursesLoading || !facultyCourses) {
+                  if(!areFacultyCoursesLoading) setAreTodaysClassesLoading(false);
+                  return;
+                }
+                if (facultyCourses.length === 0) {
+                    setTodaysClasses([]);
+                    setAreTodaysClassesLoading(false);
+                    return;
+                }
+                for (const course of facultyCourses) {
+                    const timetableQuery = query(collection(firestore, 'courses', course.id, 'timetables'), where('dayOfWeek', '==', today), where('facultyId', '==', authUser.uid));
+                    const querySnapshot = await getDocs(timetableQuery);
+                    querySnapshot.forEach(doc => {
+                        allClasses.push({ id: doc.id, ...doc.data(), course: { name: course.name }} as UpcomingClass);
+                    });
+                }
+
+            } else { // Admin
+                 setTodaysClasses([]);
+                 setAreTodaysClassesLoading(false);
+                 return;
+            }
+            
+            allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
             setTodaysClasses(allClasses);
         } catch (error) {
             console.error("Error fetching timetable:", error);
@@ -302,7 +331,7 @@ export default function DashboardPage() {
         }
     };
     fetchTodaysClasses();
-  }, [firestore, userProfile, authUser, allCourses, studentEnrollments, areStudentEnrollmentsLoading]);
+  }, [firestore, userProfile, authUser, allCourses, studentEnrollments, areStudentEnrollmentsLoading, areFacultyCoursesLoading, facultyCourses]);
 
   const attendanceData = useMemo(() => {
     if (userProfile?.role !== 'student' || isStudentAttendanceLoading || areAllCoursesLoading || !studentAttendance || !allCourses) return null;
