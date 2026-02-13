@@ -173,7 +173,8 @@ service cloud.firestore {
     }
 
     match /announcements/{announcementId} {
-      allow get, list: if isSignedIn();
+      allow get: if isSignedIn();
+      allow list: if true;
       allow create, update, delete: if isFacultyOrAnyAdmin() && request.resource.data.postedBy == request.auth.uid;
     }
 
