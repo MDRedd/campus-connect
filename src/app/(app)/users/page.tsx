@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, updateDoc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { collection, doc } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -89,20 +89,17 @@ export default function UsersPage() {
     setIsEditDialogOpen(true);
   };
 
-  const onSubmit = async (values: z.infer<typeof userEditSchema>) => {
+  const onSubmit = (values: z.infer<typeof userEditSchema>) => {
     if (!firestore || !editingUser) return;
-    try {
-      const userToUpdateRef = doc(firestore, 'users', editingUser.id);
-      await updateDoc(userToUpdateRef, {
-        role: values.role,
-        department: values.department,
-      });
-      toast({ title: 'Success', description: `User ${editingUser.name} has been updated.` });
-      setIsEditDialogOpen(false);
-    } catch (error) {
-      console.error("Error updating user:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not update user.' });
-    }
+    
+    const userToUpdateRef = doc(firestore, 'users', editingUser.id);
+    updateDocumentNonBlocking(userToUpdateRef, {
+      role: values.role,
+      department: values.department,
+    });
+    
+    toast({ title: 'Success', description: `User ${editingUser.name} has been updated.` });
+    setIsEditDialogOpen(false);
   };
 
   const isLoading = isAuthUserLoading || isUserProfileLoading || areUsersLoading;

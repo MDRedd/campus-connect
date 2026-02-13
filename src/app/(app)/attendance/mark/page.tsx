@@ -2,8 +2,8 @@
 
 import { useState, useMemo, useEffect } from 'react';
 import Image from 'next/image';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, addDoc, serverTimestamp, doc, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { collection, serverTimestamp, doc, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -95,21 +95,28 @@ export default function MarkAttendancePage() {
     setSelectedCourseId(courseId);
     setActiveSession(null);
     setIsGenerating(true);
-    if (!firestore || !authUser) return;
+    if (!firestore || !authUser) {
+        setIsGenerating(false);
+        return;
+    }
 
+    const sessionData = {
+      courseId: courseId,
+      facultyId: authUser.uid,
+      createdAt: serverTimestamp(),
+      attendees: [],
+    };
+    
     try {
-      const sessionData = {
-        courseId: courseId,
-        facultyId: authUser.uid,
-        createdAt: serverTimestamp(),
-        attendees: [],
-      };
-      const sessionDocRef = await addDoc(collection(firestore, 'attendanceSessions'), sessionData);
-      setActiveSession({ ...sessionData, id: sessionDocRef.id });
-    } catch (error) {
-      console.error("Error creating attendance session:", error);
+        const sessionDocRef = await addDocumentNonBlocking(collection(firestore, 'attendanceSessions'), sessionData);
+        if (sessionDocRef) {
+            setActiveSession({ ...sessionData, id: sessionDocRef.id });
+        }
+    } catch(error) {
+        console.error("Error creating attendance session:", error);
+        // The non-blocking function will emit a global error, but we can also log here if needed.
     } finally {
-      setIsGenerating(false);
+        setIsGenerating(false);
     }
   };
 

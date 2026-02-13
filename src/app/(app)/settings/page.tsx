@@ -1,7 +1,7 @@
 'use client'
 
-import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth } from '@/firebase'
-import { doc, updateDoc } from 'firebase/firestore'
+import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth, updateDocumentNonBlocking } from '@/firebase'
+import { doc } from 'firebase/firestore'
 import { updatePassword, deleteUser } from 'firebase/auth'
 import {
   Card,
@@ -56,24 +56,17 @@ export default function SettingsPage() {
   }, [firestore, authUser]);
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
-  const handlePreferenceChange = async (key: keyof NonNullable<UserProfile['notificationPreferences']>, value: boolean) => {
+  const handlePreferenceChange = (key: keyof NonNullable<UserProfile['notificationPreferences']>, value: boolean) => {
     if (!userDocRef) return;
-    try {
-      await updateDoc(userDocRef, {
-        [`notificationPreferences.${key}`]: value,
-      });
-      toast({
-        title: 'Settings Saved',
-        description: 'Your notification preferences have been updated.',
-      });
-    } catch (error) {
-      console.error('Error updating preferences:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: 'Could not save your settings.',
-      });
-    }
+    
+    updateDocumentNonBlocking(userDocRef, {
+      [`notificationPreferences.${key}`]: value,
+    });
+
+    toast({
+      title: 'Settings Saved',
+      description: 'Your notification preferences have been updated.',
+    });
   };
 
   const handleUpdatePassword = async () => {

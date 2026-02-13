@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, collection, query, orderBy, addDoc, serverTimestamp } from 'firebase/firestore';
+import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { doc, collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -59,27 +59,23 @@ export default function ForumPage() {
   }, [firestore, courseId, forumId]);
   const { data: posts, isLoading: arePostsLoading } = useCollection<ForumPost>(postsQuery);
 
-  const handlePostSubmit = async (e: React.FormEvent) => {
+  const handlePostSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!firestore || !authUser || !userProfile || !courseId || !forumId || !newPostContent.trim()) return;
 
     setIsSubmitting(true);
-    try {
-      const postsColRef = collection(firestore, 'courses', courseId, 'forums', forumId, 'forum_posts');
-      await addDoc(postsColRef, {
-        forumId,
-        userId: authUser.uid,
-        userName: userProfile.name,
-        content: newPostContent.trim(),
-        postedAt: serverTimestamp(),
-      });
-      setNewPostContent('');
-    } catch (error) {
-      console.error("Error adding post:", error);
-      toast({ variant: 'destructive', title: 'Error', description: 'Could not submit your post.' });
-    } finally {
-      setIsSubmitting(false);
-    }
+    const postsColRef = collection(firestore, 'courses', courseId, 'forums', forumId, 'forum_posts');
+    addDocumentNonBlocking(postsColRef, {
+      forumId,
+      userId: authUser.uid,
+      userName: userProfile.name,
+      content: newPostContent.trim(),
+      postedAt: serverTimestamp(),
+    });
+    
+    // Optimistic UI update
+    setNewPostContent('');
+    setIsSubmitting(false);
   };
 
   if (!courseId) {

@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { BookOpen } from 'lucide-react';
-import { useAuth, useUser, useFirestore } from '@/firebase';
+import { useAuth, useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { setDoc, doc } from 'firebase/firestore';
+import { doc } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -50,8 +50,6 @@ export default function SignUpPage() {
         await updateProfile(newUser, { displayName: name });
 
         // Create user document in Firestore.
-        // This logic is now separate from the onAuthStateChanged handler in the provider,
-        // which makes the user creation process more explicit.
         const userDocRef = doc(firestore, 'users', newUser.uid);
         const userData = {
             id: newUser.uid,
@@ -60,7 +58,7 @@ export default function SignUpPage() {
             role: 'student', // Default role for new sign-ups
             department: 'Undeclared'
         };
-        await setDoc(userDocRef, userData);
+        setDocumentNonBlocking(userDocRef, userData, {});
 
         toast({
             title: 'Account Created',

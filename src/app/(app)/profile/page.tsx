@@ -2,8 +2,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc } from 'firebase/firestore';
+import { useUser, useDoc, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { doc } from 'firebase/firestore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -84,26 +84,19 @@ export default function ProfilePage() {
     .map((n) => n[0])
     .join('');
 
-  const onSubmit = async (data: ProfileFormValues) => {
+  const onSubmit = (data: ProfileFormValues) => {
     if (!userDocRef) return;
-    try {
-      await updateDoc(userDocRef, {
-        name: data.name,
-        department: data.department,
-      });
-      toast({
-        title: 'Profile Updated',
-        description: 'Your profile has been successfully updated.',
-      });
-      setIsEditing(false);
-    } catch (error) {
-      console.error('Error updating profile:', error);
-      toast({
-        variant: 'destructive',
-        title: 'Update Failed',
-        description: 'Could not update your profile. Please try again.',
-      });
-    }
+    
+    updateDocumentNonBlocking(userDocRef, {
+      name: data.name,
+      department: data.department,
+    });
+
+    toast({
+      title: 'Profile Updated',
+      description: 'Your profile has been successfully updated.',
+    });
+    setIsEditing(false);
   };
 
   if (isLoading) {
