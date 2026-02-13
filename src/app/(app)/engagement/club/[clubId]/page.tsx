@@ -3,8 +3,8 @@
 import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase } from '@/firebase';
-import { doc, updateDoc, arrayUnion, collection, query, where } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { doc, arrayUnion, collection, query, where } from 'firebase/firestore';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -56,28 +56,19 @@ export default function ClubDetailPage() {
         return club.members.includes(authUser.uid);
     }, [authUser, club]);
 
-    const handleJoinClub = async () => {
+    const handleJoinClub = () => {
         if (!firestore || !authUser || !club) return;
         setIsJoining(true);
-        try {
-            const clubRef = doc(firestore, 'clubs', club.id);
-            await updateDoc(clubRef, {
-                members: arrayUnion(authUser.uid)
-            });
-            toast({
-                title: "Successfully Joined Club!",
-                description: "Welcome! You're now a member.",
-            });
-        } catch (error) {
-            console.error("Error joining club:", error);
-            toast({
-                variant: 'destructive',
-                title: "Failed to Join",
-                description: "There was a problem joining the club. Please try again later.",
-            });
-        } finally {
-            setIsJoining(false);
-        }
+        
+        const clubRef = doc(firestore, 'clubs', club.id);
+        updateDocumentNonBlocking(clubRef, {
+            members: arrayUnion(authUser.uid)
+        });
+
+        toast({
+            title: "Successfully Joined Club!",
+            description: "Welcome! You're now a member.",
+        });
     };
 
     const isLoading = isClubLoading || isFacultyLoading || areMembersLoading;
