@@ -3,7 +3,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, getDocs, query, doc, updateDoc, arrayUnion, addDoc, orderBy, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
+import { collection, getDocs, query, doc, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
 import {
@@ -91,6 +91,7 @@ export default function EngagementPage() {
 
     const [forums, setForums] = useState<Forum[] | null>(null);
     const [areForumsLoading, setAreForumsLoading] = useState(true);
+    const [refetchTrigger, setRefetchTrigger] = useState(0);
 
     const userDocRef = useMemoFirebase(() => {
       if (!firestore || !user) return null;
@@ -156,7 +157,7 @@ export default function EngagementPage() {
         };
 
         fetchForums();
-    }, [firestore, allCourses, areCoursesLoading]);
+    }, [firestore, allCourses, areCoursesLoading, refetchTrigger]);
     
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
     const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
@@ -235,30 +236,26 @@ export default function EngagementPage() {
         toast({ title: 'Success', description: 'Club deleted.' });
     };
     
-    async function onClubSubmit(values: z.infer<typeof clubSchema>) {
+    function onClubSubmit(values: z.infer<typeof clubSchema>) {
       if (!firestore || !user) return;
-      try {
-          if (editingClub) {
-              const clubRef = doc(firestore, 'clubs', editingClub.id);
-              updateDocumentNonBlocking(clubRef, { name: values.name, description: values.description });
-              toast({ title: 'Success', description: 'Club updated successfully.' });
-          } else {
-              const clubData = {
-                  name: values.name,
-                  description: values.description,
-                  facultyIncharge: user.uid,
-                  members: [],
-              };
-              addDocumentNonBlocking(collection(firestore, 'clubs'), clubData);
-              toast({ title: 'Success', description: 'Club created successfully.' });
-          }
-          setOpenClubDialog(false);
-          setEditingClub(null);
-          clubForm.reset();
-      } catch (error) {
-          console.error("Error saving club:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not save club.' });
+
+      if (editingClub) {
+          const clubRef = doc(firestore, 'clubs', editingClub.id);
+          updateDocumentNonBlocking(clubRef, { name: values.name, description: values.description });
+          toast({ title: 'Success', description: 'Club updated successfully.' });
+      } else {
+          const clubData = {
+              name: values.name,
+              description: values.description,
+              facultyIncharge: user.uid,
+              members: [],
+          };
+          addDocumentNonBlocking(collection(firestore, 'clubs'), clubData);
+          toast({ title: 'Success', description: 'Club created successfully.' });
       }
+      setOpenClubDialog(false);
+      setEditingClub(null);
+      clubForm.reset();
     }
     
     const handleAddNewEvent = () => {
@@ -287,48 +284,41 @@ export default function EngagementPage() {
         setOpenEventDetailsDialog(true);
     }
 
-    async function onEventSubmit(values: z.infer<typeof eventSchema>) {
+    function onEventSubmit(values: z.infer<typeof eventSchema>) {
         if (!firestore) return;
-        try {
-            const eventData = {
-                ...values,
-                date: new Date(values.date).toISOString()
-            };
+        
+        const eventData = {
+            ...values,
+            date: new Date(values.date).toISOString()
+        };
 
-            if (editingEvent) {
-                await updateDoc(doc(firestore, 'events', editingEvent.id), eventData);
-                toast({ title: 'Success', description: 'Event updated.' });
-            } else {
-                await addDoc(collection(firestore, 'events'), eventData);
-                toast({ title: 'Success', description: 'Event created.' });
-            }
-            setOpenEventDialog(false);
-            setEditingEvent(null);
-        } catch (error) {
-            console.error("Error saving event:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not save event.' });
+        if (editingEvent) {
+            updateDocumentNonBlocking(doc(firestore, 'events', editingEvent.id), eventData);
+            toast({ title: 'Success', description: 'Event updated.' });
+        } else {
+            addDocumentNonBlocking(collection(firestore, 'events'), eventData);
+            toast({ title: 'Success', description: 'Event created.' });
         }
+        setOpenEventDialog(false);
+        setEditingEvent(null);
     }
     
-    async function onCreateForum(values: z.infer<typeof forumSchema>) {
+    function onCreateForum(values: z.infer<typeof forumSchema>) {
       if (!firestore || !user) return;
-      try {
-        const forumsRef = collection(firestore, 'courses', values.courseId, 'forums');
-        await addDoc(forumsRef, {
-            courseId: values.courseId,
-            title: values.title,
-            description: values.description,
-            createdBy: user.uid,
-            createdAt: serverTimestamp(),
-        });
-        toast({ title: 'Success', description: 'Forum created successfully.' });
-        setOpenForumDialog(false);
-        forumForm.reset();
-        // Note: Manual refetch of forums would be needed here, or state update
-      } catch (error) {
-          console.error("Error creating forum:", error);
-          toast({ variant: 'destructive', title: 'Error', description: 'Could not create the forum.' });
-      }
+      
+      const forumsRef = collection(firestore, 'courses', values.courseId, 'forums');
+      addDocumentNonBlocking(forumsRef, {
+          courseId: values.courseId,
+          title: values.title,
+          description: values.description,
+          createdBy: user.uid,
+          createdAt: serverTimestamp(),
+      });
+      
+      toast({ title: 'Success', description: 'Forum created. The list will update shortly.' });
+      setOpenForumDialog(false);
+      forumForm.reset();
+      setRefetchTrigger(c => c + 1);
     }
 
     const isLoading = isAuthLoading || isUserProfileLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
