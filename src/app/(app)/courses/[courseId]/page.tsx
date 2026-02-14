@@ -24,11 +24,13 @@ import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Download, FileText, Users, Sparkles, Lightbulb } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { format } from 'date-fns';
 import { summarizeCourseMaterials } from '@/ai/flows/summarize-course-materials';
 import { generateStudyQuestions } from '@/ai/flows/generate-study-questions';
+import GradeDistributionChart from '../../dashboard/components/grade-distribution-chart';
 
 type Course = {
   id: string;
@@ -40,6 +42,7 @@ type Course = {
 type UserProfile = { role: 'student' | 'faculty' | 'admin', name: string, id: string, email: string };
 type Assignment = { id: string; title: string; description: string; deadline: string; courseId: string; };
 type StudyMaterial = { id: string; title: string; description: string; fileUrl: string; };
+type Result = { id: string; studentId: string; courseId: string; semester: string; year: number; marks: number; grade: string; published: boolean; };
 
 export default function CourseDetailPage() {
   const params = useParams();
@@ -81,6 +84,62 @@ export default function CourseDetailPage() {
   const [enrolledStudents, setEnrolledStudents] = useState<UserProfile[] | null>(null);
   const [areStudentsLoading, setAreStudentsLoading] = useState(true);
 
+  const [performanceData, setPerformanceData] = useState<{ gradeCounts: any[], studentResults: any[] } | null>(null);
+  const [isPerformanceLoading, setIsPerformanceLoading] = useState(true);
+
+  useEffect(() => {
+    if (!firestore || !courseId || userProfile?.role === 'student') {
+        setIsPerformanceLoading(false);
+        return;
+    }
+
+    const fetchPerformanceData = async () => {
+        setIsPerformanceLoading(true);
+        try {
+            const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', '==', courseId));
+            const resultsSnapshot = await getDocs(resultsQuery);
+            const courseResults = resultsSnapshot.docs.map(d => ({ ...(d.data() as Result), studentId: d.ref.parent.parent!.id }));
+
+            if (courseResults.length === 0) {
+                setPerformanceData({ gradeCounts: [], studentResults: [] });
+                return;
+            }
+
+            const studentIds = [...new Set(courseResults.map(r => r.studentId))];
+            const studentsData: UserProfile[] = [];
+            for (let i = 0; i < studentIds.length; i += 30) {
+                const chunk = studentIds.slice(i, i + 30);
+                const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
+                const studentsSnapshot = await getDocs(studentsQuery);
+                studentsSnapshot.forEach(doc => studentsData.push(doc.data() as UserProfile));
+            }
+            const studentMap = new Map(studentsData.map(s => [s.id, s.name]));
+
+            const gradeCounts: { [grade: string]: number } = {};
+            courseResults.forEach(r => {
+                gradeCounts[r.grade] = (gradeCounts[r.grade] || 0) + 1;
+            });
+
+            const gradeChartData = Object.entries(gradeCounts).map(([name, count]) => ({ name, count })).sort((a,b) => a.name.localeCompare(b.name));
+            
+            const studentResultsWithNames = courseResults.map(r => ({
+                ...r,
+                studentName: studentMap.get(r.studentId) || 'Unknown Student'
+            })).sort((a,b) => b.marks - a.marks);
+
+            setPerformanceData({ gradeCounts: gradeChartData, studentResults: studentResultsWithNames });
+
+        } catch (error) {
+            console.error("Error fetching performance data:", error);
+            setPerformanceData(null);
+        } finally {
+            setIsPerformanceLoading(false);
+        }
+    };
+
+    fetchPerformanceData();
+  }, [firestore, courseId, userProfile]);
+
   useEffect(() => {
     if (!firestore || !courseId || userProfile?.role === 'student') {
         setAreStudentsLoading(false);
@@ -95,12 +154,14 @@ export default function CourseDetailPage() {
             const studentIds = enrollmentsSnapshot.docs.map(d => d.data().studentId as string);
 
             if (studentIds.length > 0) {
-                // Firestore 'in' query has a limit of 30 items.
-                // For this app, we'll assume classes are smaller than that.
-                const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', studentIds));
-                const studentsSnapshot = await getDocs(studentsQuery);
-                const students = studentsSnapshot.docs.map(d => d.data() as UserProfile);
-                setEnrolledStudents(students);
+                const studentsData: UserProfile[] = [];
+                for (let i = 0; i < studentIds.length; i += 30) {
+                    const chunk = studentIds.slice(i, i + 30);
+                    const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
+                    const studentsSnapshot = await getDocs(studentsQuery);
+                    studentsSnapshot.forEach(doc => studentsData.push(doc.data() as UserProfile));
+                }
+                setEnrolledStudents(studentsData);
             } else {
                 setEnrolledStudents([]);
             }
@@ -154,7 +215,7 @@ export default function CourseDetailPage() {
     }
   };
 
-  const isDataLoading = areAssignmentsLoading || areMaterialsLoading || (userProfile?.role !== 'student' && areStudentsLoading);
+  const isDataLoading = areAssignmentsLoading || areMaterialsLoading || (userProfile?.role !== 'student' && (areStudentsLoading || isPerformanceLoading));
 
   return (
     <div className="flex flex-col gap-6">
@@ -188,10 +249,11 @@ export default function CourseDetailPage() {
         </Card>
       ) : course ? (
         <Tabs defaultValue="assignments" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-3">
+            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
                 <TabsTrigger value="assignments">Assignments</TabsTrigger>
                 <TabsTrigger value="materials">Study Materials</TabsTrigger>
                 {userProfile?.role !== 'student' && <TabsTrigger value="students">Students</TabsTrigger>}
+                {userProfile?.role !== 'student' && <TabsTrigger value="performance">Performance</TabsTrigger>}
             </TabsList>
             <TabsContent value="assignments" className="mt-6">
                 <Card>
@@ -283,6 +345,41 @@ export default function CourseDetailPage() {
                             )}
                         </CardContent>
                     </Card>
+                </TabsContent>
+             )}
+             {userProfile?.role !== 'student' && (
+                <TabsContent value="performance" className="mt-6">
+                    {isPerformanceLoading ? <Skeleton className="h-96 w-full"/> : performanceData && (
+                        <div className="grid gap-6 lg:grid-cols-2">
+                            <GradeDistributionChart data={performanceData.gradeCounts} />
+                            <Card>
+                                <CardHeader>
+                                    <CardTitle>Student Grades</CardTitle>
+                                    <CardDescription>Individual student marks and grades for this course.</CardDescription>
+                                </CardHeader>
+                                <CardContent>
+                                    <Table>
+                                        <TableHeader>
+                                            <TableRow>
+                                                <TableHead>Student</TableHead>
+                                                <TableHead>Marks</TableHead>
+                                                <TableHead>Grade</TableHead>
+                                            </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                            {performanceData.studentResults.map((res: any) => (
+                                                <TableRow key={res.studentId}>
+                                                    <TableCell>{res.studentName}</TableCell>
+                                                    <TableCell>{res.marks}</TableCell>
+                                                    <TableCell className="font-bold">{res.grade}</TableCell>
+                                                </TableRow>
+                                            ))}
+                                        </TableBody>
+                                    </Table>
+                                </CardContent>
+                            </Card>
+                        </div>
+                    )}
                 </TabsContent>
              )}
         </Tabs>
