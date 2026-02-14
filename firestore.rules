@@ -232,8 +232,11 @@ service cloud.firestore {
     match /users/{userId}/fees/{feeId} {
       // Students can view their own fees.
       allow get, list: if isOwner(userId);
-      // Only admins can create, update, or delete fee records.
-      allow create, update, delete: if isAnyAdmin();
+      // NOTE: For this prototype, students can update their own fee status to simulate payment.
+      // In a production app, this would be handled by a secure backend function triggered by a payment provider.
+      allow update: if isOwner(userId) || isAnyAdmin();
+      // Only admins can create or delete fee records.
+      allow create, delete: if isAnyAdmin();
     }
 
     match /attendanceSessions/{sessionId} {

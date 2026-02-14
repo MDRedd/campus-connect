@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query } from 'firebase/firestore';
+import { collection, query, writeBatch, doc } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -17,6 +17,18 @@ import { CreditCard, DollarSign } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
+import { useToast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 type Fee = {
   id: string;
@@ -30,6 +42,8 @@ type Fee = {
 export default function FeesPage() {
   const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
+  const [isPaying, setIsPaying] = useState(false);
 
   const feesQuery = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -55,6 +69,41 @@ export default function FeesPage() {
       case 'Unpaid': return 'secondary';
       case 'Overdue': return 'destructive';
       default: return 'secondary';
+    }
+  };
+
+  const handlePayDues = async () => {
+    if (!firestore || !authUser || !fees) return;
+
+    const unpaidFees = fees.filter(fee => fee.status !== 'Paid');
+    if (unpaidFees.length === 0) return;
+
+    setIsPaying(true);
+    const batch = writeBatch(firestore);
+
+    unpaidFees.forEach(fee => {
+      const feeRef = doc(firestore, 'users', authUser.uid, 'fees', fee.id);
+      batch.update(feeRef, {
+        status: 'Paid',
+        amountPaid: fee.totalAmount
+      });
+    });
+
+    try {
+      await batch.commit();
+      toast({
+        title: 'Payment Successful',
+        description: 'Your outstanding dues have been marked as paid.',
+      });
+    } catch (error) {
+      console.error("Error paying dues:", error);
+      toast({
+        variant: 'destructive',
+        title: 'Payment Failed',
+        description: 'There was an error processing your payment. Please try again.',
+      });
+    } finally {
+      setIsPaying(false);
     }
   };
 
@@ -101,9 +150,26 @@ export default function FeesPage() {
           </div>
         </CardContent>
         <CardFooter>
-          <Button disabled={totalDue === 0}>
-            <DollarSign className="mr-2 h-4 w-4" /> Pay Total Due
-          </Button>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button disabled={totalDue === 0 || isPaying}>
+                <DollarSign className="mr-2 h-4 w-4" />
+                {isPaying ? 'Processing...' : 'Pay Total Due'}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
+                <AlertDialogDescription>
+                  You are about to pay a total of ${totalDue.toFixed(2)}. This will clear all your outstanding dues. This action is for demonstration purposes.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancel</AlertDialogCancel>
+                <AlertDialogAction onClick={handlePayDues}>Confirm and Pay</AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </CardFooter>
       </Card>
       
