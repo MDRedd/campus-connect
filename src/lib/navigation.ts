@@ -9,6 +9,7 @@ import {
     QrCode,
     BookCopy,
     Megaphone,
+    CreditCard,
   } from 'lucide-react';
 
 type UserRole = 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
@@ -21,6 +22,7 @@ const studentNavItems = [
     { href: '/courses', icon: BookCopy, label: 'Course Catalog' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
     { href: '/engagement', icon: Users, label: 'Engagement' },
+    { href: '/fees', icon: CreditCard, label: 'Fees' },
     { href: '/announcements/view', icon: Megaphone, label: 'Announcements' },
 ];
 

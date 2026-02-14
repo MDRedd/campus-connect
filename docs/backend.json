@@ -789,6 +789,57 @@
         "status",
         "requestedAt"
       ]
+    },
+    "Fee": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Fee",
+      "type": "object",
+      "description": "Represents a fee owed by a student.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Fee entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the User (Student) who owes the fee."
+        },
+        "description": {
+          "type": "string",
+          "description": "A description of the fee (e.g., Tuition Fee - Fall 2024)."
+        },
+        "totalAmount": {
+          "type": "number",
+          "description": "The total amount of the fee."
+        },
+        "amountPaid": {
+          "type": "number",
+          "description": "The amount that has been paid."
+        },
+        "dueDate": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The date the fee is due."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the fee.",
+          "enum": [
+            "Paid",
+            "Unpaid",
+            "Overdue"
+          ]
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "description",
+        "totalAmount",
+        "amountPaid",
+        "dueDate",
+        "status"
+      ]
     }
   },
   "auth": {
@@ -888,6 +939,12 @@
         "$ref": "#/backend/entities/Notification"
       },
       "description": "Stores notifications for a specific user. Path-based ownership; users can only access their own notifications."
+    },
+    "/users/{userId}/fees/{feeId}": {
+      "schema": {
+        "$ref": "#/backend/entities/Fee"
+      },
+      "description": "Stores fee data for a specific user. Path-based ownership."
     },
     "/attendanceSessions/{sessionId}": {
       "schema": {

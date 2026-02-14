@@ -229,6 +229,13 @@ service cloud.firestore {
       allow create: if isFacultyOrAnyAdmin();
     }
 
+    match /users/{userId}/fees/{feeId} {
+      // Students can view their own fees.
+      allow get, list: if isOwner(userId);
+      // Only admins can create, update, or delete fee records.
+      allow create, update, delete: if isAnyAdmin();
+    }
+
     match /attendanceSessions/{sessionId} {
       // Faculty can create a new session if they are the one starting it.
       allow create: if isFaculty() && request.resource.data.facultyId == request.auth.uid;
