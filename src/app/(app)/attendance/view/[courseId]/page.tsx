@@ -2,35 +2,66 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, doc, query, collectionGroup, where, getDocs, DocumentData } from 'firebase/firestore';
+import { useFirestore, useDoc, useMemoFirebase, useCollection, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
+import { format } from 'date-fns';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+  DialogClose,
+} from '@/components/ui/dialog';
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
+import { Input } from '@/components/ui/input';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Users } from 'lucide-react';
+import { ArrowLeft, Users, Pencil, Trash2, PlusCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useToast } from '@/hooks/use-toast';
+import { Badge } from '@/components/ui/badge';
 
+
+// Types
 type Course = { id: string; name: string; code: string; };
 type UserProfile = { id: string; name: string; email: string; };
-type AttendanceRecord = { studentId: string; courseId: string; status: 'present' | 'absent'; };
+type AttendanceRecord = { id: string; studentId: string; courseId: string; status: 'present' | 'absent'; date: any; markedBy: string; };
 type StudentStats = {
     profile: UserProfile;
     attended: number;
     total: number;
     percentage: number;
 }
+const attendanceSchema = z.object({
+  date: z.string().min(1, 'Date is required.'),
+  status: z.enum(['present', 'absent']),
+});
+type AttendanceFormValues = z.infer<typeof attendanceSchema>;
+
 
 export default function FacultyAttendanceDetailsPage() {
     const params = useParams();
     const router = useRouter();
     const firestore = useFirestore();
+    const { user: authUser } = useUser();
+    const { toast } = useToast();
     const courseId = params.courseId as string;
     const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
+
+    const [managingStudent, setManagingStudent] = useState<UserProfile | null>(null);
+    const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
 
     const courseDocRef = useMemoFirebase(() => {
         if (!firestore || !courseId) return null;
@@ -41,8 +72,12 @@ export default function FacultyAttendanceDetailsPage() {
     const [enrolledStudents, setEnrolledStudents] = useState<UserProfile[] | null>(null);
     const [areStudentsLoading, setAreStudentsLoading] = useState(true);
     
-    const [attendanceRecords, setAttendanceRecords] = useState<AttendanceRecord[] | null>(null);
+    const [courseAttendanceRecords, setCourseAttendanceRecords] = useState<AttendanceRecord[] | null>(null);
     const [areRecordsLoading, setAreRecordsLoading] = useState(true);
+
+    const form = useForm<AttendanceFormValues>({
+        resolver: zodResolver(attendanceSchema),
+    });
 
     // 1. Fetch all students enrolled in the course
     useEffect(() => {
@@ -57,7 +92,6 @@ export default function FacultyAttendanceDetailsPage() {
 
                 if (studentIds.length > 0) {
                     const studentsData: UserProfile[] = [];
-                    // Chunk the studentIds array to handle the 'in' query limit of 30
                     for (let i = 0; i < studentIds.length; i += 30) {
                         const chunk = studentIds.slice(i, i + 30);
                         const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
@@ -88,28 +122,28 @@ export default function FacultyAttendanceDetailsPage() {
                 const recordsQuery = query(collectionGroup(firestore, 'attendance'), where('courseId', '==', courseId));
                 const recordsSnapshot = await getDocs(recordsQuery);
                 const records = recordsSnapshot.docs.map(d => {
-                    const data = d.data() as Omit<AttendanceRecord, 'studentId'>;
+                    const data = d.data() as Omit<AttendanceRecord, 'id' | 'studentId'>;
                     const studentId = d.ref.parent.parent?.id; // attendance is in a subcollection of user
-                    return { ...data, studentId: studentId! }
+                    return { ...data, id: d.id, studentId: studentId! }
                 });
-                setAttendanceRecords(records);
+                setCourseAttendanceRecords(records);
             } catch (error) {
                 console.error("Error fetching attendance records:", error);
-                setAttendanceRecords([]);
+                setCourseAttendanceRecords([]);
             } finally {
                 setAreRecordsLoading(false);
             }
         };
         fetchRecords();
-    }, [firestore, courseId]);
+    }, [firestore, courseId, managingStudent]); // Refetch when dialog opens/changes
 
     // 3. Compute stats
     const studentStats = useMemo<StudentStats[] | null>(() => {
-        if (!enrolledStudents || !attendanceRecords) return null;
+        if (!enrolledStudents || !courseAttendanceRecords) return null;
 
         const recordStats: Record<string, { attended: number; total: number }> = {};
 
-        for (const record of attendanceRecords) {
+        for (const record of courseAttendanceRecords) {
             if (!recordStats[record.studentId]) {
                 recordStats[record.studentId] = { attended: 0, total: 0 };
             }
@@ -129,7 +163,56 @@ export default function FacultyAttendanceDetailsPage() {
             }
         }).sort((a, b) => a.profile.name.localeCompare(b.profile.name));
 
-    }, [enrolledStudents, attendanceRecords]);
+    }, [enrolledStudents, courseAttendanceRecords]);
+    
+    const individualStudentRecords = useMemo(() => {
+        if (!managingStudent || !courseAttendanceRecords) return [];
+        return courseAttendanceRecords
+            .filter(r => r.studentId === managingStudent.id)
+            .sort((a,b) => b.date.toDate() - a.date.toDate());
+    }, [managingStudent, courseAttendanceRecords]);
+
+    const handleManageClick = (student: UserProfile) => {
+        setManagingStudent(student);
+        form.reset();
+        setEditingRecord(null);
+    };
+
+    const handleEditClick = (record: AttendanceRecord) => {
+        setEditingRecord(record);
+        form.reset({
+            date: format(record.date.toDate(), 'yyyy-MM-dd'),
+            status: record.status,
+        });
+    };
+
+    const handleDelete = (record: AttendanceRecord) => {
+        if (!firestore) return;
+        if (!confirm('Are you sure you want to delete this record?')) return;
+        deleteDocumentNonBlocking(doc(firestore, 'users', record.studentId, 'attendance', record.id));
+        toast({ title: 'Record Deleted' });
+    };
+
+    const onFormSubmit = (values: AttendanceFormValues) => {
+        if (!firestore || !authUser || !managingStudent || !courseId) return;
+
+        const recordData = {
+            courseId: courseId,
+            date: new Date(values.date),
+            status: values.status,
+            markedBy: authUser.uid,
+        };
+
+        if (editingRecord) {
+            updateDocumentNonBlocking(doc(firestore, 'users', editingRecord.studentId, 'attendance', editingRecord.id), recordData);
+            toast({ title: 'Record Updated' });
+        } else {
+            addDocumentNonBlocking(collection(firestore, 'users', managingStudent.id, 'attendance'), recordData);
+            toast({ title: 'Record Added' });
+        }
+        form.reset();
+        setEditingRecord(null);
+    };
     
     const isLoading = isCourseLoading || areStudentsLoading || areRecordsLoading;
 
@@ -158,13 +241,14 @@ export default function FacultyAttendanceDetailsPage() {
                                 <TableHead>Student</TableHead>
                                 <TableHead>Classes Attended</TableHead>
                                 <TableHead className="w-[300px]">Attendance %</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
                             {isLoading ? (
                                 [...Array(5)].map((_, i) => (
                                     <TableRow key={i}>
-                                        <TableCell colSpan={3}><Skeleton className="h-10 w-full" /></TableCell>
+                                        <TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell>
                                     </TableRow>
                                 ))
                             ) : studentStats && studentStats.length > 0 ? (
@@ -186,11 +270,14 @@ export default function FacultyAttendanceDetailsPage() {
                                                 <span className="w-12 text-right font-medium">{stat.percentage}%</span>
                                             </div>
                                         </TableCell>
+                                        <TableCell className="text-right">
+                                            <Button variant="outline" size="sm" onClick={() => handleManageClick(stat.profile)}>Manage</Button>
+                                        </TableCell>
                                     </TableRow>
                                 ))
                             ) : (
                                 <TableRow>
-                                    <TableCell colSpan={3} className="h-24 text-center">
+                                    <TableCell colSpan={4} className="h-24 text-center">
                                         No students enrolled or no attendance data available for this course.
                                     </TableCell>
                                 </TableRow>
@@ -199,6 +286,72 @@ export default function FacultyAttendanceDetailsPage() {
                     </Table>
                 </CardContent>
             </Card>
+
+             <Dialog open={!!managingStudent} onOpenChange={(isOpen) => !isOpen && setManagingStudent(null)}>
+                <DialogContent className="max-w-4xl">
+                    <DialogHeader>
+                        <DialogTitle>Manage Attendance for {managingStudent?.name}</DialogTitle>
+                        <DialogDescription>Manually add, edit, or delete attendance records for {course?.name}.</DialogDescription>
+                    </DialogHeader>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8 py-4">
+                        <div className="space-y-4">
+                            <h3 className="font-semibold">{editingRecord ? 'Edit Record' : 'Add New Record'}</h3>
+                            <Form {...form}>
+                                <form onSubmit={form.handleSubmit(onFormSubmit)} className="space-y-4 rounded-lg border p-4">
+                                     <FormField control={form.control} name="date" render={({ field }) => ( <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                     <FormField control={form.control} name="status" render={({ field }) => (
+                                        <FormItem>
+                                        <FormLabel>Status</FormLabel>
+                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select status" /></SelectTrigger></FormControl>
+                                            <SelectContent>
+                                                <SelectItem value="present">Present</SelectItem>
+                                                <SelectItem value="absent">Absent</SelectItem>
+                                            </SelectContent>
+                                        </Select>
+                                        <FormMessage />
+                                        </FormItem>
+                                    )} />
+                                    <div className="flex justify-end gap-2">
+                                        {editingRecord && <Button type="button" variant="ghost" onClick={() => { setEditingRecord(null); form.reset(); }}>Cancel Edit</Button>}
+                                        <Button type="submit"><PlusCircle className="mr-2 h-4 w-4" />{editingRecord ? 'Save Changes' : 'Add Record'}</Button>
+                                    </div>
+                                </form>
+                            </Form>
+                        </div>
+                        <div className="space-y-4">
+                            <h3 className="font-semibold">Existing Records</h3>
+                            <div className="border rounded-lg max-h-96 overflow-y-auto">
+                                <Table>
+                                    <TableHeader>
+                                        <TableRow>
+                                            <TableHead>Date</TableHead>
+                                            <TableHead>Status</TableHead>
+                                            <TableHead className="text-right">Actions</TableHead>
+                                        </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                    {individualStudentRecords.length > 0 ? (
+                                        individualStudentRecords.map(rec => (
+                                            <TableRow key={rec.id}>
+                                                <TableCell>{format(rec.date.toDate(), 'PPP')}</TableCell>
+                                                <TableCell><Badge variant={rec.status === 'present' ? 'default' : 'destructive'} className="capitalize">{rec.status}</Badge></TableCell>
+                                                <TableCell className="text-right">
+                                                    <Button variant="ghost" size="icon" onClick={() => handleEditClick(rec)}><Pencil className="h-4 w-4" /></Button>
+                                                    <Button variant="ghost" size="icon" onClick={() => handleDelete(rec)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                                </TableCell>
+                                            </TableRow>
+                                        ))
+                                    ) : (
+                                        <TableRow><TableCell colSpan={3} className="h-24 text-center">No records found.</TableCell></TableRow>
+                                    )}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                        </div>
+                    </div>
+                </DialogContent>
+            </Dialog>
 
         </div>
     )

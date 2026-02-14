@@ -114,8 +114,7 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       // Allow anyone to see the list of courses (e.g., for a course catalog).
-      allow list: if true;
-      allow get: if isSignedIn(); // But only signed-in users can fetch a single course document directly.
+      allow list, get: if isSignedIn();
       allow create, update, delete: if isCourseAdmin();
     }
 
@@ -126,7 +125,10 @@ service cloud.firestore {
 
     match /users/{userId}/attendance/{attendanceId} {
       allow get, list: if isOwner(userId) || isFaculty() || isAttendanceAdmin();
-      allow create, update, delete: if isFaculty() || isAttendanceAdmin();
+      // Ensure only the faculty who marked attendance or an admin can modify it.
+      allow create: if (isFaculty() && request.resource.data.markedBy == request.auth.uid) || isAttendanceAdmin();
+      allow update: if (isFaculty() && resource.data.markedBy == request.auth.uid) || isAttendanceAdmin();
+      allow delete: if (isFaculty() && resource.data.markedBy == request.auth.uid) || isAttendanceAdmin();
     }
 
     match /courses/{courseId}/timetables/{timetableId} {
