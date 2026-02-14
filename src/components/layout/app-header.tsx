@@ -35,6 +35,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { ThemeToggle } from './theme-toggle';
 
 type Notification = {
   id: string;
@@ -122,6 +123,7 @@ export default function AppHeader() {
           className="w-full rounded-lg bg-background pl-8 md:w-[200px] lg:w-[320px]"
         />
       </div>
+      <ThemeToggle />
       <DropdownMenu>
         <DropdownMenuTrigger asChild>
             <Button variant="ghost" size="icon" className="rounded-full relative">

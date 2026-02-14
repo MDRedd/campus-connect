@@ -29,12 +29,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
+import { useTheme } from 'next-themes'
 
 export default function SettingsPage() {
   const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
+  const { theme, setTheme } = useTheme()
   
   const [password, setPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
@@ -203,17 +205,13 @@ export default function SettingsPage() {
         <CardHeader>
           <CardTitle>Theme</CardTitle>
           <CardDescription>
-            Customize the appearance of the application.
+            Select the color scheme for the application.
           </CardDescription>
         </CardHeader>
-        <CardContent>
-            <div className="flex items-center justify-between">
-                 <Label>Dark Mode</Label>
-                 <Switch defaultChecked disabled />
-            </div>
-            <p className="text-sm text-muted-foreground mt-2">
-                Theme switching is not yet implemented. The application is currently in dark mode.
-            </p>
+        <CardContent className="flex gap-4">
+            <Button className="w-full" variant={theme === 'light' ? 'default' : 'outline'} onClick={() => setTheme('light')}>Light</Button>
+            <Button className="w-full" variant={theme === 'dark' ? 'default' : 'outline'} onClick={() => setTheme('dark')}>Dark</Button>
+            <Button className="w-full" variant={theme === 'system' ? 'default' : 'outline'} onClick={() => setTheme('system')}>System</Button>
         </CardContent>
       </Card>
 
