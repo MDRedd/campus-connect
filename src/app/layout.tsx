@@ -5,7 +5,7 @@ import { cn } from '@/lib/utils';
 import { FirebaseClientProvider } from '@/firebase';
 
 export const metadata: Metadata = {
-  title: 'CampusConnect',
+  title: 'DigiCampus',
   description: 'A unified digital platform for colleges.',
 };
 
