@@ -154,15 +154,16 @@ export default function LoginPage() {
           </Card>
           <Card>
             <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Test Credentials</CardTitle>
+              <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Sample Details</CardTitle>
               <CardDescription className="text-xs">
-                Use these identifiers to log in. The password for all is `password123`. If an account doesn't exist, please create it via the "Sign up" link.
+                Use these sample details to log in.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm grid gap-1">
-              <p><strong>Student:</strong> `2024001`</p>
-              <p><strong>Faculty:</strong> `FAC1001`</p>
-              <p><strong>Super Admin:</strong> `super.admin@college.edu`</p>
+              <p>1. <strong>Student:</strong> `2024001`</p>
+              <p>2. <strong>Faculty:</strong> `FAC1001`</p>
+              <p>3. <strong>Super Admin:</strong> `super.admin@college.edu`</p>
+              <p className="mt-2"><strong>Password for all:</strong> `password123`</p>
             </CardContent>
           </Card>
         </div>
