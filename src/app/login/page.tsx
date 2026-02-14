@@ -158,10 +158,10 @@ export default function LoginPage() {
               <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Sample Details</CardTitle>
             </CardHeader>
             <CardContent className="text-sm grid gap-2">
-              <p>1. <strong>Student:</strong> `2024001`</p>
-              <p>2. <strong>Faculty:</strong> `FAC1001`</p>
-              <p>3. <strong>Super Admin:</strong> `super.admin@college.edu`</p>
-              <p className="mt-2"><strong>Password for all:</strong> `password123`</p>
+              <p>1. Student: `2024001`</p>
+              <p>2. Faculty: `FAC1001`</p>
+              <p>3. Super Admin: `super.admin@college.edu`</p>
+              <p className="mt-2">Password for all: `password123`</p>
               <Alert className="mt-4">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Important</AlertTitle>
