@@ -113,7 +113,9 @@ service cloud.firestore {
     }
 
     match /courses/{courseId} {
-      allow get, list: if isSignedIn();
+      // Allow anyone to see the list of courses (e.g., for a course catalog).
+      allow list: if true;
+      allow get: if isSignedIn(); // But only signed-in users can fetch a single course document directly.
       allow create, update, delete: if isCourseAdmin();
     }
 
