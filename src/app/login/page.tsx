@@ -8,12 +8,13 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { BookOpen, KeyRound } from 'lucide-react';
+import { BookOpen, KeyRound, AlertCircle } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithEmailAndPassword } from 'firebase/auth';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -155,15 +156,19 @@ export default function LoginPage() {
           <Card>
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Sample Details</CardTitle>
-              <CardDescription className="text-xs">
-                Use these sample details to log in.
-              </CardDescription>
             </CardHeader>
-            <CardContent className="text-sm grid gap-1">
+            <CardContent className="text-sm grid gap-2">
               <p>1. <strong>Student:</strong> `2024001`</p>
               <p>2. <strong>Faculty:</strong> `FAC1001`</p>
               <p>3. <strong>Super Admin:</strong> `super.admin@college.edu`</p>
               <p className="mt-2"><strong>Password for all:</strong> `password123`</p>
+              <Alert className="mt-4">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Important</AlertTitle>
+                <AlertDescription>
+                  You must first create these accounts using the "Sign up" link before logging in.
+                </AlertDescription>
+              </Alert>
             </CardContent>
           </Card>
         </div>
