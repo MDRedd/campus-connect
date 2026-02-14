@@ -59,7 +59,7 @@ export default function LoginPage() {
         toast({
             variant: 'destructive',
             title: 'Login Failed',
-            description: 'Invalid credentials. Please check your details and try again.',
+            description: 'Invalid credentials. For test accounts, please ensure you have created them via the "Sign up" link first.',
         });
     } finally {
         setIsLoggingIn(false);
@@ -156,7 +156,7 @@ export default function LoginPage() {
             <CardHeader>
               <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Test Credentials</CardTitle>
               <CardDescription className="text-xs">
-                Use these to explore different roles. The password for all is `password123`. New users may take a moment to appear.
+                Use these identifiers to log in. The password for all is `password123`. If an account doesn't exist, please create it via the "Sign up" link.
               </CardDescription>
             </CardHeader>
             <CardContent className="text-sm grid gap-1">
