@@ -1,3 +1,5 @@
+'use client';
+
 import {
     CalendarCheck,
     ClipboardList,
@@ -23,16 +25,15 @@ const studentNavItems = [
     { href: '/results', icon: GraduationCap, label: 'Results' },
     { href: '/engagement', icon: Users, label: 'Engagement' },
     { href: '/fees', icon: CreditCard, label: 'Fees' },
-    { href: '/announcements/view', icon: Megaphone, label: 'Announcements' },
 ];
 
 const facultyNavItems = [
     { href: '/dashboard', icon: LayoutGrid, label: 'Dashboard' },
     { href: '/timetable', icon: CalendarCheck, label: 'Timetable' },
     { href: '/attendance', icon: ClipboardList, label: 'Attendance Dashboard' },
-    { href: '/attendance/mark', icon: QrCode, label: 'Mark Attendance' },
     { href: '/academics', icon: Library, label: 'Academics' },
     { href: '/results', icon: GraduationCap, label: 'Results' },
+    { href: '/engagement', icon: Users, label: 'Engagement' },
     { href: '/announcements', icon: Megaphone, label: 'Announcements' },
 ];
 
@@ -61,6 +62,7 @@ export const getNavItems = (role: UserRole) => {
     
     // All admins can make announcements
     items.push({ href: '/announcements', icon: Megaphone, label: 'Announcements' });
+    items.push({ href: '/engagement', icon: Users, label: 'Engagement' });
 
     // A super-admin gets all faculty privileges as well, for simplicity.
     if (role === 'super-admin') {

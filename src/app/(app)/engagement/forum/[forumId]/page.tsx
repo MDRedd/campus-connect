@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking, useDoc } from '@/firebase';
 import { doc, collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import {
   Card,
@@ -21,7 +21,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { format } from 'date-fns';
 
 type Forum = { title: string; description: string; courseId: string; };
-type ForumPost = { userId: string; userName: string; content: string; postedAt: { seconds: number }; };
+type ForumPost = { id: string; userId: string; userName: string; content: string; postedAt: { seconds: number }; };
 
 export default function ForumPage() {
   const params = useParams();
