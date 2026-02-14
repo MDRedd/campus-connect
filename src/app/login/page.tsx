@@ -21,7 +21,7 @@ export default function LoginPage() {
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
   const loginImage = PlaceHolderImages.find((img) => img.id === 'login-image');
-  const [email, setEmail] = useState('');
+  const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
 
@@ -35,6 +35,19 @@ export default function LoginPage() {
     e.preventDefault();
     if (!auth) return;
     setIsLoggingIn(true);
+
+    let email = identifier;
+    // If identifier doesn't contain '@', append domain based on simple rules
+    if (!identifier.includes('@')) {
+      if (/^\d+$/.test(identifier)) { // All digits -> student
+        email = `${identifier}@student.college.edu`;
+      } else if (/^[a-zA-Z]+\d*$/.test(identifier)) { // Starts with letters, might end with digits -> faculty
+        email = `${identifier}@faculty.college.edu`;
+      } else { // Fallback for other usernames, potentially admins
+        email = `${identifier}@college.edu`;
+      }
+    }
+
     try {
         await signInWithEmailAndPassword(auth, email, password);
         toast({
@@ -42,10 +55,11 @@ export default function LoginPage() {
           description: 'Redirecting to your dashboard...',
         });
     } catch (error) {
+        console.error("Login Error. Identifier:", identifier, "Attempted Email:", email, "Error:", error);
         toast({
             variant: 'destructive',
             title: 'Login Failed',
-            description: 'Invalid email or password. Please try again.',
+            description: 'Invalid credentials. Please check your details and try again.',
         });
     } finally {
         setIsLoggingIn(false);
@@ -93,20 +107,20 @@ export default function LoginPage() {
             <CardHeader>
               <CardTitle className="text-2xl">Login</CardTitle>
               <CardDescription>
-                Enter your email below to login to your account
+                Enter your Roll Number, Faculty ID, or Email to login.
               </CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="grid gap-4">
                 <div className="grid gap-2">
-                  <Label htmlFor="email">Email</Label>
+                  <Label htmlFor="identifier">Roll No. / Faculty ID / Email</Label>
                   <Input
-                    id="email"
-                    type="email"
-                    placeholder="m@example.com"
+                    id="identifier"
+                    type="text"
+                    placeholder="e.g., 2024001 or FAC1001"
                     required
-                    value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    value={identifier}
+                    onChange={(e) => setIdentifier(e.target.value)}
                     disabled={isLoggingIn || isUserLoading}
                   />
                 </div>

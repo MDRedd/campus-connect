@@ -16,8 +16,16 @@
         },
         "email": {
           "type": "string",
-          "description": "The user's email address.",
+          "description": "The user's full email address, following domain conventions (e.g., @student.college.edu, @faculty.college.edu, @college.edu).",
           "format": "email"
+        },
+        "rollNumber": {
+          "type": "string",
+          "description": "The student's unique roll number. Used for login."
+        },
+        "facultyCode": {
+          "type": "string",
+          "description": "The faculty member's unique code ID. Used for login."
         },
         "role": {
           "type": "string",

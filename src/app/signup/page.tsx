@@ -49,27 +49,41 @@ export default function SignUpPage() {
         // Update profile display name
         await updateProfile(newUser, { displayName: name });
 
-        // Determine role based on email
-        let role: 'student' | 'faculty' | 'super-admin' = 'student';
+        // Determine role and other details from email
+        let role: 'student' | 'faculty' | 'super-admin' = 'student'; // Default role
         let department = 'Undeclared';
+        let rollNumber: string | undefined = undefined;
+        let facultyCode: string | undefined = undefined;
+        
+        const emailParts = email.split('@');
+        const usernamePart = emailParts[0];
+        const domainPart = emailParts.length > 1 ? emailParts[1] : '';
 
-        if (email === 'faculty@example.com') {
+        if (domainPart === 'student.college.edu') {
+          role = 'student';
+          department = 'Undeclared';
+          rollNumber = usernamePart;
+        } else if (domainPart === 'faculty.college.edu') {
           role = 'faculty';
-          department = 'Computer Science';
-        } else if (email === 'admin@example.com') {
+          department = 'General';
+          facultyCode = usernamePart;
+        } else if (email === 'super.admin@college.edu') {
           role = 'super-admin';
           department = 'Administration';
         }
         
         // Create user document in Firestore.
         const userDocRef = doc(firestore, 'users', newUser.uid);
-        const userData = {
+        const userData: any = {
             id: newUser.uid,
             name: name,
             email: newUser.email,
             role: role,
-            department: department
+            department: department,
         };
+        if (rollNumber) userData.rollNumber = rollNumber;
+        if (facultyCode) userData.facultyCode = facultyCode;
+        
         setDocumentNonBlocking(userDocRef, userData, {});
 
         toast({
@@ -134,7 +148,7 @@ export default function SignUpPage() {
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="email">Email</Label>
-                  <Input id="email" type="email" placeholder="m@example.com" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isUserLoading || isSigningUp} />
+                  <Input id="email" type="email" placeholder="e.g., 2024001@student.college.edu" required value={email} onChange={(e) => setEmail(e.target.value)} disabled={isUserLoading || isSigningUp} />
                 </div>
                 <div className="grid gap-2">
                   <Label htmlFor="password">Password</Label>
