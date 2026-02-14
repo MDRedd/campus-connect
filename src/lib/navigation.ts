@@ -12,6 +12,7 @@ import {
     BookCopy,
     Megaphone,
     CreditCard,
+    LifeBuoy,
   } from 'lucide-react';
 
 type UserRole = 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
@@ -25,6 +26,7 @@ const studentNavItems = [
     { href: '/results', icon: GraduationCap, label: 'Results' },
     { href: '/engagement', icon: Users, label: 'Engagement' },
     { href: '/fees', icon: CreditCard, label: 'Fees' },
+    { href: '/helpdesk', icon: LifeBuoy, label: 'Helpdesk' },
 ];
 
 const facultyNavItems = [
@@ -35,6 +37,7 @@ const facultyNavItems = [
     { href: '/results', icon: GraduationCap, label: 'Results' },
     { href: '/engagement', icon: Users, label: 'Engagement' },
     { href: '/announcements', icon: Megaphone, label: 'Announcements' },
+    { href: '/helpdesk', icon: LifeBuoy, label: 'Helpdesk' },
 ];
 
 export const getNavItems = (role: UserRole) => {
@@ -63,6 +66,7 @@ export const getNavItems = (role: UserRole) => {
     // All admins can make announcements
     items.push({ href: '/announcements', icon: Megaphone, label: 'Announcements' });
     items.push({ href: '/engagement', icon: Users, label: 'Engagement' });
+    items.push({ href: '/helpdesk', icon: LifeBuoy, label: 'Helpdesk' });
 
     // A super-admin gets all faculty privileges as well, for simplicity.
     if (role === 'super-admin') {

@@ -849,6 +849,81 @@
         "dueDate",
         "status"
       ]
+    },
+    "HelpdeskTicket": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "HelpdeskTicket",
+      "type": "object",
+      "description": "Represents a student's support ticket.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the HelpdeskTicket entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the User (Student) who created the ticket."
+        },
+        "studentName": {
+          "type": "string",
+          "description": "Denormalized name of the student for easy display."
+        },
+        "studentEmail": {
+          "type": "string",
+          "description": "Denormalized email of the student."
+        },
+        "category": {
+          "type": "string",
+          "description": "The category of the support ticket.",
+          "enum": [
+            "Academics",
+            "Technical",
+            "Fees",
+            "Other"
+          ]
+        },
+        "subject": {
+          "type": "string",
+          "description": "The subject line of the ticket."
+        },
+        "description": {
+          "type": "string",
+          "description": "The detailed description of the issue."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the ticket.",
+          "enum": [
+            "open",
+            "closed"
+          ]
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the ticket was created."
+        },
+        "resolvedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the ticket was resolved."
+        },
+        "resolvedBy": {
+          "type": "string",
+          "description": "Reference to the User (Faculty/Admin) who resolved the ticket."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "studentName",
+        "studentEmail",
+        "category",
+        "subject",
+        "description",
+        "status",
+        "createdAt"
+      ]
     }
   },
   "auth": {
@@ -966,6 +1041,12 @@
         "$ref": "#/backend/entities/CorrectionRequest"
       },
       "description": "Stores student-submitted requests for attendance corrections. Students can create, faculty/admins can read and update."
+    },
+    "/helpdeskTickets/{ticketId}": {
+      "schema": {
+        "$ref": "#/backend/entities/HelpdeskTicket"
+      },
+      "description": "Stores student helpdesk tickets. Students can create for themselves. Admins/Faculty can view all and resolve."
     }
   }
 }
