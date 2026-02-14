@@ -15,7 +15,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardList, QrCode } from 'lucide-react';
+import { ClipboardCheck, ClipboardList, QrCode } from 'lucide-react';
 import type { Course } from '@/lib/data';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
@@ -128,12 +128,20 @@ export default function AttendancePage() {
             <h1 className="text-3xl font-bold tracking-tight">Attendance Dashboard</h1>
             <p className="text-muted-foreground">View attendance records for your courses.</p>
           </div>
-          <Button asChild>
-            <Link href="/attendance/mark">
-              <QrCode className="mr-2 h-4 w-4" />
-              Start Session
-            </Link>
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button asChild variant="outline">
+              <Link href="/attendance/requests">
+                <ClipboardCheck className="mr-2 h-4 w-4" />
+                Review Requests
+              </Link>
+            </Button>
+            <Button asChild>
+              <Link href="/attendance/mark">
+                <QrCode className="mr-2 h-4 w-4" />
+                Start Session
+              </Link>
+            </Button>
+          </div>
         </div>
         
         <Card>

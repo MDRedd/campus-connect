@@ -105,6 +105,8 @@ export default function StudentAttendanceDetailsPage() {
             reason: reason.trim(),
             status: 'pending',
             requestedAt: serverTimestamp(),
+            attendanceDate: requestingCorrection.date,
+            originalStatus: requestingCorrection.status,
         });
         
         toast({
