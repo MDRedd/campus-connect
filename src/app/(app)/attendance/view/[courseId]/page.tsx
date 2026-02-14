@@ -260,7 +260,9 @@ export default function FacultyAttendanceDetailsPage() {
                                                 {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={stat.profile.name} data-ai-hint={userAvatar.imageHint} />}
                                                 <AvatarFallback>{stat.profile.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                                                 </Avatar>
-                                                <div className="font-medium">{stat.profile.name}</div>
+                                                <Link href={`/users/${stat.profile.id}`} className="font-medium hover:underline">
+                                                    {stat.profile.name}
+                                                </Link>
                                             </div>
                                         </TableCell>
                                         <TableCell>{stat.attended} / {stat.total}</TableCell>

@@ -128,7 +128,9 @@ export default function ForumPage() {
                             </Avatar>
                             <div className="flex-1 rounded-lg border p-4">
                                 <div className="flex justify-between items-center">
-                                    <p className="font-semibold">{post.userName}</p>
+                                    <Link href={`/users/${post.userId}`} className="font-semibold hover:underline">
+                                        {post.userName}
+                                    </Link>
                                     <p className="text-xs text-muted-foreground">
                                         {post.postedAt ? format(new Date(post.postedAt.seconds * 1000), 'PPp') : '...'}
                                     </p>

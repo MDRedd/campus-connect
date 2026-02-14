@@ -39,7 +39,9 @@ export default function AcademicallyAtRisk({ students }: StudentsAtRiskProps) {
                   <AvatarFallback>{student.studentName.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                 </Avatar>
                 <div className="flex-1">
-                  <p className="font-semibold">{student.studentName}</p>
+                  <Link href={`/users/${student.studentId}`} className="font-semibold hover:underline">
+                    {student.studentName}
+                  </Link>
                   <p className="text-sm text-muted-foreground">
                     Grade <span className="font-bold text-destructive">{student.grade}</span> ({student.marks}%) in {student.courseCode}
                   </p>

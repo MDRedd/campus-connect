@@ -104,11 +104,12 @@ service cloud.firestore {
     // ---------------------------------------------------------------------
 
     match /users/{userId} {
-      // User admins or super admins can manage any user doc, owners can manage their own.
-      allow get, update: if isOwner(userId) || isUserAdmin();
-      allow delete: if isUserAdmin(); // Only admins can delete user documents
+      // Any signed-in user can view a profile.
+      allow get: if isSignedIn();
+      // Only the owner or an admin can update a profile.
+      allow update: if isOwner(userId) || isUserAdmin();
+      allow delete: if isUserAdmin();
       allow list: if isUserAdmin();
-      // Creating a user doc is still tied to the user signing up, but an admin could also do it.
       allow create: if (isOwner(userId) && request.resource.data.id == userId) || isUserAdmin();
     }
 

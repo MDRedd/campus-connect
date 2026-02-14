@@ -3,6 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, doc } from '@/firebase';
 import { collection, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
+import Link from 'next/link';
 import {
   Card,
   CardHeader,
@@ -300,7 +301,9 @@ export default function HelpdeskPage() {
                     tickets.map(ticket => (
                       <TableRow key={ticket.id}>
                         <TableCell>
-                          <div className="font-medium">{ticket.studentName}</div>
+                          <Link href={`/users/${ticket.studentId}`} className="font-medium hover:underline">
+                            {ticket.studentName}
+                          </Link>
                           <div className="text-sm text-muted-foreground">{ticket.studentEmail}</div>
                         </TableCell>
                         <TableCell>{ticket.subject}</TableCell>

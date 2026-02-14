@@ -141,7 +141,9 @@ export default function ClubDetailPage() {
                                         <AvatarFallback>{member.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                                     </Avatar>
                                     <div>
-                                        <p className="font-semibold">{member.name}</p>
+                                        <Link href={`/users/${member.id}`} className="font-semibold hover:underline">
+                                            {member.name}
+                                        </Link>
                                         <p className="text-xs text-muted-foreground">{member.email}</p>
                                     </div>
                                 </div>
