@@ -59,7 +59,7 @@ export default function AssignmentDetailPage() {
     const params = useParams();
     const router = useRouter();
     const searchParams = useSearchParams();
-    const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+    const { user: authUser, profile: userProfile, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
 
@@ -69,11 +69,6 @@ export default function AssignmentDetailPage() {
     const [openGradingDialog, setOpenGradingDialog] = useState(false);
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
 
-    const userDocRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
-    }, [firestore, authUser]);
-    const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
     const isFaculty = userProfile?.role === 'faculty';
 
     const assignmentDocRef = useMemoFirebase(() => {
@@ -168,7 +163,7 @@ export default function AssignmentDetailPage() {
         return <div className="p-4"><Card><CardContent className="p-8">Error: Course ID is missing from the URL.</CardContent></Card></div>
     }
     
-    const isLoading = isAuthUserLoading || isUserProfileLoading || isAssignmentLoading || isCourseLoading;
+    const isLoading = isUserLoading || isAssignmentLoading || isCourseLoading;
     
     const pageTitle = assignment ? `Assignment: ${assignment.title}` : 'Loading Assignment...';
     const pageDescription = course ? `For course: ${course.name} (${course.code})` : 'Loading course details...';

@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, query, where, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -27,19 +27,9 @@ type Fee = {
   status: 'Paid' | 'Unpaid' | 'Overdue';
 };
 
-type UserProfile = {
-  role: 'student' | 'faculty' | 'admin';
-};
-
 export default function FeesPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const feesQuery = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -57,7 +47,7 @@ export default function FeesPage() {
     }, 0);
   }, [fees]);
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areFeesLoading;
+  const isLoading = isUserLoading || areFeesLoading;
 
   const getStatusVariant = (status: Fee['status']) => {
     switch (status) {

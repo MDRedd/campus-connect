@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, getDocs, query, DocumentData, where, collectionGroup, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
@@ -44,7 +44,6 @@ type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
 type Submission = { id: string; assignmentId: string; studentId: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
-type UserProfile = { role: 'student' | 'faculty' | 'admin'; };
 type Student = { id: string; name: string; };
 
 const assignmentSchema = z.object({
@@ -62,18 +61,13 @@ const materialSchema = z.object({
 });
 
 export default function AcademicsPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [openAssignmentDialog, setOpenAssignmentDialog] = useState(false);
   const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
 
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
   const isFaculty = userProfile?.role === 'faculty';
 
   // Data fetching for all students (for notifications)
@@ -111,7 +105,7 @@ export default function AcademicsPage() {
 
   // Effect to determine which courses to display based on role
   useEffect(() => {
-    if (isUserProfileLoading) return;
+    if (isUserLoading) return;
 
     if (isFaculty) {
         setDisplayCourses(facultyCourses);
@@ -128,7 +122,7 @@ export default function AcademicsPage() {
             setDisplayCourses([]);
         }
     }
-  }, [isUserProfileLoading, isFaculty, areFacultyCoursesLoading, facultyCourses, areEnrollmentsLoading, areAllCoursesLoading, enrollments, allCourses]);
+  }, [isUserLoading, isFaculty, areFacultyCoursesLoading, facultyCourses, areEnrollmentsLoading, areAllCoursesLoading, enrollments, allCourses]);
   // --- END REFACTOR ---
 
   // Effect to fetch assignments and materials for the determined courses
@@ -286,7 +280,7 @@ export default function AcademicsPage() {
       materialForm.reset();
   }
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areDisplayCoursesLoading || (isFaculty && areStudentsLoading);
+  const isLoading = isUserLoading || areDisplayCoursesLoading || (isFaculty && areStudentsLoading);
 
   return (
     <div className="flex flex-col gap-6">

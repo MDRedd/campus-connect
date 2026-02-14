@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
 import { collection, getDocs, query, where, collectionGroup, doc } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
@@ -50,10 +50,6 @@ type Timetable = {
     }
 };
 
-type UserProfile = {
-  role: 'student' | 'faculty' | 'admin';
-};
-
 const timetableSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
   dayOfWeek: z.string().min(1, 'Please select a day.'),
@@ -75,18 +71,12 @@ const daysOfWeek = [
 ];
 
 export default function TimetablePage() {
-    const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+    const { user: authUser, profile: userProfile, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     
     const [openDialog, setOpenDialog] = useState(false);
     const [editingSlot, setEditingSlot] = useState<Timetable | null>(null);
-
-    const userDocRef = useMemoFirebase(() => {
-        if (!firestore || !authUser) return null;
-        return doc(firestore, 'users', authUser.uid);
-    }, [firestore, authUser]);
-    const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
     const coursesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -215,7 +205,7 @@ export default function TimetablePage() {
         setEditingSlot(null);
       }
 
-      const isLoading = isAuthUserLoading || isUserProfileLoading || isTimetableLoading;
+      const isLoading = isUserLoading || isTimetableLoading;
       const today = new Date().toLocaleString('en-US', { weekday: 'long' });
 
   return (

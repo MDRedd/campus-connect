@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, addDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import {
   Card,
@@ -49,10 +49,6 @@ type Announcement = {
   postedBy: string;
 };
 
-type UserProfile = {
-  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
-};
-
 const announcementSchema = z.object({
   title: z.string().min(3, 'Title is required.'),
   description: z.string().min(10, 'Description is required.'),
@@ -60,18 +56,12 @@ const announcementSchema = z.object({
 });
 
 export default function AnnouncementsPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: currentUserProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: currentUserProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -135,11 +125,11 @@ export default function AnnouncementsPage() {
     form.reset();
   }
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areAnnouncementsLoading;
+  const isLoading = isUserLoading || areAnnouncementsLoading;
 
   const canManageAnnouncements = currentUserProfile?.role === 'faculty' || currentUserProfile?.role.includes('admin');
 
-  if (isUserProfileLoading) {
+  if (isUserLoading) {
       return <Skeleton className="h-96 w-full" />;
   }
 

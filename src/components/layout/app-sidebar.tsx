@@ -11,20 +11,12 @@ import {
 } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 import { getNavItems } from '@/lib/navigation';
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 
 export default function AppSidebar() {
   const pathname = usePathname();
-  const { user: authUser } = useUser();
-  const firestore = useFirestore();
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<{ role: 'student' | 'faculty' | 'admin' }>(userDocRef);
+  const { profile: userProfile, isUserLoading } = useUser();
 
   const navItems = userProfile ? getNavItems(userProfile.role) : [];
 
@@ -39,7 +31,7 @@ export default function AppSidebar() {
                 <BookOpen className="h-4 w-4 transition-all group-hover:scale-110" />
                 <span className="sr-only">DigiCampus</span>
                 </Link>
-                {isUserProfileLoading && (
+                {isUserLoading && (
                   <div className="flex flex-col items-center gap-4">
                     <Skeleton className="h-8 w-8 rounded-lg" />
                     <Skeleton className="h-8 w-8 rounded-lg" />

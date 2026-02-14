@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, where, doc, getDocs, collectionGroup } from 'firebase/firestore';
 import {
   Card,
@@ -68,7 +68,6 @@ type Course = {
 type UserProfile = {
   id: string;
   name: string;
-  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 };
 
 type GroupedResults = {
@@ -86,7 +85,7 @@ const resultSchema = z.object({
 });
 
 export default function ResultsPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   
@@ -94,16 +93,10 @@ export default function ResultsPage() {
   const [editingResult, setEditingResult] = useState<(Result & { studentName?: string; courseCode?: string}) | null>(null);
 
   // --- Common ---
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
-
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthUserLoading || !authUser) return null;
+    if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
-  }, [firestore, isAuthUserLoading, authUser]);
+  }, [firestore, authUser]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
   
   // --- Student Specific ---
@@ -262,7 +255,7 @@ export default function ResultsPage() {
     resultForm.reset();
   }
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areAllCoursesLoading;
+  const isLoading = isUserLoading || areAllCoursesLoading;
   
   if (isLoading) {
     return (

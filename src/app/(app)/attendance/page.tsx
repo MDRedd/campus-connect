@@ -1,8 +1,8 @@
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, useDoc } from '@/firebase';
-import { collection, doc, getDocs, query, where, collectionGroup } from 'firebase/firestore';
+import { useMemo } from 'react';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, doc, query } from 'firebase/firestore';
 import Link from 'next/link';
 import {
   Card,
@@ -24,24 +24,14 @@ type AttendanceRecord = {
   status: 'present' | 'absent';
 };
 
-type UserProfile = {
-  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
-};
-
 type Enrollment = {
   courseId: string;
 };
 
 
 export default function AttendancePage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -107,7 +97,7 @@ export default function AttendancePage() {
   const areManagerCoursesLoading = userProfile?.role === 'faculty' ? areFacultyCoursesLoading : areAllCoursesLoading;
 
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areAllCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (canManageAttendance && areManagerCoursesLoading);
+  const isLoading = isUserLoading || areAllCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (canManageAttendance && areManagerCoursesLoading);
 
   if (isLoading) {
       return (

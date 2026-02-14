@@ -1,7 +1,6 @@
 'use client';
 
-import { useUser, useDoc, useFirestore, useMemoFirebase } from '@/firebase';
-import { doc } from 'firebase/firestore';
+import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
 import StudentDashboard from './student-dashboard';
 import FacultyDashboard from './faculty-dashboard';
@@ -14,19 +13,9 @@ type UserProfileData = {
 };
 
 export default function DashboardPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
-  const firestore = useFirestore();
+  const { profile: userProfile, isUserLoading } = useUser();
 
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfileData>(userDocRef);
-
-  const isPageLoading = isAuthUserLoading || isUserProfileLoading;
-
-  if (isPageLoading) {
+  if (isUserLoading) {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-12 w-1/2" />
@@ -49,15 +38,15 @@ export default function DashboardPage() {
   const isAdmin = userProfile.role.includes('admin');
 
   if (isAdmin) {
-    return <AdminDashboard userProfile={userProfile} />;
+    return <AdminDashboard userProfile={userProfile as UserProfileData} />;
   }
 
   if (userProfile.role === 'faculty') {
-    return <FacultyDashboard userProfile={userProfile} />;
+    return <FacultyDashboard userProfile={userProfile as UserProfileData} />;
   }
   
   if (userProfile.role === 'student') {
-    return <StudentDashboard userProfile={userProfile} />;
+    return <StudentDashboard userProfile={userProfile as UserProfileData} />;
   }
   
   return <div>Invalid user role.</div>;

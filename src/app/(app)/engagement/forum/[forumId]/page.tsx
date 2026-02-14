@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react';
 import { useParams, useSearchParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { doc, collection, query, orderBy, serverTimestamp } from 'firebase/firestore';
 import {
   Card,
@@ -18,20 +18,17 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { ArrowLeft, Send } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 
 type Forum = { title: string; description: string; courseId: string; };
 type ForumPost = { userId: string; userName: string; content: string; postedAt: { seconds: number }; };
-type UserProfile = { name: string; };
 
 export default function ForumPage() {
   const params = useParams();
   const searchParams = useSearchParams();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user: authUser, isUserLoading: isAuthLoading } = useUser();
-  const { toast } = useToast();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
 
   const forumId = params.forumId as string;
   const courseId = searchParams.get('courseId');
@@ -40,12 +37,6 @@ export default function ForumPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
-
-  const userProfileDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile } = useDoc<UserProfile>(userProfileDocRef);
 
   const forumDocRef = useMemoFirebase(() => {
     if (!firestore || !courseId || !forumId) return null;
@@ -96,7 +87,7 @@ export default function ForumPage() {
     )
   }
 
-  const isLoading = isForumLoading || arePostsLoading || isAuthLoading;
+  const isLoading = isForumLoading || arePostsLoading || isUserLoading;
 
   return (
     <div className="flex flex-col gap-6">

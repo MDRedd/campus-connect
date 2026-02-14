@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, doc, addDoc, updateDoc } from 'firebase/firestore';
 import {
   Card,
@@ -47,10 +47,6 @@ type Course = {
   credits: number;
 };
 
-type UserProfile = {
-  role: 'student' | 'faculty' | 'super-admin' | 'course-admin' | 'user-admin' | 'attendance-admin';
-};
-
 const courseSchema = z.object({
   name: z.string().min(3, 'Course name is required.'),
   code: z.string().min(3, 'Course code is required.'),
@@ -60,18 +56,12 @@ const courseSchema = z.object({
 
 
 export default function CoursesPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: currentUserProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
 
   const [openCourseDialog, setOpenCourseDialog] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: currentUserProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -167,7 +157,7 @@ export default function CoursesPage() {
     setEnrollingCourseId(null);
   };
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areCoursesLoading || (currentUserProfile?.role === 'student' && areEnrollmentsLoading);
+  const isLoading = isUserLoading || areCoursesLoading || (currentUserProfile?.role === 'student' && areEnrollmentsLoading);
 
   const canManageCourses = currentUserProfile?.role === 'super-admin' || currentUserProfile?.role === 'course-admin';
 

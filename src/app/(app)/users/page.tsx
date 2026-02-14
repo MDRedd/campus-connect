@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
 import { initializeApp, deleteApp } from 'firebase/app';
 import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
@@ -79,7 +79,7 @@ const userCreationSchema = z.object({
 });
 
 export default function UsersPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: currentUserProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
@@ -89,12 +89,6 @@ export default function UsersPage() {
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
-  
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: currentUserProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const allUsersQuery = useMemoFirebase(() => {
     if (!firestore || !currentUserProfile || !['super-admin', 'user-admin'].includes(currentUserProfile.role)) return null;
@@ -196,7 +190,11 @@ export default function UsersPage() {
   }
 
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areUsersLoading;
+  const isLoading = isUserLoading || areUsersLoading;
+
+  if (isUserLoading) {
+      return <Skeleton className="h-96 w-full" />;
+  }
 
   if (currentUserProfile && !['super-admin', 'user-admin'].includes(currentUserProfile.role)) {
     return (

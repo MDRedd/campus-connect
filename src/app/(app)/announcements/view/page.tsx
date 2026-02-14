@@ -2,8 +2,8 @@
 'use client';
 
 import { useMemo } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, where, doc } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
+import { collection, query, orderBy } from 'firebase/firestore';
 import { useRouter } from 'next/navigation';
 import {
   Card,
@@ -25,26 +25,16 @@ type Announcement = {
   date: any; // Can be Timestamp or string
 };
 
-type UserProfile = {
-  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
-};
-
 export default function ViewAnnouncementsPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const router = useRouter();
 
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
-
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
+    if (!firestore) return null;
     // Fetch all announcements and filter on the client.
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'));
-  }, [firestore, authUser]);
+  }, [firestore]);
   const { data: allAnnouncements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
 
   const announcements = useMemo(() => {
@@ -58,7 +48,7 @@ export default function ViewAnnouncementsPage() {
     return allAnnouncements.filter(a => targetAudiences.includes(a.targetAudience));
   }, [allAnnouncements, userProfile]);
 
-  const isLoading = isAuthUserLoading || isUserProfileLoading || areAnnouncementsLoading;
+  const isLoading = isUserLoading || areAnnouncementsLoading;
 
   return (
     <div className="flex flex-col gap-6">

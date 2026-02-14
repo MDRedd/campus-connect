@@ -1,8 +1,8 @@
 
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
-import { useUser, useDoc, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { useState, useEffect } from 'react';
+import { useUser, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { doc } from 'firebase/firestore';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -31,13 +31,6 @@ import {
 import { Input } from '@/components/ui/input';
 import { useToast } from '@/hooks/use-toast';
 
-type UserProfile = {
-  name: string;
-  email: string;
-  role: 'student' | 'faculty' | 'admin';
-  department?: string;
-};
-
 const profileFormSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters.'),
   department: z.string().optional(),
@@ -46,7 +39,7 @@ const profileFormSchema = z.object({
 type ProfileFormValues = z.infer<typeof profileFormSchema>;
 
 export default function ProfilePage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
   const { toast } = useToast();
@@ -57,7 +50,6 @@ export default function ProfilePage() {
     if (!firestore || !authUser) return null;
     return doc(firestore, 'users', authUser.uid);
   }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const form = useForm<ProfileFormValues>({
     resolver: zodResolver(profileFormSchema),
@@ -75,9 +67,6 @@ export default function ProfilePage() {
       });
     }
   }, [userProfile, form]);
-
-
-  const isLoading = isAuthUserLoading || isUserProfileLoading;
 
   const userInitials = userProfile?.name
     .split(' ')
@@ -99,7 +88,7 @@ export default function ProfilePage() {
     setIsEditing(false);
   };
 
-  if (isLoading) {
+  if (isUserLoading) {
     return (
       <Card>
         <CardHeader>

@@ -29,7 +29,7 @@ import {
 } from '@/components/ui/breadcrumb';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import MobileSidebarContent from './mobile-sidebar-content';
-import { useAuth, useUser, useDoc, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
+import { useAuth, useUser, useFirestore, useMemoFirebase, useCollection } from '@/firebase';
 import { doc, collection, query, orderBy, writeBatch } from 'firebase/firestore';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -46,15 +46,8 @@ type Notification = {
 export default function AppHeader() {
   const auth = useAuth();
   const firestore = useFirestore();
-  const { user: authUser } = useUser();
+  const { user: authUser, profile: userProfile } = useUser();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-
-  const { data: userProfile } = useDoc<{name: string}>(userDocRef);
 
   const notificationsQuery = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;

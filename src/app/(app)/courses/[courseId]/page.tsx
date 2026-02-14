@@ -45,7 +45,7 @@ export default function CourseDetailPage() {
   const params = useParams();
   const router = useRouter();
   const firestore = useFirestore();
-  const { user: authUser } = useUser();
+  const { profile: userProfile } = useUser();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
   const courseId = params.courseId as string;
@@ -59,12 +59,6 @@ export default function CourseDetailPage() {
   const [questions, setQuestions] = useState('');
   const [questionsTitle, setQuestionsTitle] = useState('');
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
-
-  const userDocRef = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
-    return doc(firestore, 'users', authUser.uid);
-  }, [firestore, authUser]);
-  const { data: userProfile } = useDoc<UserProfile>(userDocRef);
 
   const courseDocRef = useMemoFirebase(() => {
     if (!firestore || !courseId) return null;

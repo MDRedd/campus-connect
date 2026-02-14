@@ -1,6 +1,6 @@
 'use client'
 
-import { useUser, useDoc, useFirestore, useMemoFirebase, useAuth, updateDocumentNonBlocking } from '@/firebase'
+import { useUser, useFirestore, useMemoFirebase, useAuth, updateDocumentNonBlocking } from '@/firebase'
 import { doc } from 'firebase/firestore'
 import { updatePassword, deleteUser } from 'firebase/auth'
 import {
@@ -30,17 +30,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 
-type UserProfile = {
-  notificationPreferences?: {
-    email: boolean;
-    push: boolean;
-    newGrades: boolean;
-    deadlineReminders: boolean;
-  };
-};
-
 export default function SettingsPage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const auth = useAuth();
   const firestore = useFirestore();
   const { toast } = useToast();
@@ -54,9 +45,8 @@ export default function SettingsPage() {
     if (!firestore || !authUser) return null;
     return doc(firestore, 'users', authUser.uid);
   }, [firestore, authUser]);
-  const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
-  const handlePreferenceChange = (key: keyof NonNullable<UserProfile['notificationPreferences']>, value: boolean) => {
+  const handlePreferenceChange = (key: string, value: boolean) => {
     if (!userDocRef) return;
     
     updateDocumentNonBlocking(userDocRef, {
@@ -125,10 +115,8 @@ export default function SettingsPage() {
         setIsDeletingAccount(false);
     }
   };
-  
-  const isLoading = isAuthUserLoading || isUserProfileLoading;
 
-  if (isLoading) {
+  if (isUserLoading) {
     return (
         <div className="grid gap-6">
             <div>
@@ -178,7 +166,7 @@ export default function SettingsPage() {
                 id="email-notifications"
                 checked={userProfile?.notificationPreferences?.email ?? true}
                 onCheckedChange={(checked) => handlePreferenceChange('email', checked)}
-                disabled={isUserProfileLoading}
+                disabled={isUserLoading}
             />
           </div>
            <div className="flex items-center justify-between">
@@ -187,7 +175,7 @@ export default function SettingsPage() {
                 id="push-notifications"
                 checked={userProfile?.notificationPreferences?.push ?? false}
                 onCheckedChange={(checked) => handlePreferenceChange('push', checked)}
-                disabled={isUserProfileLoading}
+                disabled={isUserLoading}
             />
           </div>
            <div className="flex items-center justify-between">
@@ -196,7 +184,7 @@ export default function SettingsPage() {
                 id="new-grades-notifications"
                 checked={userProfile?.notificationPreferences?.newGrades ?? true}
                 onCheckedChange={(checked) => handlePreferenceChange('newGrades', checked)}
-                disabled={isUserProfileLoading}
+                disabled={isUserLoading}
             />
           </div>
            <div className="flex items-center justify-between">
@@ -205,7 +193,7 @@ export default function SettingsPage() {
                 id="deadline-reminders-notifications"
                 checked={userProfile?.notificationPreferences?.deadlineReminders ?? true}
                 onCheckedChange={(checked) => handlePreferenceChange('deadlineReminders', checked)}
-                disabled={isUserProfileLoading}
+                disabled={isUserLoading}
             />
           </div>
         </CardContent>

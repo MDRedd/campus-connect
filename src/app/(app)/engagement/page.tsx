@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, useDoc, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
 import { collection, getDocs, query, doc, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -55,7 +55,6 @@ type Course = { id: string; name: string; code: string; };
 type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
 type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
-type UserProfile = { role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; };
 
 const clubSchema = z.object({
   name: z.string().min(3, 'Club name must be at least 3 characters long.'),
@@ -79,7 +78,7 @@ const forumSchema = z.object({
 
 export default function EngagementPage() {
     const firestore = useFirestore();
-    const { user, isUserLoading: isAuthLoading } = useUser();
+    const { user, profile: userProfile, isUserLoading } = useUser();
     const { toast } = useToast();
     const [searchQuery, setSearchQuery] = useState('');
     const [openClubDialog, setOpenClubDialog] = useState(false);
@@ -94,18 +93,13 @@ export default function EngagementPage() {
     const [areForumsLoading, setAreForumsLoading] = useState(true);
     const [refetchTrigger, setRefetchTrigger] = useState(0);
 
-    const userDocRef = useMemoFirebase(() => {
-      if (!firestore || !user) return null;
-      return doc(firestore, 'users', user.uid);
-    }, [firestore, user]);
-    const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
     const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
     const isSuperAdmin = userProfile?.role === 'super-admin';
 
     const coursesQuery = useMemoFirebase(() => {
-        if (!firestore || isAuthLoading || !user) return null;
+        if (!firestore || !user) return null;
         return collection(firestore, 'courses');
-    }, [firestore, isAuthLoading, user]);
+    }, [firestore, user]);
     const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
 
     const clubsQuery = useMemoFirebase(() => {
@@ -295,7 +289,7 @@ export default function EngagementPage() {
       setRefetchTrigger(c => c + 1);
     }
 
-    const isLoading = isAuthLoading || isUserProfileLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
+    const isLoading = isUserLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
     const isForumCreationLoading = areCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
     const coursesForForum = userProfile?.role?.includes('admin') ? allCourses : facultyCourses;
 
@@ -442,7 +436,7 @@ export default function EngagementPage() {
                     )}
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {areClubsLoading || isUserProfileLoading ? (
+                    {areClubsLoading || isUserLoading ? (
                          [...Array(3)].map((_, i) => (
                             <Card key={i}>
                                 <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
