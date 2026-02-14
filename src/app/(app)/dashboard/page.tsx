@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -63,9 +64,9 @@ export default function DashboardPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfileData>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore || isAuthUserLoading) return null;
+    if (!firestore || !authUser) return null;
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
-  }, [firestore, isAuthUserLoading]);
+  }, [firestore, authUser]);
   const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
 
 
