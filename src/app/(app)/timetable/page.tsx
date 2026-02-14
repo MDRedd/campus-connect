@@ -112,48 +112,31 @@ export default function TimetablePage() {
     const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
     useEffect(() => {
-        if (!firestore || !userProfile || !authUser) return;
+        if (!firestore || !userProfile || !authUser || areAllCoursesLoading || !allCourses) return;
 
         const fetchTimetable = async () => {
           setIsTimetableLoading(true);
           const allTimetableEntries: Timetable[] = [];
           
           try {
-            if (userProfile.role === 'student') {
-                if (areEnrollmentsLoading || !enrolledCourses) {
-                    if(!areEnrollmentsLoading) setIsTimetableLoading(false);
-                    return;
-                }
-                 if (enrolledCourses.length === 0) {
-                    setFullTimetable([]);
-                    setIsTimetableLoading(false);
-                    return;
-                }
-                for (const course of enrolledCourses) {
-                    const timetablesQuery = query(collection(firestore, 'courses', course.id, 'timetables'));
-                    const querySnapshot = await getDocs(timetablesQuery);
-                    querySnapshot.forEach((doc) => {
-                        allTimetableEntries.push({ id: doc.id, ...doc.data(), course: { name: course.name, code: course.code } } as Timetable);
-                    });
-                }
-            } else if (userProfile.role === 'faculty') {
-                if (areFacultyCoursesLoading || !facultyCourses) {
-                     if (!areFacultyCoursesLoading) setIsTimetableLoading(false);
-                     return;
-                }
-                if (facultyCourses.length === 0) {
-                    setFullTimetable([]);
-                    setIsTimetableLoading(false);
-                    return;
-                }
-                for (const course of facultyCourses) {
-                    const timetablesQuery = query(collection(firestore, 'courses', course.id, 'timetables'), where('facultyId', '==', authUser.uid));
-                    const querySnapshot = await getDocs(timetablesQuery);
-                     querySnapshot.forEach((doc) => {
-                        allTimetableEntries.push({ id: doc.id, ...doc.data(), course: { name: course.name, code: course.code } } as Timetable);
-                    });
-                }
-            }
+                const timetablesQuery = query(collectionGroup(firestore, 'timetables'));
+                const querySnapshot = await getDocs(timetablesQuery);
+                const courseMap = new Map(allCourses.map(c => [c.id, c]));
+
+                const studentCourseIds = new Set(enrolledCourses?.map(c => c.id) ?? []);
+
+                querySnapshot.forEach((doc) => {
+                    const data = doc.data();
+                    const isStudentMatch = userProfile.role === 'student' && studentCourseIds.has(data.courseId);
+                    const isFacultyMatch = userProfile.role === 'faculty' && data.facultyId === authUser.uid;
+
+                    if (isStudentMatch || isFacultyMatch) {
+                        const course = courseMap.get(data.courseId);
+                        if (course) {
+                            allTimetableEntries.push({ id: doc.id, ...data, course: { name: course.name, code: course.code } } as Timetable);
+                        }
+                    }
+                });
             
             allTimetableEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
             setFullTimetable(allTimetableEntries);
@@ -166,7 +149,7 @@ export default function TimetablePage() {
         };
     
         fetchTimetable();
-      }, [firestore, userProfile, authUser, enrolledCourses, allCourses, areEnrollmentsLoading, facultyCourses, areFacultyCoursesLoading]);
+      }, [firestore, userProfile, authUser, allCourses, areAllCoursesLoading, enrolledCourses, areEnrollmentsLoading, facultyCourses, areFacultyCoursesLoading]);
 
       const timetableByDay = useMemo(() => {
         if (!fullTimetable) return null;

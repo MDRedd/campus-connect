@@ -191,9 +191,10 @@ export default function DashboardPage() {
     const calculateAtRiskStudents = async () => {
         setAreAtRiskStudentsLoading(true);
         try {
-            const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
+            const timetablesQuery = query(collectionGroup(firestore, 'timetables'));
             const timetableSnapshot = await getDocs(timetablesQuery);
-            const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+            const facultyTimetables = timetableSnapshot.docs.filter(doc => doc.data().facultyId === authUser.uid);
+            const facultyCourseIds = [...new Set(facultyTimetables.map(doc => doc.data().courseId as string))];
 
             if (facultyCourseIds.length === 0) {
                 setAtRiskStudents([]);
