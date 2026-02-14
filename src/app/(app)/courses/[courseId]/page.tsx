@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase } from '@/firebase';
+import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
 import {
   Card,
@@ -130,7 +130,11 @@ export default function CourseDetailPage() {
             setPerformanceData({ gradeCounts: gradeChartData, studentResults: studentResultsWithNames });
 
         } catch (error) {
-            console.error("Error fetching performance data:", error);
+            const permissionError = new FirestorePermissionError({
+                path: `results collection group for course ${courseId}`,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
             setPerformanceData(null);
         } finally {
             setIsPerformanceLoading(false);
@@ -166,7 +170,11 @@ export default function CourseDetailPage() {
                 setEnrolledStudents([]);
             }
         } catch (error) {
-            console.error("Error fetching enrolled students:", error);
+            const permissionError = new FirestorePermissionError({
+                path: `enrollments collection group for course ${courseId}`,
+                operation: 'list',
+            });
+            errorEmitter.emit('permission-error', permissionError);
             setEnrolledStudents([]);
         } finally {
             setAreStudentsLoading(false);

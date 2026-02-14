@@ -2,7 +2,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useFirestore, useCollection, useMemoFirebase, useUser, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useCollection, useMemoFirebase, useUser, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, getDocs, query, doc, serverTimestamp, collectionGroup, where } from 'firebase/firestore';
 import Image from 'next/image';
 import Link from 'next/link';
@@ -144,7 +144,7 @@ export default function EngagementPage() {
                 }
                 setForums(allForums);
             } catch (error) {
-                console.error("Error fetching forums:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'forums', operation: 'list' }));
                 setForums([]);
             } finally {
                 setAreForumsLoading(false);

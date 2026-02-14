@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, getDocs, query, DocumentData, where, collectionGroup, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
@@ -160,7 +160,7 @@ export default function AcademicsPage() {
         setAssignments(allAssignments);
         setStudyMaterials(allMaterials);
       } catch (error) {
-        console.error("Error fetching academic data:", error);
+        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'courses, assignments, or study_materials', operation: 'list'}));
         setAssignments([]);
         setStudyMaterials([]);
       } finally {
@@ -203,8 +203,7 @@ export default function AcademicsPage() {
             }
             setMySubmissions(subsMap);
         } catch (error) {
-            console.error("Error fetching student submissions:", error);
-            toast({ variant: 'destructive', title: 'Error', description: 'Could not fetch your submission status.' });
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `submissions for student ${authUser?.uid}`, operation: 'list'}));
             setMySubmissions({});
         } finally {
             setAreMySubmissionsLoading(false);

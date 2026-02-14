@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useDoc, useMemoFirebase, useCollection, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useFirestore, useDoc, useMemoFirebase, useCollection, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -103,7 +103,7 @@ export default function FacultyAttendanceDetailsPage() {
                     setEnrolledStudents([]);
                 }
             } catch (error) {
-                console.error("Error fetching enrolled students:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments or users', operation: 'list'}));
                 setEnrolledStudents([]);
             } finally {
                 setAreStudentsLoading(false);
@@ -128,7 +128,7 @@ export default function FacultyAttendanceDetailsPage() {
                 });
                 setCourseAttendanceRecords(records);
             } catch (error) {
-                console.error("Error fetching attendance records:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `attendance for course ${courseId}`, operation: 'list'}));
                 setCourseAttendanceRecords([]);
             } finally {
                 setAreRecordsLoading(false);

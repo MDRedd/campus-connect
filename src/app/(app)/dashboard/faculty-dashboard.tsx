@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { BookOpen, Users, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -53,26 +53,32 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
 
         const calculateStats = async () => {
             setAreStatsLoading(true);
-            let studentCount = 0;
-            let submissionsToGrade = 0;
-
-            if (facultyCourses.length > 0) {
-                const facultyCourseIds = facultyCourses.map(c => c.id);
-                const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', 'in', facultyCourseIds));
-                const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('courseId', 'in', facultyCourseIds));
-                
-                const [enrollmentsSnapshot, submissionsSnapshot] = await Promise.all([getDocs(enrollmentsQuery), getDocs(submissionsQuery)]);
-                
-                studentCount = new Set(enrollmentsSnapshot.docs.map(d => d.data().studentId)).size;
-                submissionsToGrade = submissionsSnapshot.docs.filter(d => d.data().marksAwarded === undefined || d.data().marksAwarded === null).length;
+            try {
+                let studentCount = 0;
+                let submissionsToGrade = 0;
+    
+                if (facultyCourses.length > 0) {
+                    const facultyCourseIds = facultyCourses.map(c => c.id);
+                    const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', 'in', facultyCourseIds));
+                    const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('courseId', 'in', facultyCourseIds));
+                    
+                    const [enrollmentsSnapshot, submissionsSnapshot] = await Promise.all([getDocs(enrollmentsQuery), getDocs(submissionsQuery)]);
+                    
+                    studentCount = new Set(enrollmentsSnapshot.docs.map(d => d.data().studentId)).size;
+                    submissionsToGrade = submissionsSnapshot.docs.filter(d => d.data().marksAwarded === undefined || d.data().marksAwarded === null).length;
+                }
+    
+                setQuickStats([
+                    { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: BookOpen },
+                    { title: 'Total Students', value: studentCount.toString(), icon: Users },
+                    { title: 'Submissions to Grade', value: submissionsToGrade.toString(), icon: CheckCircle },
+                ]);
+            } catch (error) {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments or submissions', operation: 'list'}));
+                setQuickStats([]);
+            } finally {
+                setAreStatsLoading(false);
             }
-
-            setQuickStats([
-                { title: 'Active Courses', value: (facultyCourses?.length ?? 0).toString(), icon: BookOpen },
-                { title: 'Total Students', value: studentCount.toString(), icon: Users },
-                { title: 'Submissions to Grade', value: submissionsToGrade.toString(), icon: CheckCircle },
-            ]);
-            setAreStatsLoading(false);
         };
         calculateStats();
     }, [firestore, facultyCourses, areFacultyCoursesLoading]);
@@ -88,7 +94,6 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
             try {
                 if (facultyCourses.length === 0) {
                     setAtRiskStudents([]);
-                    setAreAtRiskStudentsLoading(false);
                     return;
                 }
                 const facultyCourseIds = facultyCourses.map(c => c.id);
@@ -98,7 +103,6 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
 
                 if (studentIds.length === 0) {
                     setAtRiskStudents([]);
-                    setAreAtRiskStudentsLoading(false);
                     return;
                 }
 
@@ -143,7 +147,7 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
                 });
                 setAtRiskStudents(atRisk);
             } catch (error) {
-                console.error("Error calculating at-risk students:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments, users, or attendance', operation: 'list'}));
                 setAtRiskStudents([]);
             } finally {
                 setAreAtRiskStudentsLoading(false);
@@ -184,7 +188,7 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
                 allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
                 setTodaysClasses(allClasses);
             } catch (error) {
-                console.error("Error fetching timetable:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
                 setTodaysClasses([]);
             } finally {
                 setAreTodaysClassesLoading(false);

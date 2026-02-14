@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { doc, collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { BookOpen, Percent, FileWarning } from 'lucide-react';
 import { format } from 'date-fns';
@@ -73,44 +73,50 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
 
         const calculateStats = async () => {
             setAreStatsLoading(true);
-            const enrolledCourseIds = new Set(studentEnrollments?.map(e => e.courseId) ?? []);
-            const enrolledCourses = allCourses.filter(c => enrolledCourseIds.has(c.id));
-
-            // Overall Attendance
-            const attendanceStats: { [key: string]: { attended: number, total: number } } = {};
-            studentAttendance?.forEach(rec => {
-                if (enrolledCourseIds.has(rec.courseId)) {
-                    if (!attendanceStats[rec.courseId]) attendanceStats[rec.courseId] = { attended: 0, total: 0 };
-                    attendanceStats[rec.courseId].total++;
-                    if (rec.status === 'present') attendanceStats[rec.courseId].attended++;
+            try {
+                const enrolledCourseIds = new Set(studentEnrollments?.map(e => e.courseId) ?? []);
+                const enrolledCourses = allCourses.filter(c => enrolledCourseIds.has(c.id));
+    
+                // Overall Attendance
+                const attendanceStats: { [key: string]: { attended: number, total: number } } = {};
+                studentAttendance?.forEach(rec => {
+                    if (enrolledCourseIds.has(rec.courseId)) {
+                        if (!attendanceStats[rec.courseId]) attendanceStats[rec.courseId] = { attended: 0, total: 0 };
+                        attendanceStats[rec.courseId].total++;
+                        if (rec.status === 'present') attendanceStats[rec.courseId].attended++;
+                    }
+                });
+                const percentages = Object.values(attendanceStats).map(s => s.total > 0 ? (s.attended / s.total) * 100 : 0);
+                const overallAttendance = percentages.length > 0 ? Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length) : 0;
+    
+                // Assignments Due
+                let dueAssignmentsCount = 0;
+                if (enrolledCourses.length > 0) {
+                    const courseIds = enrolledCourses.map(c => c.id);
+                    const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', courseIds));
+                    const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('studentId', '==', authUser.uid), where('courseId', 'in', courseIds));
+                    const [assignmentsSnapshot, submissionsSnapshot] = await Promise.all([getDocs(assignmentsQuery), getDocs(submissionsQuery)]);
+    
+                    const submittedAssignmentIds = new Set(submissionsSnapshot.docs.map(doc => doc.data().assignmentId));
+                    const now = new Date();
+    
+                    dueAssignmentsCount = assignmentsSnapshot.docs.filter(doc => {
+                        const assignment = doc.data() as Assignment;
+                        return new Date(assignment.deadline) > now && !submittedAssignmentIds.has(doc.id);
+                    }).length;
                 }
-            });
-            const percentages = Object.values(attendanceStats).map(s => s.total > 0 ? (s.attended / s.total) * 100 : 0);
-            const overallAttendance = percentages.length > 0 ? Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length) : 0;
-
-            // Assignments Due
-            let dueAssignmentsCount = 0;
-            if (enrolledCourses.length > 0) {
-                const courseIds = enrolledCourses.map(c => c.id);
-                const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', courseIds));
-                const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('studentId', '==', authUser.uid), where('courseId', 'in', courseIds));
-                const [assignmentsSnapshot, submissionsSnapshot] = await Promise.all([getDocs(assignmentsQuery), getDocs(submissionsQuery)]);
-
-                const submittedAssignmentIds = new Set(submissionsSnapshot.docs.map(doc => doc.data().assignmentId));
-                const now = new Date();
-
-                dueAssignmentsCount = assignmentsSnapshot.docs.filter(doc => {
-                    const assignment = doc.data() as Assignment;
-                    return new Date(assignment.deadline) > now && !submittedAssignmentIds.has(doc.id);
-                }).length;
+    
+                setQuickStats([
+                    { title: 'Enrolled Courses', value: (studentEnrollments?.length ?? 0).toString(), icon: BookOpen },
+                    { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: Percent },
+                    { title: 'Assignments Due', value: dueAssignmentsCount.toString(), icon: FileWarning },
+                ]);
+            } catch (error) {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'assignments or submissions', operation: 'list' }));
+                setQuickStats([]);
+            } finally {
+                setAreStatsLoading(false);
             }
-
-            setQuickStats([
-                { title: 'Enrolled Courses', value: (studentEnrollments?.length ?? 0).toString(), icon: BookOpen },
-                { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: Percent },
-                { title: 'Assignments Due', value: dueAssignmentsCount.toString(), icon: FileWarning },
-            ]);
-            setAreStatsLoading(false);
         };
         calculateStats();
     }, [firestore, allCourses, authUser, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading]);
@@ -147,7 +153,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                 allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
                 setTodaysClasses(allClasses);
             } catch (error) {
-                console.error("Error fetching timetable:", error);
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
                 setTodaysClasses([]);
             } finally {
                 setAreTodaysClassesLoading(false);

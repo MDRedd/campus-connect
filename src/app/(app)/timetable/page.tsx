@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, getDocs, query, where, collectionGroup, doc } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
@@ -131,7 +131,7 @@ export default function TimetablePage() {
             allTimetableEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
             setFullTimetable(allTimetableEntries);
           } catch (error) {
-            console.error("Error fetching timetable:", error);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
             setFullTimetable([]);
           } finally {
             setIsTimetableLoading(false);
