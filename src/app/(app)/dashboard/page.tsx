@@ -218,7 +218,7 @@ export default function DashboardPage() {
 
   // --- At-Risk Students calculation for faculty ---
   useEffect(() => {
-    if (userProfile?.role !== 'faculty' || !firestore || !authUser || areAllCoursesLoading || !allCourses) {
+    if (userProfile?.role !== 'faculty' || !firestore || areFacultyCoursesLoading || !facultyCourses) {
         if(userProfile?.role === 'faculty') setAreAtRiskStudentsLoading(false);
         return;
     }
@@ -226,16 +226,13 @@ export default function DashboardPage() {
     const calculateAtRiskStudents = async () => {
         setAreAtRiskStudentsLoading(true);
         try {
-            const timetablesQuery = query(collectionGroup(firestore, 'timetables'));
-            const timetableSnapshot = await getDocs(timetablesQuery);
-            const facultyTimetables = timetableSnapshot.docs.filter(doc => doc.data().facultyId === authUser.uid);
-            const facultyCourseIds = [...new Set(facultyTimetables.map(doc => doc.data().courseId as string))];
-
-            if (facultyCourseIds.length === 0) {
+            if (facultyCourses.length === 0) {
                 setAtRiskStudents([]);
                 setAreAtRiskStudentsLoading(false);
                 return;
             }
+
+            const facultyCourseIds = facultyCourses.map(c => c.id);
 
             const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', 'in', facultyCourseIds));
             const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
@@ -274,7 +271,7 @@ export default function DashboardPage() {
             });
 
             const atRisk: AtRiskStudent[] = [];
-            const courseMap = new Map(allCourses.map(c => [c.id, c.code]));
+            const courseMap = new Map(facultyCourses.map(c => [c.id, c.code]));
             Object.entries(stats).forEach(([key, { attended, total }]) => {
                 const percentage = total > 0 ? (attended / total) * 100 : 0;
                 if (total > 3 && percentage < 75) {
@@ -295,7 +292,7 @@ export default function DashboardPage() {
         }
     };
     calculateAtRiskStudents();
-  }, [userProfile, firestore, authUser, allCourses, areAllCoursesLoading]);
+  }, [userProfile, firestore, facultyCourses, areFacultyCoursesLoading]);
 
 
   // --- Data for other components ---

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, limit, collectionGroup } from 'firebase/firestore';
+import { collection, query, where, getDocs, limit } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import { useToast } from './use-toast';
 
@@ -22,7 +22,6 @@ export function useFacultyCourses() {
 
     useEffect(() => {
         if (isAuthUserLoading || areAllCoursesLoading || !firestore || !authUser || !allCourses) {
-            // Still waiting for dependencies to load
              if (!isAuthUserLoading && !areAllCoursesLoading) {
                 setIsLoading(false);
              }
@@ -32,17 +31,30 @@ export function useFacultyCourses() {
         const fetchCourses = async () => {
             setIsLoading(true);
             try {
-                // Fetch all timetables and filter client-side. This avoids the need for a composite index.
-                const timetablesQuery = query(collectionGroup(firestore, 'timetables'));
-                const timetableSnapshot = await getDocs(timetablesQuery);
-
                 const facultyCourseIds = new Set<string>();
-                timetableSnapshot.forEach(doc => {
-                    if (doc.data().facultyId === authUser.uid) {
-                        facultyCourseIds.add(doc.data().courseId);
+                
+                // This is less efficient than a collectionGroup query but avoids the need for a custom index.
+                // We check each course to see if the current faculty teaches it.
+                const courseChecks = allCourses.map(async (course) => {
+                    const timetableQuery = query(
+                        collection(firestore, 'courses', course.id, 'timetables'),
+                        where('facultyId', '==', authUser.uid),
+                        limit(1)
+                    );
+                    const timetableSnapshot = await getDocs(timetableQuery);
+                    if (!timetableSnapshot.empty) {
+                        return course.id;
                     }
+                    return null;
                 });
                 
+                const results = await Promise.all(courseChecks);
+                results.forEach(courseId => {
+                    if (courseId) {
+                        facultyCourseIds.add(courseId);
+                    }
+                });
+
                 const courseIds = Array.from(facultyCourseIds);
                 if (courseIds.length > 0) {
                     setFacultyCourses(allCourses.filter(course => courseIds.includes(course.id)));
