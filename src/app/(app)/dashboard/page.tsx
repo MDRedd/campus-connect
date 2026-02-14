@@ -4,7 +4,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useDoc, useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { doc, collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
-import { BookOpen, Percent, FileWarning, Users, CheckCircle } from 'lucide-react';
+import { BookOpen, Percent, FileWarning, Users, CheckCircle, User, Activity } from 'lucide-react';
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
@@ -12,6 +12,8 @@ import UpcomingClasses, { UpcomingClass } from './components/upcoming-classes';
 import AttendanceChart from './components/attendance-chart';
 import RecentAnnouncements from './components/recent-announcements';
 import StudentsAtRisk from './components/students-at-risk';
+import RoleDistributionChart from './components/role-distribution-chart';
+import CourseDepartmentChart from './components/course-department-chart';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Course } from '@/lib/data';
 import { format } from 'date-fns';
@@ -25,7 +27,7 @@ type QuickStat = {
 
 type Assignment = { id: string; courseId: string; deadline: string; };
 type Submission = { id: string; courseId: string; assignmentId: string; marksAwarded?: number; };
-type UserProfileData = { name: string; role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; id: string; };
+type UserProfileData = { name: string; role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; id: string; department?: string };
 type Enrollment = { courseId: string };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
@@ -36,6 +38,9 @@ type AtRiskStudent = {
   courseCode: string;
   percentage: number;
 };
+type RoleData = { name: string; value: number; fill: string; };
+type DepartmentChartData = { name: string; count: number };
+
 
 export default function DashboardPage() {
   const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
@@ -47,6 +52,9 @@ export default function DashboardPage() {
   const [atRiskStudents, setAtRiskStudents] = useState<AtRiskStudent[] | null>(null);
   const [areAtRiskStudentsLoading, setAreAtRiskStudentsLoading] = useState(true);
 
+  const [roleDistributionData, setRoleDistributionData] = useState<RoleData[] | null>(null);
+  const [courseDepartmentData, setCourseDepartmentData] = useState<DepartmentChartData[] | null>(null);
+
   // --- Common Data ---
   const userDocRef = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
@@ -56,11 +64,10 @@ export default function DashboardPage() {
 
   const announcementsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // Always fetch the 3 most recent announcements regardless of role.
-    // Filtering will happen on the client side in the `displayAnnouncements` memo.
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
   }, [firestore]);
   const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
+
 
   // --- Student-specific data hooks ---
   const studentEnrollmentsQuery = useMemoFirebase(() => {
@@ -82,6 +89,12 @@ export default function DashboardPage() {
     return collection(firestore, 'courses');
   }, [firestore]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
+
+  const allUsersQuery = useMemoFirebase(() => {
+      if (!firestore || !userProfile?.role.includes('admin')) return null;
+      return collection(firestore, 'users');
+  }, [firestore, userProfile]);
+  const { data: allUsers, isLoading: areAllUsersLoading } = useCollection<UserProfileData>(allUsersQuery);
   
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
@@ -164,22 +177,44 @@ export default function DashboardPage() {
           { title: 'Submissions to Grade', value: submissionsToGrade.toString(), icon: CheckCircle },
         ];
       } else if (userProfile.role.includes('admin')) {
-        const usersSnapshot = await getDocs(collection(firestore, 'users'));
-        const studentCount = usersSnapshot.docs.filter(d => d.data().role === 'student').length;
-        const facultyCount = usersSnapshot.docs.filter(d => d.data().role === 'faculty').length;
+        if (areAllUsersLoading || !allUsers) {
+            if(!areAllUsersLoading) setAreStatsLoading(false);
+            return;
+        }
+        
+        const studentCount = allUsers.filter(d => d.role === 'student').length;
+        const facultyCount = allUsers.filter(d => d.role === 'faculty').length;
         
         stats = [
-          { title: 'Total Students', value: studentCount.toString(), icon: Users },
+          { title: 'Total Students', value: studentCount.toString(), icon: User },
           { title: 'Total Faculty', value: facultyCount.toString(), icon: Users },
-          { title: 'Total Courses', value: (allCourses?.length ?? 0).toString(), icon: BookOpen },
+          { title: 'Total Courses', value: (allCourses?.length ?? 0).toString(), icon: Activity },
         ];
+
+        // Admin charts data
+        const roleCounts = allUsers.reduce((acc, user) => {
+            acc[user.role] = (acc[user.role] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        setRoleDistributionData(Object.entries(roleCounts).map(([name, value], index) => ({
+            name,
+            value,
+            fill: ['hsl(var(--primary))', 'hsl(var(--accent))', '#82ca9d', '#ffc658', '#d0ed57', '#a4de6c'][index % 6]
+        })));
+        
+        const departmentCounts = allCourses.reduce((acc, course) => {
+            const dept = course.department || 'N/A';
+            acc[dept] = (acc[dept] || 0) + 1;
+            return acc;
+        }, {} as Record<string, number>);
+        setCourseDepartmentData(Object.entries(departmentCounts).map(([name, count]) => ({name, count})));
       }
       setQuickStats(stats);
       setAreStatsLoading(false);
     };
 
     calculateStats();
-  }, [userProfile, isUserProfileLoading, firestore, allCourses, areAllCoursesLoading, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading, authUser, facultyCourses, areFacultyCoursesLoading]);
+  }, [userProfile, isUserProfileLoading, firestore, allCourses, areAllCoursesLoading, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading, authUser, facultyCourses, areFacultyCoursesLoading, allUsers, areAllUsersLoading]);
 
   // --- At-Risk Students calculation for faculty ---
   useEffect(() => {
@@ -268,7 +303,7 @@ export default function DashboardPage() {
   const [areTodaysClassesLoading, setAreTodaysClassesLoading] = useState(true);
 
   useEffect(() => {
-    if (!firestore || !userProfile || !authUser) return;
+    if (!firestore || !userProfile || !authUser || !allCourses) return;
 
     const fetchTodaysClasses = async () => {
         setAreTodaysClassesLoading(true);
@@ -281,22 +316,24 @@ export default function DashboardPage() {
                   if(!areStudentEnrollmentsLoading) setAreTodaysClassesLoading(false);
                   return;
                 };
-                const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
-                if (enrolledCourseIds.length === 0) {
-                  setTodaysClasses([]);
-                  setAreTodaysClassesLoading(false);
-                  return;
+                if (studentEnrollments.length === 0) {
+                    setTodaysClasses([]);
+                    setAreTodaysClassesLoading(false);
+                    return;
                 }
-                const timetableQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', enrolledCourseIds), where('dayOfWeek', '==', today));
-                const querySnapshot = await getDocs(timetableQuery);
-                const courseMap = new Map(allCourses?.map(c => [c.id, c]));
-                querySnapshot.forEach(doc => {
-                    const data = doc.data();
-                    const course = courseMap.get(data.courseId);
-                    if (course) {
-                        allClasses.push({ id: doc.id, ...data, course: { name: course.name } } as UpcomingClass);
-                    }
-                });
+                const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
+                const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', enrolledCourseIds));
+                const querySnapshot = await getDocs(timetablesQuery);
+                const courseMap = new Map(allCourses.map(c => [c.id, c]));
+                querySnapshot.docs
+                    .filter(doc => doc.data().dayOfWeek === today)
+                    .forEach(doc => {
+                        const data = doc.data();
+                        const course = courseMap.get(data.courseId);
+                        if (course) {
+                            allClasses.push({ id: doc.id, ...data, course: { name: course.name } } as UpcomingClass);
+                        }
+                    });
 
             } else if (userProfile.role === 'faculty') {
                 if (areFacultyCoursesLoading || !facultyCourses) {
@@ -308,13 +345,19 @@ export default function DashboardPage() {
                     setAreTodaysClassesLoading(false);
                     return;
                 }
-                for (const course of facultyCourses) {
-                    const timetableQuery = query(collection(firestore, 'courses', course.id, 'timetables'), where('dayOfWeek', '==', today), where('facultyId', '==', authUser.uid));
-                    const querySnapshot = await getDocs(timetableQuery);
-                    querySnapshot.forEach(doc => {
-                        allClasses.push({ id: doc.id, ...doc.data(), course: { name: course.name }} as UpcomingClass);
+                 const facultyCourseIds = facultyCourses.map(c => c.id);
+                 const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', facultyCourseIds), where('facultyId', '==', authUser.uid));
+                 const querySnapshot = await getDocs(timetablesQuery);
+                 const courseMap = new Map(facultyCourses.map(c => [c.id, c]));
+                 querySnapshot.docs
+                    .filter(doc => doc.data().dayOfWeek === today)
+                    .forEach(doc => {
+                        const data = doc.data();
+                        const course = courseMap.get(data.courseId);
+                        if (course) {
+                            allClasses.push({ id: doc.id, ...data, course: { name: course.name } } as UpcomingClass);
+                        }
                     });
-                }
 
             } else { // Admin
                  setTodaysClasses([]);
@@ -397,29 +440,38 @@ export default function DashboardPage() {
     return <div>Could not load user profile. Please try logging in again.</div>
   }
 
+  const isAdmin = userProfile.role.includes('admin');
+
   return (
     <div className="flex flex-col gap-6">
       <WelcomeBanner user={userProfile} />
       <QuickStats stats={quickStats} isLoading={areStatsLoading} />
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <div className="lg:col-span-2">
-            {areTodaysClassesLoading ? (
-                <Skeleton className="h-80" />
-            ) : (
-                todaysClasses && <UpcomingClasses timetable={todaysClasses} />
-            )}
+      {isAdmin ? (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+           {areAllUsersLoading ? <Skeleton className="h-80" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
+           {areAllCoursesLoading ? <Skeleton className="h-80" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
         </div>
-        {userProfile.role === 'student' && (
-            <div className="lg:col-span-1">
-                {isStudentAttendanceLoading || areAllCoursesLoading ? (
+      ) : (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            <div className="lg:col-span-2">
+                {areTodaysClassesLoading ? (
                     <Skeleton className="h-80" />
                 ) : (
-                    attendanceData && <AttendanceChart data={attendanceData} />
+                    todaysClasses && <UpcomingClasses timetable={todaysClasses} />
                 )}
             </div>
-        )}
-      </div>
+            {userProfile.role === 'student' && (
+                <div className="lg:col-span-1">
+                    {isStudentAttendanceLoading || areAllCoursesLoading ? (
+                        <Skeleton className="h-80" />
+                    ) : (
+                        attendanceData && <AttendanceChart data={attendanceData} />
+                    )}
+                </div>
+            )}
+        </div>
+      )}
 
        {userProfile.role === 'faculty' && (
             areAtRiskStudentsLoading ? (
