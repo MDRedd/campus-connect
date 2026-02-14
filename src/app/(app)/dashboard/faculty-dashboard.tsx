@@ -14,6 +14,7 @@ import RecentAnnouncements from './components/recent-announcements';
 import StudentsAtRisk from './components/students-at-risk';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
+import AcademicallyAtRisk from './components/academically-at-risk';
 
 type QuickStat = {
   title: string;
@@ -25,6 +26,8 @@ type Announcement = { id: string; title: string; description: string; date: any;
 type AtRiskStudent = { studentId: string; studentName: string; courseId: string; courseCode: string; percentage: number; };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type FullUserProfile = { name: string; role: string; id: string; department?: string };
+type AcademicallyAtRiskStudent = { studentId: string; studentName: string; courseId: string; courseCode: string; grade: string; marks: number; };
+type ResultRecord = { studentId: string; courseId: string; grade: string; marks: number; published: boolean };
 
 export default function FacultyDashboard({ userProfile }: { userProfile: UserProfileData }) {
     const { user: authUser } = useUser();
@@ -36,6 +39,8 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     const [areAtRiskStudentsLoading, setAreAtRiskStudentsLoading] = useState(true);
     const [todaysClasses, setTodaysClasses] = useState<UpcomingClass[] | null>(null);
     const [areTodaysClassesLoading, setAreTodaysClassesLoading] = useState(true);
+    const [academicallyAtRisk, setAcademicallyAtRisk] = useState<AcademicallyAtRiskStudent[] | null>(null);
+    const [areAcademicallyAtRiskLoading, setAreAcademicallyAtRiskLoading] = useState(true);
 
     const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
@@ -196,6 +201,70 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
         };
         fetchTodaysClasses();
       }, [firestore, userProfile, authUser, facultyCourses, areFacultyCoursesLoading]);
+      
+      useEffect(() => {
+        if (!firestore || areFacultyCoursesLoading || !facultyCourses) {
+            if(!areFacultyCoursesLoading) setAreAcademicallyAtRiskLoading(false);
+            return;
+        }
+
+        const calculateAcademicallyAtRisk = async () => {
+            setAreAcademicallyAtRiskLoading(true);
+            try {
+                if (facultyCourses.length === 0) {
+                    setAcademicallyAtRisk([]);
+                    return;
+                }
+
+                const facultyCourseIds = facultyCourses.map(c => c.id);
+                const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', 'in', facultyCourseIds));
+                const resultsSnapshot = await getDocs(resultsQuery);
+                
+                const allResults: ResultRecord[] = resultsSnapshot.docs.map(d => {
+                    const studentId = d.ref.parent.parent!.id;
+                    return { ...(d.data() as Omit<ResultRecord, 'studentId'>), studentId };
+                });
+
+                const atRiskResults = allResults.filter(r => ['D', 'F'].includes(r.grade.toUpperCase()) || r.marks < 50);
+
+                if (atRiskResults.length === 0) {
+                    setAcademicallyAtRisk([]);
+                    return;
+                }
+
+                const studentIds = [...new Set(atRiskResults.map(r => r.studentId))];
+                const studentsData: FullUserProfile[] = [];
+                 for (let i = 0; i < studentIds.length; i += 30) {
+                    const chunk = studentIds.slice(i, i + 30);
+                    const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
+                    const studentsSnapshot = await getDocs(studentsQuery);
+                    studentsSnapshot.forEach(doc => studentsData.push({...(doc.data() as Omit<FullUserProfile, 'id'>), id: doc.id }));
+                }
+                const studentMap = new Map(studentsData.map(s => [s.id, s.name]));
+                const courseMap = new Map(facultyCourses.map(c => [c.id, c.code]));
+
+                const finalAtRiskList = atRiskResults.map(r => ({
+                    studentId: r.studentId,
+                    studentName: studentMap.get(r.studentId) || 'Unknown',
+                    courseId: r.courseId,
+                    courseCode: courseMap.get(r.courseId) || 'N/A',
+                    grade: r.grade,
+                    marks: r.marks,
+                })).filter(s => s.studentName !== 'Unknown');
+
+                setAcademicallyAtRisk(finalAtRiskList);
+
+            } catch (error) {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'results or users', operation: 'list'}));
+                setAcademicallyAtRisk([]);
+            } finally {
+                setAreAcademicallyAtRiskLoading(false);
+            }
+        };
+
+        calculateAcademicallyAtRisk();
+
+    }, [firestore, facultyCourses, areFacultyCoursesLoading]);
 
     const displayAnnouncements = useMemo(() => {
         if (!announcements) return [];
@@ -225,6 +294,12 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
                 <Skeleton className="h-64" />
             ) : (
                 atRiskStudents && <StudentsAtRisk students={atRiskStudents} />
+            )}
+
+            {areAcademicallyAtRiskLoading ? (
+                <Skeleton className="h-64" />
+            ) : (
+                academicallyAtRisk && <AcademicallyAtRisk students={academicallyAtRisk} />
             )}
             
             {areAnnouncementsLoading ? (
