@@ -1,8 +1,11 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, updateDocumentNonBlocking, deleteDocumentNonBlocking, setDocumentNonBlocking } from '@/firebase';
 import { collection, doc } from 'firebase/firestore';
+import { initializeApp, deleteApp } from 'firebase/app';
+import { getAuth, createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { firebaseConfig } from '@/firebase/config';
 import {
   Card,
   CardHeader,
@@ -23,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2 } from 'lucide-react';
+import { Edit, Trash2, PlusCircle } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -58,11 +61,21 @@ type UserProfile = {
   email: string;
   role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
   department?: string;
+  rollNumber?: string;
+  facultyCode?: string;
 };
 
 const userEditSchema = z.object({
   role: z.enum(['student', 'faculty', 'super-admin', 'user-admin', 'course-admin', 'attendance-admin']),
   department: z.string().optional(),
+});
+
+const userCreationSchema = z.object({
+    name: z.string().min(2, 'Name is required.'),
+    email: z.string().email('Invalid email address.'),
+    password: z.string().min(6, 'Password must be at least 6 characters.'),
+    role: z.enum(['student', 'faculty', 'super-admin', 'user-admin', 'course-admin', 'attendance-admin']),
+    department: z.string().optional(),
 });
 
 export default function UsersPage() {
@@ -72,6 +85,7 @@ export default function UsersPage() {
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
   const [isEditDialogOpen, setIsEditDialogOpen] = useState(false);
+  const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
   const [editingUser, setEditingUser] = useState<UserProfile | null>(null);
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
@@ -88,13 +102,24 @@ export default function UsersPage() {
   }, [firestore, currentUserProfile]);
   const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(allUsersQuery);
 
-  const form = useForm<z.infer<typeof userEditSchema>>({
+  const editForm = useForm<z.infer<typeof userEditSchema>>({
     resolver: zodResolver(userEditSchema),
+  });
+
+  const createForm = useForm<z.infer<typeof userCreationSchema>>({
+    resolver: zodResolver(userCreationSchema),
+    defaultValues: {
+        name: '',
+        email: '',
+        password: '',
+        role: 'student',
+        department: '',
+    },
   });
 
   const handleEditClick = (user: UserProfile) => {
     setEditingUser(user);
-    form.reset({
+    editForm.reset({
       role: user.role,
       department: user.department || '',
     });
@@ -130,6 +155,47 @@ export default function UsersPage() {
     setIsEditDialogOpen(false);
   };
 
+  const onUserCreate = async (values: z.infer<typeof userCreationSchema>) => {
+    if (!firestore) return;
+    
+    // We create a temporary app instance to create a user without signing the admin out
+    const tempAppName = `user-creation-${Date.now()}`;
+    const tempApp = initializeApp(firebaseConfig, tempAppName);
+    const tempAuth = getAuth(tempApp);
+
+    try {
+        const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
+        const newUser = userCredential.user;
+
+        await updateProfile(newUser, { displayName: values.name });
+        
+        const userDocRef = doc(firestore, 'users', newUser.uid);
+        const userData = {
+            id: newUser.uid,
+            name: values.name,
+            email: values.email,
+            role: values.role,
+            department: values.department || '',
+        };
+        
+        setDocumentNonBlocking(userDocRef, userData, {});
+        
+        toast({ title: 'User Created', description: `${values.name} has been added.` });
+        setIsCreateDialogOpen(false);
+        createForm.reset();
+    } catch (error: any) {
+        console.error("Error creating user:", error);
+        toast({
+            variant: 'destructive',
+            title: 'Creation Failed',
+            description: error.code === 'auth/email-already-in-use' ? 'This email is already in use.' : 'An unknown error occurred.',
+        });
+    } finally {
+        await deleteApp(tempApp);
+    }
+  }
+
+
   const isLoading = isAuthUserLoading || isUserProfileLoading || areUsersLoading;
 
   if (currentUserProfile && !['super-admin', 'user-admin'].includes(currentUserProfile.role)) {
@@ -152,9 +218,48 @@ export default function UsersPage() {
         </p>
       </div>
       <Card>
-        <CardHeader>
-          <CardTitle>All Users</CardTitle>
-          <CardDescription>A list of all registered users.</CardDescription>
+        <CardHeader className="flex flex-row justify-between items-start">
+          <div>
+            <CardTitle>All Users</CardTitle>
+            <CardDescription>A list of all registered users.</CardDescription>
+          </div>
+          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+            <DialogTrigger asChild>
+                <Button><PlusCircle className="mr-2 h-4 w-4" /> Create User</Button>
+            </DialogTrigger>
+            <DialogContent>
+                <DialogHeader><DialogTitle>Create New User</DialogTitle></DialogHeader>
+                 <Form {...createForm}>
+                    <form onSubmit={createForm.handleSubmit(onUserCreate)} className="space-y-4">
+                        <FormField control={createForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} placeholder="John Doe" /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={createForm.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" placeholder="user@example.com" /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={createForm.control} name="password" render={({ field }) => (<FormItem><FormLabel>Password</FormLabel><FormControl><Input {...field} type="password" /></FormControl><FormMessage /></FormItem>)} />
+                        <FormField control={createForm.control} name="role" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Role</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="student">Student</SelectItem>
+                                    <SelectItem value="faculty">Faculty</SelectItem>
+                                    <SelectItem value="user-admin">User Admin</SelectItem>
+                                    <SelectItem value="course-admin">Course Admin</SelectItem>
+                                    <SelectItem value="attendance-admin">Attendance Admin</SelectItem>
+                                    <SelectItem value="super-admin">Super Admin</SelectItem>
+                                </SelectContent>
+                            </Select><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={createForm.control} name="department" render={({ field }) => (<FormItem><FormLabel>Department (Optional)</FormLabel><FormControl><Input {...field} placeholder="e.g., Computer Science" /></FormControl><FormMessage /></FormItem>)} />
+                        <DialogFooter>
+                            <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                            <Button type="submit" disabled={createForm.formState.isSubmitting}>
+                                {createForm.formState.isSubmitting ? 'Creating...' : 'Create User'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+          </Dialog>
         </CardHeader>
         <CardContent>
           <Table>
@@ -227,10 +332,10 @@ export default function UsersPage() {
                 <DialogTitle>Edit User: {editingUser?.name}</DialogTitle>
                 <DialogDescription>{editingUser?.email}</DialogDescription>
             </DialogHeader>
-            <Form {...form}>
-                <form onSubmit={form.handleSubmit(onEditSubmit)} className="space-y-4">
+            <Form {...editForm}>
+                <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
                     <FormField
-                        control={form.control}
+                        control={editForm.control}
                         name="role"
                         render={({ field }) => (
                             <FormItem>
@@ -255,7 +360,7 @@ export default function UsersPage() {
                         )}
                     />
                     <FormField
-                        control={form.control}
+                        control={editForm.control}
                         name="department"
                         render={({ field }) => (
                             <FormItem>
@@ -269,8 +374,8 @@ export default function UsersPage() {
                     />
                     <DialogFooter>
                         <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={form.formState.isSubmitting}>
-                            {form.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
+                        <Button type="submit" disabled={editForm.formState.isSubmitting}>
+                            {editForm.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
                         </Button>
                     </DialogFooter>
                 </form>
