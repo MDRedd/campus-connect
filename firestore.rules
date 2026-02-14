@@ -114,7 +114,7 @@ service cloud.firestore {
 
     match /courses/{courseId} {
       // Allow anyone to see the list of courses (e.g., for a course catalog).
-      allow list, get: if isSignedIn();
+      allow list, get: if true;
       allow create, update, delete: if isCourseAdmin();
     }
 
