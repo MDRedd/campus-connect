@@ -13,7 +13,7 @@ import UpcomingClasses, { UpcomingClass } from './components/upcoming-classes';
 import AttendanceChart from './components/attendance-chart';
 import RecentAnnouncements from './components/recent-announcements';
 import { Skeleton } from '@/components/ui/skeleton';
-
+import UpcomingDeadlines, { UpcomingAssignment } from './components/upcoming-deadlines';
 
 type QuickStat = {
   title: string;
@@ -22,7 +22,7 @@ type QuickStat = {
 };
 type UserProfileData = { name: string; role: 'student'; id: string; };
 type Enrollment = { courseId: string };
-type Assignment = { id: string; courseId: string; deadline: string; };
+type FullAssignment = { id: string; courseId: string; deadline: string; title: string; };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
 
@@ -33,6 +33,8 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
 
     const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
     const [areStatsLoading, setAreStatsLoading] = useState(true);
+    const [upcomingAssignments, setUpcomingAssignments] = useState<UpcomingAssignment[] | null>(null);
+    const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
 
     // --- Data Hooks ---
     const studentEnrollmentsQuery = useMemoFirebase(() => {
@@ -64,17 +66,19 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
 
     // --- Derived Data and Effects ---
     useEffect(() => {
-        if (!firestore || !allCourses || !authUser || areStudentEnrollmentsLoading || isStudentAttendanceLoading) {
-            if (!areStudentEnrollmentsLoading && !isStudentAttendanceLoading) {
+        if (!firestore || !allCourses || !authUser || areStudentEnrollmentsLoading || !studentEnrollments || isStudentAttendanceLoading) {
+            if (!areStudentEnrollmentsLoading && !isStudentAttendanceLoading && !areAllCoursesLoading) {
                 setAreStatsLoading(false);
+                setAreAssignmentsLoading(false);
             }
             return;
         }
 
-        const calculateStats = async () => {
+        const calculateStatsAndAssignments = async () => {
             setAreStatsLoading(true);
+            setAreAssignmentsLoading(true);
             try {
-                const enrolledCourseIds = new Set(studentEnrollments?.map(e => e.courseId) ?? []);
+                const enrolledCourseIds = new Set(studentEnrollments.map(e => e.courseId));
                 const enrolledCourses = allCourses.filter(c => enrolledCourseIds.has(c.id));
     
                 // Overall Attendance
@@ -89,8 +93,9 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                 const percentages = Object.values(attendanceStats).map(s => s.total > 0 ? (s.attended / s.total) * 100 : 0);
                 const overallAttendance = percentages.length > 0 ? Math.round(percentages.reduce((a, b) => a + b, 0) / percentages.length) : 0;
     
-                // Assignments Due
+                // Assignments Due & Upcoming Deadlines
                 let dueAssignmentsCount = 0;
+                let upcoming: UpcomingAssignment[] = [];
                 if (enrolledCourses.length > 0) {
                     const courseIds = enrolledCourses.map(c => c.id);
                     const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', courseIds));
@@ -99,27 +104,42 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     
                     const submittedAssignmentIds = new Set(submissionsSnapshot.docs.map(doc => doc.data().assignmentId));
                     const now = new Date();
-    
-                    dueAssignmentsCount = assignmentsSnapshot.docs.filter(doc => {
-                        const assignment = doc.data() as Assignment;
+                    const courseMap = new Map(allCourses.map(c => [c.id, c.code]));
+
+                    const allDueAssignments = assignmentsSnapshot.docs.filter(doc => {
+                        const assignment = doc.data() as FullAssignment;
                         return new Date(assignment.deadline) > now && !submittedAssignmentIds.has(doc.id);
-                    }).length;
+                    });
+
+                    dueAssignmentsCount = allDueAssignments.length;
+
+                    upcoming = allDueAssignments.map(doc => ({ id: doc.id, ...(doc.data() as Omit<FullAssignment, 'id'>) }))
+                        .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
+                        .slice(0, 5) // Get top 5 upcoming
+                        .map(assignment => ({
+                            ...assignment,
+                            courseCode: courseMap.get(assignment.courseId) || 'N/A'
+                        }));
                 }
+                setUpcomingAssignments(upcoming);
     
                 setQuickStats([
-                    { title: 'Enrolled Courses', value: (studentEnrollments?.length ?? 0).toString(), icon: BookOpen },
+                    { title: 'Enrolled Courses', value: (studentEnrollments.length).toString(), icon: BookOpen },
                     { title: 'Overall Attendance', value: `${overallAttendance}%`, icon: Percent },
                     { title: 'Assignments Due', value: dueAssignmentsCount.toString(), icon: FileWarning },
                 ]);
+
             } catch (error) {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'assignments or submissions', operation: 'list' }));
                 setQuickStats([]);
+                setUpcomingAssignments([]);
             } finally {
                 setAreStatsLoading(false);
+                setAreAssignmentsLoading(false);
             }
         };
-        calculateStats();
-    }, [firestore, allCourses, authUser, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading]);
+        calculateStatsAndAssignments();
+    }, [firestore, allCourses, areAllCoursesLoading, authUser, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading]);
 
     useEffect(() => {
         if (!firestore || !userProfile || !authUser || !allCourses || areStudentEnrollmentsLoading || !studentEnrollments) {
@@ -201,11 +221,16 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2">
+                <div className="lg:col-span-2 space-y-6">
                     {areTodaysClassesLoading ? (
                         <Skeleton className="h-80" />
                     ) : (
                         todaysClasses && <UpcomingClasses timetable={todaysClasses} />
+                    )}
+                     {areAssignmentsLoading ? (
+                        <Skeleton className="h-80" />
+                    ) : (
+                        upcomingAssignments && <UpcomingDeadlines assignments={upcomingAssignments} />
                     )}
                 </div>
                 <div className="lg:col-span-1">
