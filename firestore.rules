@@ -119,8 +119,9 @@ service cloud.firestore {
     }
 
     match /users/{userId}/enrollments/{enrollmentId} {
-      allow get, list, update, delete: if isOwner(userId);
+      allow get, list: if isOwner(userId) || isFacultyOrAnyAdmin();
       allow create: if isOwner(userId) && request.resource.data.studentId == userId;
+      allow update, delete: if isOwner(userId);
     }
 
     match /users/{userId}/attendance/{attendanceId} {
