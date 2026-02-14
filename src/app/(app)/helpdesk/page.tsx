@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, doc } from '@/firebase';
 import { collection, query, where, orderBy, serverTimestamp } from 'firebase/firestore';
 import {
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { LifeBuoy, PlusCircle, CheckCircle } from 'lucide-react';
+import { LifeBuoy, PlusCircle, CheckCircle, Sparkles, X } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -30,7 +30,7 @@ import {
     DialogFooter,
     DialogClose,
 } from '@/components/ui/dialog';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -40,6 +40,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
+import { suggestHelpdeskResponse } from '@/ai/flows/suggest-helpdesk-response';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type HelpdeskTicket = {
   id: string;
@@ -62,12 +64,147 @@ const ticketSchema = z.object({
   description: z.string().min(20, 'Please provide a detailed description.'),
 });
 
+// Custom hook for debouncing
+function useDebounce(value: string, delay: number) {
+    const [debouncedValue, setDebouncedValue] = useState(value);
+    useEffect(() => {
+        const handler = setTimeout(() => {
+            setDebouncedValue(value);
+        }, delay);
+        return () => {
+            clearTimeout(handler);
+        };
+    }, [value, delay]);
+    return debouncedValue;
+}
+
+// New component for the ticket creation form
+const NewTicketForm = () => {
+    const { user: authUser, profile: userProfile } = useUser();
+    const firestore = useFirestore();
+    const { toast } = useToast();
+    const [openNewTicketDialog, setOpenNewTicketDialog] = useState(false);
+
+    const [suggestion, setSuggestion] = useState('');
+    const [isSuggesting, setIsSuggesting] = useState(false);
+
+    const form = useForm<z.infer<typeof ticketSchema>>({
+        resolver: zodResolver(ticketSchema),
+        defaultValues: {
+          subject: '',
+          description: '',
+        },
+    });
+
+    const descriptionValue = useWatch({
+        control: form.control,
+        name: 'description',
+    });
+
+    const debouncedDescription = useDebounce(descriptionValue, 750);
+
+    useEffect(() => {
+        if (debouncedDescription && debouncedDescription.length > 25) {
+            const getSuggestion = async () => {
+                setIsSuggesting(true);
+                try {
+                    const result = await suggestHelpdeskResponse({ issueDescription: debouncedDescription });
+                    if (result.suggestedResponse) {
+                        setSuggestion(result.suggestedResponse);
+                    }
+                } catch (e) {
+                    console.error("Error getting AI suggestion:", e);
+                    // Don't show an error to the user, just fail silently.
+                    setSuggestion('');
+                } finally {
+                    setIsSuggesting(false);
+                }
+            };
+            getSuggestion();
+        } else {
+            setSuggestion('');
+        }
+    }, [debouncedDescription]);
+
+    function onNewTicketSubmit(values: z.infer<typeof ticketSchema>) {
+        if (!firestore || !userProfile) return;
+    
+        addDocumentNonBlocking(collection(firestore, 'helpdeskTickets'), {
+            studentId: userProfile.id,
+            studentName: userProfile.name,
+            studentEmail: userProfile.email,
+            category: values.category,
+            subject: values.subject,
+            description: values.description,
+            status: 'open',
+            createdAt: serverTimestamp(),
+        });
+    
+        toast({
+            title: 'Ticket Submitted',
+            description: 'Your request has been sent to the support team.',
+        });
+        setOpenNewTicketDialog(false);
+        form.reset();
+        setSuggestion('');
+    }
+
+    return (
+        <Dialog open={openNewTicketDialog} onOpenChange={(isOpen) => {
+            setOpenNewTicketDialog(isOpen);
+            if (!isOpen) {
+                form.reset();
+                setSuggestion('');
+            }
+        }}>
+            <DialogTrigger asChild>
+                <Button><PlusCircle className="mr-2 h-4 w-4" /> New Ticket</Button>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-2xl">
+                <DialogHeader><DialogTitle>Create a New Support Ticket</DialogTitle></DialogHeader>
+                <Form {...form}>
+                    <form onSubmit={form.handleSubmit(onNewTicketSubmit)} className="space-y-4">
+                        <FormField control={form.control} name="category" render={({ field }) => (
+                            <FormItem>
+                            <FormLabel>Category</FormLabel>
+                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
+                                <SelectContent>
+                                    <SelectItem value="Academics">Academics</SelectItem>
+                                    <SelectItem value="Technical">Technical</SelectItem>
+                                    <SelectItem value="Fees">Fees</SelectItem>
+                                    <SelectItem value="Other">Other</SelectItem>
+                                </SelectContent>
+                            </Select><FormMessage /></FormItem>
+                        )} />
+                        <FormField control={form.control} name="subject" render={({ field }) => ( <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={5} {...field} placeholder="Please describe your issue in detail..." /></FormControl><FormMessage /></FormItem> )} />
+                        
+                        {(isSuggesting || suggestion) && (
+                            <Alert>
+                                <Sparkles className="h-4 w-4" />
+                                <AlertTitle className="flex justify-between items-center">
+                                    <span>AI Assistant</span>
+                                    {suggestion && !isSuggesting && <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => setSuggestion('')}><X className="h-4 w-4" /></Button>}
+                                </AlertTitle>
+                                <AlertDescription>
+                                    {isSuggesting ? 'Thinking...' : suggestion}
+                                </AlertDescription>
+                            </Alert>
+                        )}
+
+                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={form.formState.isSubmitting}>Submit Ticket</Button></DialogFooter>
+                    </form>
+                </Form>
+            </DialogContent>
+        </Dialog>
+    );
+}
+
 export default function HelpdeskPage() {
   const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
-
-  const [openNewTicketDialog, setOpenNewTicketDialog] = useState(false);
 
   const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
 
@@ -83,36 +220,6 @@ export default function HelpdeskPage() {
     }
   }, [firestore, authUser, isFacultyOrAdmin]);
   const { data: tickets, isLoading: areTicketsLoading } = useCollection<HelpdeskTicket>(ticketsQuery);
-
-  const form = useForm<z.infer<typeof ticketSchema>>({
-    resolver: zodResolver(ticketSchema),
-    defaultValues: {
-      subject: '',
-      description: '',
-    },
-  });
-
-  function onNewTicketSubmit(values: z.infer<typeof ticketSchema>) {
-    if (!firestore || !userProfile) return;
-
-    addDocumentNonBlocking(collection(firestore, 'helpdeskTickets'), {
-        studentId: userProfile.id,
-        studentName: userProfile.name,
-        studentEmail: userProfile.email,
-        category: values.category,
-        subject: values.subject,
-        description: values.description,
-        status: 'open',
-        createdAt: serverTimestamp(),
-    });
-
-    toast({
-        title: 'Ticket Submitted',
-        description: 'Your request has been sent to the support team.',
-    });
-    setOpenNewTicketDialog(false);
-    form.reset();
-  }
 
   const handleCloseTicket = (ticketId: string) => {
     if (!firestore || !authUser) return;
@@ -150,36 +257,7 @@ export default function HelpdeskPage() {
             <CardTitle>Support Tickets</CardTitle>
             <CardDescription>{isFacultyOrAdmin ? 'All submitted tickets.' : 'Your submitted tickets.'}</CardDescription>
           </div>
-          {!isFacultyOrAdmin && (
-            <Dialog open={openNewTicketDialog} onOpenChange={setOpenNewTicketDialog}>
-              <DialogTrigger asChild>
-                <Button><PlusCircle className="mr-2 h-4 w-4" /> New Ticket</Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader><DialogTitle>Create a New Support Ticket</DialogTitle></DialogHeader>
-                <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onNewTicketSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="category" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Category</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a category" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="Academics">Academics</SelectItem>
-                                    <SelectItem value="Technical">Technical</SelectItem>
-                                    <SelectItem value="Fees">Fees</SelectItem>
-                                    <SelectItem value="Other">Other</SelectItem>
-                                </SelectContent>
-                            </Select><FormMessage /></FormItem>
-                        )} />
-                        <FormField control={form.control} name="subject" render={({ field }) => ( <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={5} {...field} placeholder="Please describe your issue in detail..." /></FormControl><FormMessage /></FormItem> )} />
-                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={form.formState.isSubmitting}>Submit Ticket</Button></DialogFooter>
-                    </form>
-                </Form>
-              </DialogContent>
-            </Dialog>
-          )}
+          {!isFacultyOrAdmin && <NewTicketForm />}
         </CardHeader>
         <CardContent>
           {isFacultyOrAdmin ? (
@@ -206,7 +284,7 @@ export default function HelpdeskPage() {
                       </TableCell>
                       <TableCell>{ticket.subject}</TableCell>
                       <TableCell>{ticket.category}</TableCell>
-                      <TableCell>{format(ticket.createdAt.toDate(), 'PP')}</TableCell>
+                      <TableCell>{ticket.createdAt ? format(ticket.createdAt.toDate(), 'PP') : '...'}</TableCell>
                       <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
                       <TableCell className="text-right">
                         {ticket.status === 'open' && (
@@ -236,7 +314,7 @@ export default function HelpdeskPage() {
                             <Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge>
                         </div>
                       <CardDescription>
-                        Category: {ticket.category} | Submitted on: {format(ticket.createdAt.toDate(), 'PPP')}
+                        Category: {ticket.category} | Submitted on: {ticket.createdAt ? format(ticket.createdAt.toDate(), 'PPP') : '...'}
                       </CardDescription>
                     </CardHeader>
                     <CardContent>
