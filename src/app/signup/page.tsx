@@ -120,7 +120,7 @@ export default function SignUpPage() {
         )}
         <div className="relative z-20 flex items-center text-lg font-medium">
           <BookOpen className="mr-2 h-6 w-6" />
-          DigiCampus
+          Campus Connect
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">

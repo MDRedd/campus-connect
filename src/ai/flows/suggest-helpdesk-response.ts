@@ -33,7 +33,7 @@ const prompt = ai.definePrompt({
   name: 'suggestHelpdeskResponsePrompt',
   input: {schema: SuggestHelpdeskResponseInputSchema},
   output: {schema: SuggestHelpdeskResponseOutputSchema},
-  prompt: `You are an AI assistant for the DigiCampus helpdesk. Your goal is to provide immediate, helpful answers to common student questions based on their issue description.
+  prompt: `You are an AI assistant for the Campus Connect helpdesk. Your goal is to provide immediate, helpful answers to common student questions based on their issue description.
 
   Keep your answers concise and actionable.
 

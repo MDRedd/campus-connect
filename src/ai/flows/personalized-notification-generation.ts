@@ -34,7 +34,7 @@ const prompt = ai.definePrompt({
   name: 'personalizedNotificationPrompt',
   input: {schema: PersonalizedNotificationInputSchema},
   output: {schema: PersonalizedNotificationOutputSchema},
-  prompt: `You are an AI assistant for DigiCampus designed to generate personalized notifications for students and faculty.
+  prompt: `You are an AI assistant for Campus Connect designed to generate personalized notifications for students and faculty.
 
   Given the user ID, their name (if available), the update type, and details, create a concise and engaging notification message.
 
