@@ -725,6 +725,70 @@
         "facultyId",
         "createdAt"
       ]
+    },
+    "CorrectionRequest": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "CorrectionRequest",
+      "type": "object",
+      "description": "Represents a student's request to correct an attendance record.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the CorrectionRequest entity."
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the User (Student) making the request."
+        },
+        "courseId": {
+          "type": "string",
+          "description": "Reference to the Course for which the correction is requested."
+        },
+        "attendanceId": {
+          "type": "string",
+          "description": "Reference to the specific Attendance record to be corrected."
+        },
+        "reason": {
+          "type": "string",
+          "description": "The reason provided by the student for the correction."
+        },
+        "status": {
+          "type": "string",
+          "description": "The current status of the request.",
+          "enum": [
+            "pending",
+            "approved",
+            "rejected"
+          ]
+        },
+        "requestedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the request was submitted."
+        },
+        "resolvedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "The timestamp when the request was resolved."
+        },
+        "resolverId": {
+          "type": "string",
+          "description": "Reference to the User (Faculty/Admin) who resolved the request."
+        },
+        "resolverComments": {
+          "type": "string",
+          "description": "Comments from the faculty/admin who resolved the request."
+        }
+      },
+      "required": [
+        "id",
+        "studentId",
+        "courseId",
+        "attendanceId",
+        "reason",
+        "status",
+        "requestedAt"
+      ]
     }
   },
   "auth": {
@@ -830,6 +894,12 @@
         "$ref": "#/backend/entities/AttendanceSession"
       },
       "description": "Stores live attendance data for a class session. Created by faculty, updated by students."
+    },
+    "/correctionRequests/{requestId}": {
+      "schema": {
+        "$ref": "#/backend/entities/CorrectionRequest"
+      },
+      "description": "Stores student-submitted requests for attendance corrections. Students can create, faculty/admins can read and update."
     }
   }
 }

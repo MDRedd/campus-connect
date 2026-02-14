@@ -242,5 +242,20 @@ service cloud.firestore {
       // No one can delete sessions or list all of them.
       allow delete, list: if false;
     }
+    
+    match /correctionRequests/{requestId} {
+      // Students can create their own correction requests.
+      allow create: if isSignedIn() && request.resource.data.studentId == request.auth.uid;
+      
+      // Students can view their own requests. Faculty and admins can view any request.
+      // NOTE: This allows any faculty member to see any request. A more secure rule would limit this to the faculty teaching the specific course.
+      allow get, list: if (isSignedIn() && isOwner(resource.data.studentId)) || isFacultyOrAnyAdmin();
+      
+      // Only faculty or admins can update (approve/reject) a request.
+      allow update: if isFacultyOrAnyAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'resolverId', 'resolvedAt', 'resolverComments']);
+      
+      // Only the student who created it or an admin can delete a PENDING request.
+      allow delete: if isAnyAdmin() || (isOwner(resource.data.studentId) && resource.data.status == 'pending');
+    }
   }
 }
