@@ -278,7 +278,7 @@ service cloud.firestore {
       allow get, list: if (isSignedIn() && resource.data.studentId == request.auth.uid) || isFacultyOrAnyAdmin();
 
       // Admins/Faculty can update to close the ticket.
-      allow update: if isFacultyOrAnyAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'resolvedAt', 'resolvedBy']);
+      allow update: if isFacultyOrAnyAdmin() && request.resource.data.diff(resource.data).affectedKeys().hasAny(['status', 'resolvedAt', 'resolvedBy', 'resolverComments']);
 
       // A student can delete their own open ticket. Admins can delete any.
       allow delete: if (isOwner(resource.data.studentId) && resource.data.status == 'open') || isAnyAdmin();

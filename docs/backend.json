@@ -911,6 +911,10 @@
         "resolvedBy": {
           "type": "string",
           "description": "Reference to the User (Faculty/Admin) who resolved the ticket."
+        },
+        "resolverComments": {
+            "type": "string",
+            "description": "Comments from the faculty/admin who resolved the ticket."
         }
       },
       "required": [
