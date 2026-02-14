@@ -12,8 +12,7 @@ import {
   CardContent,
   CardDescription
 } from '@/components/ui/card';
-import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { Clock, MapPin, PlusCircle, Pencil, Trash2 } from 'lucide-react';
+import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -33,6 +32,8 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
+import { cn } from '@/lib/utils';
+import React from 'react';
 
 type UserProfile = { id: string; name: string; role: string; };
 
@@ -63,6 +64,9 @@ const timetableSchema = z.object({
   meetingUrl: z.string().url('Please enter a valid URL.').optional().or(z.literal('')),
   semester: z.string().min(3, 'Semester is required.'),
   year: z.coerce.number().min(new Date().getFullYear(), 'Year cannot be in the past.'),
+}).refine(data => data.endTime > data.startTime, {
+    message: "End time must be after start time.",
+    path: ["endTime"],
 });
 
 
@@ -73,6 +77,28 @@ const daysOfWeek = [
   'Thursday',
   'Friday',
 ];
+
+const START_HOUR = 8;
+const END_HOUR = 18;
+
+const timeLabels = Array.from({ length: (END_HOUR - START_HOUR) }, (_, i) => {
+    const hour = START_HOUR + i;
+    return `${String(hour).padStart(2, '0')}:00`;
+});
+
+// Helper to convert time string (e.g., "09:30") to a grid row number.
+const timeToRow = (time: string) => {
+    if (!time || !time.includes(':')) return 1;
+    const [hours, minutes] = time.split(':').map(Number);
+    // Calculate the number of 30-minute intervals from the start hour
+    const totalIntervals = (hours - START_HOUR) * 2 + (minutes / 30);
+    return totalIntervals + 1; // grid rows are 1-indexed
+};
+
+const dayToCol = (day: string) => {
+    return daysOfWeek.indexOf(day) + 2; // +2 because col 1 is for time labels
+};
+
 
 export default function TimetablePage() {
     const { user: authUser, profile: userProfile, isUserLoading } = useUser();
@@ -132,7 +158,6 @@ export default function TimetablePage() {
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     const isStudentMatch = userProfile.role === 'student' && studentCourseIds.has(data.courseId);
-                    // Faculty or admin can see all their assigned/managed slots
                     const isFacultyMatch = userProfile.role === 'faculty' && data.facultyId === authUser.uid;
                     const canView = isStudentMatch || isFacultyMatch || isAdmin;
 
@@ -157,13 +182,6 @@ export default function TimetablePage() {
         fetchTimetable();
       }, [firestore, userProfile, authUser, allCourses, areAllCoursesLoading, enrolledCourses, areEnrollmentsLoading, isAdmin]);
 
-      const timetableByDay = useMemo(() => {
-        if (!fullTimetable) return null;
-        return daysOfWeek.reduce((acc, day) => {
-            acc[day] = fullTimetable.filter(t => t.dayOfWeek === day);
-            return acc;
-        }, {} as Record<string, Timetable[]>);
-      }, [fullTimetable]);
 
       const form = useForm<z.infer<typeof timetableSchema>>({
           resolver: zodResolver(timetableSchema),
@@ -216,11 +234,9 @@ export default function TimetablePage() {
 
         if (editingSlot) {
             const slotRef = doc(firestore, 'courses', editingSlot.courseId, 'timetables', editingSlot.id);
-            // Non-blocking update
             updateDocumentNonBlocking(slotRef, finalValues);
             toast({ title: 'Success', description: 'Timetable slot updated.' });
         } else {
-            // Non-blocking create
             const timetableRef = collection(firestore, 'courses', values.courseId, 'timetables');
             addDocumentNonBlocking(timetableRef, finalValues);
             toast({ title: 'Success', description: 'Timetable slot added.' });
@@ -231,7 +247,6 @@ export default function TimetablePage() {
       }
 
       const isLoading = isUserLoading || isTimetableLoading;
-      const today = new Date().toLocaleString('en-US', { weekday: 'long' });
       const coursesForForm = isAdmin ? allCourses : facultyCourses;
 
   return (
@@ -305,69 +320,91 @@ export default function TimetablePage() {
             </Dialog>
         )}
       </div>
-
-      <Tabs defaultValue={daysOfWeek.includes(today) ? today : 'Monday'} className="w-full">
-        <TabsList className="grid w-full grid-cols-2 sm:grid-cols-3 md:grid-cols-5">
-          {daysOfWeek.map((day) => (
-            <TabsTrigger key={day} value={day}>
-              {day}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-
-        {daysOfWeek.map((day) => (
-          <TabsContent key={day} value={day} className="mt-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>{day}'s Schedule</CardTitle>
-              </CardHeader>
-              <CardContent>
-                {isLoading ? (
-                    <div className="space-y-4">
-                        <Skeleton className="h-24 w-full" />
-                        <Skeleton className="h-24 w-full" />
+      
+        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+            {isLoading ? <Skeleton className="h-[600px] w-full" /> : (
+            <div
+                className="grid relative"
+                style={{
+                    gridTemplateColumns: '4rem repeat(5, 1fr)',
+                    gridTemplateRows: `2.5rem repeat(${(END_HOUR - START_HOUR) * 2}, 3rem)`,
+                }}
+            >
+                {/* Column Headers (Days) */}
+                <div />
+                {daysOfWeek.map((day, i) => (
+                    <div key={day} style={{ gridColumn: i + 2 }} className="text-center font-semibold p-2 border-b">
+                        {day}
                     </div>
-                ) : timetableByDay && timetableByDay[day].length > 0 ? (
-                  <ul className="space-y-4">
-                    {timetableByDay[day].map((entry) => (
-                      <li key={entry.id} className="rounded-lg border p-4 flex flex-col sm:flex-row sm:items-center sm:gap-4">
-                        <div className="flex-1">
-                          <p className="font-bold text-lg">{entry.course.name}</p>
-                          <p className="text-sm text-muted-foreground">{entry.course.code}</p>
-                        </div>
-                        <div className="flex flex-col sm:flex-row sm:items-center gap-4 text-sm mt-2 sm:mt-0">
-                            <div className="flex items-center gap-2">
-                                <Clock className="h-4 w-4 text-muted-foreground" />
-                                <span>{entry.startTime} - {entry.endTime}</span>
+                ))}
+                
+                {/* Row Headers (Times) and Grid Lines */}
+                {Array.from({ length: (END_HOUR - START_HOUR) * 2 }).map((_, i) => {
+                    const hour = START_HOUR + Math.floor(i / 2);
+                    const minute = (i % 2) * 30;
+                    const isHour = minute === 0;
+
+                    return (
+                        <React.Fragment key={i}>
+                            <div
+                                style={{ gridRow: i + 2 }}
+                                className={cn("text-right pr-2 text-muted-foreground", isHour ? 'text-xs -translate-y-2' : 'text-[10px] opacity-0')}
+                            >
+                                {isHour && `${String(hour).padStart(2, '0')}:00`}
                             </div>
-                             <div className="flex items-center gap-2">
-                                <MapPin className="h-4 w-4 text-muted-foreground" />
-                                <span>Room: {entry.room}</span>
+                            <div
+                                style={{ gridRow: i + 2, gridColumn: '2 / span 5' }}
+                                className={cn("border-t", isHour ? "border-border" : "border-dashed")}
+                            ></div>
+                        </React.Fragment>
+                    )
+                })}
+
+                {/* Timetable Entries */}
+                {fullTimetable?.map((entry, index) => {
+                    const rowStart = timeToRow(entry.startTime);
+                    const rowEnd = timeToRow(entry.endTime);
+                    const col = dayToCol(entry.dayOfWeek);
+                    const colorIndex = (entry.courseId.charCodeAt(0) % 5) + 1; // Consistent color per course
+
+                    if (rowStart === null || rowEnd === null || col === null) return null;
+                    
+                    return (
+                        <div
+                            key={entry.id}
+                            style={{
+                                gridRow: `${rowStart} / ${rowEnd}`,
+                                gridColumn: col
+                            }}
+                            className={cn(
+                                "relative m-px p-2 flex flex-col rounded-lg border",
+                                `bg-chart-${colorIndex}/10 border-chart-${colorIndex}/20 text-chart-${colorIndex}`
+                            )}
+                        >
+                            <p className="font-bold text-sm leading-tight">{entry.course.name}</p>
+                            <p className="text-xs">{entry.course.code}</p>
+                            <div className="mt-auto space-y-1 text-xs">
+                                <div className="flex items-center gap-1.5"><Clock className="h-3 w-3" />{entry.startTime} - {entry.endTime}</div>
+                                <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3" />{entry.room}</div>
                             </div>
-                             {canManageTimetable && (
-                                <div className="flex gap-2 sm:ml-4">
-                                    <Button variant="outline" size="sm" onClick={() => handleEdit(entry)}>
-                                        <Pencil className="mr-2 h-4 w-4" /> Edit
-                                    </Button>
-                                    <Button variant="destructive" size="sm" onClick={() => handleDelete(entry)}>
-                                        <Trash2 className="h-4 w-4" />
-                                    </Button>
+                            {entry.meetingUrl && (
+                                <a href={entry.meetingUrl} target="_blank" rel="noopener noreferrer" className="absolute top-1 right-1 p-1 rounded-full hover:bg-black/10">
+                                    <Video className="h-4 w-4" />
+                                </a>
+                            )}
+                            {canManageTimetable && (
+                                <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(entry)}><Pencil className="h-3 w-3"/></Button>
+                                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={() => handleDelete(entry)}><Trash2 className="h-3 w-3"/></Button>
                                 </div>
                             )}
                         </div>
-                      </li>
-                    ))}
-                  </ul>
-                ) : (
-                  <div className="text-center py-12 text-muted-foreground">
-                    <p>No classes scheduled for {day}.</p>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
-        ))}
-      </Tabs>
+                    )
+                })}
+            </div>
+            )}
+        </div>
     </div>
   );
-}
+
+    
