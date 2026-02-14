@@ -8,7 +8,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/com
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
-import { BookOpen } from 'lucide-react';
+import { BookOpen, KeyRound } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
 import { useEffect, useState } from 'react';
@@ -150,6 +150,19 @@ export default function LoginPage() {
                   Sign up
                 </Link>
               </div>
+            </CardContent>
+          </Card>
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Test Credentials</CardTitle>
+              <CardDescription className="text-xs">
+                Use these to explore different roles. The password for all is `password123`. New users may take a moment to appear.
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="text-sm grid gap-1">
+              <p><strong>Student:</strong> `2024001`</p>
+              <p><strong>Faculty:</strong> `FAC1001`</p>
+              <p><strong>Super Admin:</strong> `super.admin@college.edu`</p>
             </CardContent>
           </Card>
         </div>
