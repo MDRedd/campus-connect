@@ -1,8 +1,9 @@
 'use client';
 
 import { useMemo, useState } from 'react';
+import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, writeBatch, doc } from 'firebase/firestore';
+import { collection, query, writeBatch, doc, where } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -13,7 +14,7 @@ import {
 } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { CreditCard, DollarSign } from 'lucide-react';
+import { CreditCard, DollarSign, Users } from 'lucide-react';
 import { format } from 'date-fns';
 import { Badge } from '@/components/ui/badge';
 import { Separator } from '@/components/ui/separator';
@@ -29,6 +30,9 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
 
 type Fee = {
   id: string;
@@ -39,17 +43,35 @@ type Fee = {
   status: 'Paid' | 'Unpaid' | 'Overdue';
 };
 
+type UserProfile = {
+  id: string;
+  name: string;
+  email: string;
+  rollNumber?: string;
+}
+
 export default function FeesPage() {
   const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const [isPaying, setIsPaying] = useState(false);
+  const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
-  const feesQuery = useMemoFirebase(() => {
-    if (!firestore || !authUser) return null;
+  // --- Student Data ---
+  const studentFeesQuery = useMemoFirebase(() => {
+    if (!firestore || !authUser || userProfile?.role !== 'student') return null;
     return query(collection(firestore, 'users', authUser.uid, 'fees'));
-  }, [firestore, authUser]);
-  const { data: fees, isLoading: areFeesLoading } = useCollection<Fee>(feesQuery);
+  }, [firestore, authUser, userProfile]);
+  const { data: fees, isLoading: areFeesLoading } = useCollection<Fee>(studentFeesQuery);
+
+  // --- Admin Data ---
+  const isFeeAdmin = userProfile?.role === 'super-admin';
+  const studentsQuery = useMemoFirebase(() => {
+      if (!firestore || !isFeeAdmin) return null;
+      return query(collection(firestore, 'users'), where('role', '==', 'student'));
+  }, [firestore, isFeeAdmin]);
+  const { data: allStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(studentsQuery);
+
 
   const totalDue = useMemo(() => {
     if (!fees) return 0;
@@ -61,7 +83,7 @@ export default function FeesPage() {
     }, 0);
   }, [fees]);
 
-  const isLoading = isUserLoading || areFeesLoading;
+  const isLoading = isUserLoading || areFeesLoading || (isFeeAdmin && areStudentsLoading);
 
   const getStatusVariant = (status: Fee['status']) => {
     switch (status) {
@@ -119,111 +141,162 @@ export default function FeesPage() {
     );
   }
 
-  if (userProfile?.role !== 'student') {
+  // --- Admin View ---
+  if (isFeeAdmin) {
     return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Access Denied</CardTitle>
-                <CardDescription>Only students can view the fees page.</CardDescription>
-            </CardHeader>
-        </Card>
+        <div className="flex flex-col gap-6">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Fee Management</h1>
+                <p className="text-muted-foreground">Manage fee records for all students.</p>
+            </div>
+            <Card>
+                <CardHeader>
+                    <CardTitle>All Students</CardTitle>
+                    <CardDescription>Select a student to view and manage their fees.</CardDescription>
+                </CardHeader>
+                <CardContent>
+                    <Table>
+                        <TableHeader>
+                            <TableRow>
+                                <TableHead>Student</TableHead>
+                                <TableHead>Roll Number</TableHead>
+                                <TableHead className="text-right">Actions</TableHead>
+                            </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                        {areStudentsLoading ? (
+                            [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={3}><Skeleton className="h-10" /></TableCell></TableRow>)
+                        ) : allStudents && allStudents.length > 0 ? (
+                            allStudents.map(student => (
+                                <TableRow key={student.id}>
+                                    <TableCell>
+                                        <div className="flex items-center gap-3">
+                                            <Avatar className="h-9 w-9">
+                                                {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={student.name} data-ai-hint="person portrait" />}
+                                                <AvatarFallback>{student.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                                            </Avatar>
+                                            <div className="font-medium">{student.name}</div>
+                                        </div>
+                                    </TableCell>
+                                    <TableCell>{student.rollNumber || 'N/A'}</TableCell>
+                                    <TableCell className="text-right">
+                                        <Button asChild>
+                                            <Link href={`/fees/${student.id}`}>Manage Fees</Link>
+                                        </Button>
+                                    </TableCell>
+                                </TableRow>
+                            ))
+                        ) : (
+                            <TableRow><TableCell colSpan={3} className="h-24 text-center">No students found.</TableCell></TableRow>
+                        )}
+                        </TableBody>
+                    </Table>
+                </CardContent>
+            </Card>
+        </div>
     )
   }
+  
+  // --- Student View ---
+  if (userProfile?.role === 'student') {
+    return (
+        <div className="flex flex-col gap-6">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">Fee Status</h1>
+            <p className="text-muted-foreground">
+            View your fee details, payment history, and pay outstanding dues.
+            </p>
+        </div>
 
-  return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Fee Status</h1>
-        <p className="text-muted-foreground">
-          View your fee details, payment history, and pay outstanding dues.
-        </p>
-      </div>
-
-      <Card>
-        <CardHeader>
-          <CardTitle>Summary</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-between text-2xl font-bold">
-            <span>Total Amount Due</span>
-            <span>${totalDue.toFixed(2)}</span>
-          </div>
-        </CardContent>
-        <CardFooter>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button disabled={totalDue === 0 || isPaying}>
-                <DollarSign className="mr-2 h-4 w-4" />
-                {isPaying ? 'Processing...' : 'Pay Total Due'}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-                <AlertDialogDescription>
-                  You are about to pay a total of ${totalDue.toFixed(2)}. This will clear all your outstanding dues. This action is for demonstration purposes.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={handlePayDues}>Confirm and Pay</AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </CardFooter>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-            <CardTitle>Fee Details</CardTitle>
-            <CardDescription>A breakdown of your fees for the current academic session.</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-        {fees && fees.length > 0 ? (
-            fees.map((fee) => (
-                <div key={fee.id} className="rounded-lg border p-4 space-y-3">
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <h3 className="font-semibold">{fee.description}</h3>
-                            <p className="text-sm text-muted-foreground">
-                                Due by: {fee.dueDate ? format(fee.dueDate.toDate(), 'PPP') : 'N/A'}
-                            </p>
-                        </div>
-                        <Badge variant={getStatusVariant(fee.status)}>{fee.status}</Badge>
-                    </div>
-                    <Separator />
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                        <div>
-                            <p className="text-muted-foreground">Total Amount</p>
-                            <p className="font-medium">${fee.totalAmount.toFixed(2)}</p>
-                        </div>
-                         <div>
-                            <p className="text-muted-foreground">Amount Paid</p>
-                            <p className="font-medium">${fee.amountPaid.toFixed(2)}</p>
-                        </div>
-                         <div>
-                            <p className="text-muted-foreground">Amount Due</p>
-                            <p className="font-medium text-destructive">${(fee.totalAmount - fee.amountPaid).toFixed(2)}</p>
-                        </div>
-                    </div>
-                    {fee.status !== 'Paid' && (
-                         <div className="flex justify-end">
-                            <Button size="sm" variant="outline" disabled>
-                                <CreditCard className="mr-2 h-4 w-4" /> Pay Now
-                            </Button>
-                        </div>
-                    )}
-                </div>
-            ))
-        ) : (
-            <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                <DollarSign className="h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No Fees Found</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Your fee details will appear here.</p>
+        <Card>
+            <CardHeader>
+            <CardTitle>Summary</CardTitle>
+            </CardHeader>
+            <CardContent>
+            <div className="flex items-center justify-between text-2xl font-bold">
+                <span>Total Amount Due</span>
+                <span>${totalDue.toFixed(2)}</span>
             </div>
-        )}
-        </CardContent>
-      </Card>
-    </div>
-  );
+            </CardContent>
+            <CardFooter>
+            <AlertDialog>
+                <AlertDialogTrigger asChild>
+                <Button disabled={totalDue === 0 || isPaying}>
+                    <DollarSign className="mr-2 h-4 w-4" />
+                    {isPaying ? 'Processing...' : 'Pay Total Due'}
+                </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                <AlertDialogHeader>
+                    <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
+                    <AlertDialogDescription>
+                    You are about to pay a total of ${totalDue.toFixed(2)}. This will clear all your outstanding dues. This action is for demonstration purposes.
+                    </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction onClick={handlePayDues}>Confirm and Pay</AlertDialogAction>
+                </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
+            </CardFooter>
+        </Card>
+        
+        <Card>
+            <CardHeader>
+                <CardTitle>Fee Details</CardTitle>
+                <CardDescription>A breakdown of your fees for the current academic session.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+            {fees && fees.length > 0 ? (
+                fees.map((fee) => (
+                    <div key={fee.id} className="rounded-lg border p-4 space-y-3">
+                        <div className="flex justify-between items-start">
+                            <div>
+                                <h3 className="font-semibold">{fee.description}</h3>
+                                <p className="text-sm text-muted-foreground">
+                                    Due by: {fee.dueDate ? format(fee.dueDate.toDate(), 'PPP') : 'N/A'}
+                                </p>
+                            </div>
+                            <Badge variant={getStatusVariant(fee.status)}>{fee.status}</Badge>
+                        </div>
+                        <Separator />
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                            <div>
+                                <p className="text-muted-foreground">Total Amount</p>
+                                <p className="font-medium">${fee.totalAmount.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Amount Paid</p>
+                                <p className="font-medium">${fee.amountPaid.toFixed(2)}</p>
+                            </div>
+                            <div>
+                                <p className="text-muted-foreground">Amount Due</p>
+                                <p className="font-medium text-destructive">${(fee.totalAmount - fee.amountPaid).toFixed(2)}</p>
+                            </div>
+                        </div>
+                    </div>
+                ))
+            ) : (
+                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                    <DollarSign className="h-12 w-12 text-muted-foreground" />
+                    <h3 className="mt-4 text-lg font-semibold">No Fees Found</h3>
+                    <p className="mt-1 text-sm text-muted-foreground">Your fee details will appear here.</p>
+                </div>
+            )}
+            </CardContent>
+        </Card>
+        </div>
+    );
+  }
+
+  // Fallback for other roles (e.g., faculty)
+  return (
+    <Card>
+        <CardHeader>
+            <CardTitle>Access Denied</CardTitle>
+            <CardDescription>Only students or fee administrators can view this page.</CardDescription>
+        </CardHeader>
+    </Card>
+  )
 }

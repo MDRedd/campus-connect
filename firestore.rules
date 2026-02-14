@@ -230,8 +230,8 @@ service cloud.firestore {
     }
 
     match /users/{userId}/fees/{feeId} {
-      // Students can view their own fees.
-      allow get, list: if isOwner(userId);
+      // Students can view their own fees, Admins can see any fees.
+      allow get, list: if isOwner(userId) || isAnyAdmin();
       // NOTE: For this prototype, students can update their own fee status to simulate payment.
       // In a production app, this would be handled by a secure backend function triggered by a payment provider.
       allow update: if isOwner(userId) || isAnyAdmin();

@@ -67,6 +67,11 @@ export const getNavItems = (role: UserRole) => {
     items.push({ href: '/announcements', icon: Megaphone, label: 'Announcements' });
     items.push({ href: '/engagement', icon: Users, label: 'Engagement' });
     items.push({ href: '/helpdesk', icon: LifeBuoy, label: 'Helpdesk' });
+    
+    // Super Admins can manage fees
+    if (role === 'super-admin') {
+        items.push({ href: '/fees', icon: CreditCard, label: 'Fee Management' });
+    }
 
     // A super-admin gets all faculty privileges as well, for simplicity.
     if (role === 'super-admin') {
