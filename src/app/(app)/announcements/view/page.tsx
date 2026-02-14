@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -40,10 +41,10 @@ export default function ViewAnnouncementsPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfile>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isAuthUserLoading) return null;
     // Fetch all announcements and filter on the client.
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'));
-  }, [firestore]);
+  }, [firestore, isAuthUserLoading]);
   const { data: allAnnouncements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
 
   const announcements = useMemo(() => {

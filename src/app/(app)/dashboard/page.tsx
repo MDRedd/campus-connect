@@ -63,9 +63,9 @@ export default function DashboardPage() {
   const { data: userProfile, isLoading: isUserProfileLoading } = useDoc<UserProfileData>(userDocRef);
 
   const announcementsQuery = useMemoFirebase(() => {
-    if (!firestore) return null;
+    if (!firestore || isAuthUserLoading) return null;
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'), limit(3));
-  }, [firestore]);
+  }, [firestore, isAuthUserLoading]);
   const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
 
 
