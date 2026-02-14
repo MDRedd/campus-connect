@@ -39,6 +39,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
+import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 
 type Announcement = {
   id: string;
@@ -47,6 +48,12 @@ type Announcement = {
   targetAudience: 'all' | 'students' | 'faculty';
   date: any; // Can be Timestamp or string
   postedBy: string;
+};
+
+type UserForNotification = {
+  id: string;
+  name: string;
+  role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
 };
 
 const announcementSchema = z.object({
@@ -69,6 +76,16 @@ export default function AnnouncementsPage() {
   }, [firestore]);
   const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
   
+  const allUsersQuery = useMemoFirebase(() => {
+    if (!firestore) return null;
+    // We only need this if we're an admin posting an announcement
+    if (currentUserProfile?.role.includes('admin') || currentUserProfile?.role === 'faculty') {
+        return collection(firestore, 'users');
+    }
+    return null;
+  }, [firestore, currentUserProfile]);
+  const { data: allUsers } = useCollection<UserForNotification>(allUsersQuery);
+
   const form = useForm<z.infer<typeof announcementSchema>>({
     resolver: zodResolver(announcementSchema),
   });
@@ -104,6 +121,8 @@ export default function AnnouncementsPage() {
   function onSubmit(values: z.infer<typeof announcementSchema>) {
     if (!firestore || !authUser) return;
     
+    const isNewAnnouncement = !editingAnnouncement;
+
     if (editingAnnouncement) {
         const announcementRef = doc(firestore, 'announcements', editingAnnouncement.id);
         updateDocumentNonBlocking(announcementRef, {
@@ -123,6 +142,40 @@ export default function AnnouncementsPage() {
     setOpenDialog(false);
     setEditingAnnouncement(null);
     form.reset();
+
+    // ADD NOTIFICATION LOGIC - only for new announcements
+    if (isNewAnnouncement && allUsers && allUsers.length > 0) {
+        toast({ title: 'Sending Notifications', description: 'Alerting relevant users...' });
+
+        // Run notification generation in the background
+        (async () => {
+            const targetUsers = allUsers.filter(user => {
+                if (values.targetAudience === 'all') return true;
+                if (values.targetAudience === 'students' && user.role === 'student') return true;
+                if (values.targetAudience === 'faculty' && user.role === 'faculty') return true;
+                return false;
+            });
+            
+            for (const user of targetUsers) {
+                try {
+                    const notificationResult = await generatePersonalizedNotification({
+                        userId: user.id,
+                        userName: user.name,
+                        updateType: 'generalAnnouncement',
+                        details: `Title: ${values.title}\n\n${values.description}`,
+                    });
+                    addDocumentNonBlocking(collection(firestore, 'users', user.id, 'notifications'), {
+                        userId: user.id,
+                        message: notificationResult.notificationMessage,
+                        read: false,
+                        createdAt: new Date().toISOString(),
+                    });
+                } catch (e) {
+                    console.error(`Failed to generate or send notification for user ${user.id}`, e);
+                }
+            }
+        })();
+    }
   }
 
   const isLoading = isUserLoading || areAnnouncementsLoading;

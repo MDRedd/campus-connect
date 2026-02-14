@@ -242,7 +242,8 @@ export default function AcademicsPage() {
                 if (!enrollmentSnapshot.empty) {
                     try {
                         const notificationResult = await generatePersonalizedNotification({
-                            studentId: student.id,
+                            userId: student.id,
+                            userName: student.name,
                             updateType: 'assignmentDeadline',
                             details: `A new assignment "${values.title}" for course "${course?.name || 'Unknown Course'}" is due on ${format(new Date(values.deadline), 'PPP')}.`,
                         });
