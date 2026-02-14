@@ -133,7 +133,7 @@ service cloud.firestore {
 
     match /courses/{courseId}/timetables/{timetableId} {
       allow get, list: if isSignedIn();
-      allow create: if isFaculty() && request.resource.data.facultyId == request.auth.uid;
+      allow create: if isCourseAdmin() || (isFaculty() && request.resource.data.facultyId == request.auth.uid);
       allow update, delete: if (isFaculty() && resource.data.facultyId == request.auth.uid) || isCourseAdmin();
     }
 

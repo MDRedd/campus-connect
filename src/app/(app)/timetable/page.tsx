@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -33,6 +34,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
+type UserProfile = { id: string; name: string; role: string; };
+
 type Timetable = {
     id: string;
     courseId: string;
@@ -52,6 +55,7 @@ type Timetable = {
 
 const timetableSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
+  facultyId: z.string().optional(), // Optional for faculty, required for admin
   dayOfWeek: z.string().min(1, 'Please select a day.'),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
@@ -78,6 +82,9 @@ export default function TimetablePage() {
     const [openDialog, setOpenDialog] = useState(false);
     const [editingSlot, setEditingSlot] = useState<Timetable | null>(null);
 
+    const canManageTimetable = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
+    const isAdmin = !!userProfile?.role.includes('admin');
+
     const coursesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return collection(firestore, 'courses');
@@ -101,6 +108,13 @@ export default function TimetablePage() {
 
     const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
+    const allFacultyQuery = useMemoFirebase(() => {
+        if (!firestore || !isAdmin) return null;
+        return query(collection(firestore, 'users'), where('role', '==', 'faculty'));
+    }, [firestore, isAdmin]);
+    const { data: allFaculty, isLoading: areFacultyUsersLoading } = useCollection<UserProfile>(allFacultyQuery);
+
+
     useEffect(() => {
         if (!firestore || !userProfile || !authUser || areAllCoursesLoading || !allCourses) return;
 
@@ -118,9 +132,11 @@ export default function TimetablePage() {
                 querySnapshot.forEach((doc) => {
                     const data = doc.data();
                     const isStudentMatch = userProfile.role === 'student' && studentCourseIds.has(data.courseId);
+                    // Faculty or admin can see all their assigned/managed slots
                     const isFacultyMatch = userProfile.role === 'faculty' && data.facultyId === authUser.uid;
+                    const canView = isStudentMatch || isFacultyMatch || isAdmin;
 
-                    if (isStudentMatch || isFacultyMatch) {
+                    if (canView) {
                         const course = courseMap.get(data.courseId);
                         if (course) {
                             allTimetableEntries.push({ id: doc.id, ...data, course: { name: course.name, code: course.code } } as Timetable);
@@ -139,7 +155,7 @@ export default function TimetablePage() {
         };
     
         fetchTimetable();
-      }, [firestore, userProfile, authUser, allCourses, areAllCoursesLoading, enrolledCourses, areEnrollmentsLoading, facultyCourses, areFacultyCoursesLoading]);
+      }, [firestore, userProfile, authUser, allCourses, areAllCoursesLoading, enrolledCourses, areEnrollmentsLoading, isAdmin]);
 
       const timetableByDay = useMemo(() => {
         if (!fullTimetable) return null;
@@ -164,6 +180,7 @@ export default function TimetablePage() {
         setEditingSlot(slot);
         form.reset({
             courseId: slot.courseId,
+            facultyId: slot.facultyId,
             dayOfWeek: slot.dayOfWeek,
             startTime: slot.startTime,
             endTime: slot.endTime,
@@ -184,20 +201,28 @@ export default function TimetablePage() {
     };
 
       function onTimetableSubmit(values: z.infer<typeof timetableSchema>) {
-        if (!firestore || !authUser) return;
+        if (!firestore || !authUser || !userProfile) return;
+
+        let finalValues: any = { ...values };
+
+        if (isAdmin) {
+          if (!values.facultyId) {
+            toast({ variant: 'destructive', title: 'Error', description: 'Please select a faculty member.'});
+            return;
+          }
+        } else { // Is Faculty
+          finalValues.facultyId = authUser.uid;
+        }
 
         if (editingSlot) {
             const slotRef = doc(firestore, 'courses', editingSlot.courseId, 'timetables', editingSlot.id);
             // Non-blocking update
-            updateDocumentNonBlocking(slotRef, values);
+            updateDocumentNonBlocking(slotRef, finalValues);
             toast({ title: 'Success', description: 'Timetable slot updated.' });
         } else {
             // Non-blocking create
             const timetableRef = collection(firestore, 'courses', values.courseId, 'timetables');
-            addDocumentNonBlocking(timetableRef, {
-                ...values,
-                facultyId: authUser.uid,
-            });
+            addDocumentNonBlocking(timetableRef, finalValues);
             toast({ title: 'Success', description: 'Timetable slot added.' });
         }
         
@@ -207,6 +232,7 @@ export default function TimetablePage() {
 
       const isLoading = isUserLoading || isTimetableLoading;
       const today = new Date().toLocaleString('en-US', { weekday: 'long' });
+      const coursesForForm = isAdmin ? allCourses : facultyCourses;
 
   return (
     <div className="flex flex-col gap-6">
@@ -214,16 +240,17 @@ export default function TimetablePage() {
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Class Timetable</h1>
             <p className="text-muted-foreground">
-            {userProfile?.role === 'faculty' ? "Manage your weekly class schedule." : "Your weekly class schedule."}
+            {canManageTimetable ? "Manage your weekly class schedule." : "Your weekly class schedule."}
             </p>
         </div>
-        {userProfile?.role === 'faculty' && (
+        {canManageTimetable && (
             <Dialog open={openDialog} onOpenChange={setOpenDialog}>
                 <DialogTrigger asChild>
                     <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> {editingSlot ? 'Edit Slot' : 'Add Slot'}</Button>
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editingSlot ? 'Edit Timetable Slot' : 'Add New Timetable Slot'}</DialogTitle></DialogHeader>
+                    { (areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96" /> : (
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4">
                             <FormField control={form.control} name="courseId" render={({ field }) => (
@@ -231,11 +258,25 @@ export default function TimetablePage() {
                                 <FormLabel>Course</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                    <SelectContent>{facultyCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>{coursesForForm?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                 </Select>
                                 <FormMessage />
                                 </FormItem>
                             )} />
+
+                            {isAdmin && (
+                                <FormField control={form.control} name="facultyId" render={({ field }) => (
+                                    <FormItem>
+                                    <FormLabel>Faculty</FormLabel>
+                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a faculty member" /></SelectTrigger></FormControl>
+                                        <SelectContent>{allFaculty?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
+                                    </Select>
+                                    <FormMessage />
+                                    </FormItem>
+                                )} />
+                            )}
+
                             <FormField control={form.control} name="dayOfWeek" render={({ field }) => (
                                 <FormItem>
                                 <FormLabel>Day of Week</FormLabel>
@@ -259,6 +300,7 @@ export default function TimetablePage() {
                             <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingSlot ? 'Save Changes' : 'Add Slot'}</Button></DialogFooter>
                         </form>
                     </Form>
+                    )}
                 </DialogContent>
             </Dialog>
         )}
@@ -302,7 +344,7 @@ export default function TimetablePage() {
                                 <MapPin className="h-4 w-4 text-muted-foreground" />
                                 <span>Room: {entry.room}</span>
                             </div>
-                             {userProfile?.role === 'faculty' && (
+                             {canManageTimetable && (
                                 <div className="flex gap-2 sm:ml-4">
                                     <Button variant="outline" size="sm" onClick={() => handleEdit(entry)}>
                                         <Pencil className="mr-2 h-4 w-4" /> Edit
