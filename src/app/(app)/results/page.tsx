@@ -150,11 +150,11 @@ export default function ResultsPage() {
     const coursesForManager = userProfile?.role === 'faculty' ? facultyCourses : allCourses;
   
     useEffect(() => {
-        if (!canManageResults || !firestore || areAllCoursesLoading || areStudentsLoading) return;
-        if (!coursesForManager || !allStudents) {
-            setAreFacultyResultsLoading(false);
+        if (!canManageResults || !firestore || areAllCoursesLoading || areStudentsLoading || !coursesForManager || !allStudents) {
+             if (!areAllCoursesLoading && !areStudentsLoading) setAreFacultyResultsLoading(false);
             return;
         }
+
         if (coursesForManager.length === 0) {
             setFacultyResults([]);
             setAreFacultyResultsLoading(false);
@@ -166,15 +166,16 @@ export default function ResultsPage() {
             const results: (Result & { studentName: string; courseCode: string; })[] = [];
             const studentMap = new Map(allStudents.map(s => [s.id, s.name]));
             const courseMap = new Map(coursesForManager.map(c => [c.id, c.code]));
+            const courseIds = coursesForManager.map(c => c.id);
 
             try {
-                const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', 'in', coursesForManager.map(c => c.id)));
+                const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', 'in', courseIds));
                 const querySnapshot = await getDocs(resultsQuery);
                 
                 querySnapshot.forEach(docSnap => {
                     const data = docSnap.data() as Result;
                     const parentPath = docSnap.ref.parent.parent;
-                    if (parentPath) {
+                    if (parentPath && studentMap.has(parentPath.id)) {
                         results.push({
                             ...data,
                             id: docSnap.id,
