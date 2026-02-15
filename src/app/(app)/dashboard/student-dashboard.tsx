@@ -142,8 +142,8 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     }, [firestore, allCourses, areAllCoursesLoading, authUser, studentEnrollments, areStudentEnrollmentsLoading, studentAttendance, isStudentAttendanceLoading]);
 
     useEffect(() => {
-        if (!firestore || !userProfile || !authUser || !allCourses || areStudentEnrollmentsLoading || !studentEnrollments) {
-             if (!areStudentEnrollmentsLoading) setAreTodaysClassesLoading(false);
+        if (!firestore || !userProfile || !authUser || areAllCoursesLoading || !allCourses || areStudentEnrollmentsLoading || !studentEnrollments) {
+             if (!areStudentEnrollmentsLoading && !areAllCoursesLoading) setAreTodaysClassesLoading(false);
             return;
         }
 
@@ -157,19 +157,23 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             }
             try {
                 const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
-                const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', enrolledCourseIds));
-                const querySnapshot = await getDocs(timetablesQuery);
                 const courseMap = new Map(allCourses.map(c => [c.id, c]));
                 const allClasses: UpcomingClass[] = [];
-                querySnapshot.docs
-                    .filter(doc => doc.data().dayOfWeek === today)
-                    .forEach(doc => {
-                        const data = doc.data();
-                        const course = courseMap.get(data.courseId);
-                        if (course) {
-                            allClasses.push({ id: doc.id, ...data, course: { name: course.name } } as UpcomingClass);
-                        }
-                    });
+
+                for (const courseId of enrolledCourseIds) {
+                    const timetablesQuery = query(
+                        collection(firestore, 'courses', courseId, 'timetables'),
+                        where('dayOfWeek', '==', today)
+                    );
+                    const querySnapshot = await getDocs(timetablesQuery);
+                    const course = courseMap.get(courseId);
+                    if (course) {
+                        querySnapshot.forEach(doc => {
+                             allClasses.push({ id: doc.id, ...doc.data(), course: { name: course.name } } as UpcomingClass);
+                        });
+                    }
+                }
+
                 allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
                 setTodaysClasses(allClasses);
             } catch (error) {
@@ -180,7 +184,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             }
         };
         fetchTodaysClasses();
-    }, [firestore, userProfile, authUser, allCourses, studentEnrollments, areStudentEnrollmentsLoading]);
+    }, [firestore, userProfile, authUser, allCourses, areAllCoursesLoading, studentEnrollments, areStudentEnrollmentsLoading]);
 
     const attendanceData = useMemo(() => {
         if (isStudentAttendanceLoading || areAllCoursesLoading || !studentAttendance || !allCourses || !studentEnrollments) return null;

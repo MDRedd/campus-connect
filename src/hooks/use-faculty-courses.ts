@@ -1,8 +1,8 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase } from '@/firebase';
-import { collection, query, where, getDocs, limit } from 'firebase/firestore';
+import { useUser, useFirestore } from '@/firebase';
+import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import { useToast } from './use-toast';
 
@@ -14,16 +14,11 @@ export function useFacultyCourses() {
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
 
-    const allCoursesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return collection(firestore, 'courses');
-    }, [firestore]);
-    const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
-
     useEffect(() => {
-        if (isAuthUserLoading || areAllCoursesLoading || !firestore || !authUser || !allCourses) {
-             if (!isAuthUserLoading && !areAllCoursesLoading) {
+        if (isAuthUserLoading || !firestore || !authUser) {
+             if (!isAuthUserLoading) {
                 setIsLoading(false);
+                setFacultyCourses([]);
              }
             return;
         }
@@ -31,42 +26,43 @@ export function useFacultyCourses() {
         const fetchCourses = async () => {
             setIsLoading(true);
             try {
-                const facultyCourseIds = new Set<string>();
-                
-                // This is less efficient than a collectionGroup query but avoids the need for a custom index.
-                // We check each course to see if the current faculty teaches it.
-                const courseChecks = allCourses.map(async (course) => {
-                    const timetableQuery = query(
-                        collection(firestore, 'courses', course.id, 'timetables'),
-                        where('facultyId', '==', authUser.uid),
-                        limit(1)
-                    );
-                    const timetableSnapshot = await getDocs(timetableQuery);
-                    if (!timetableSnapshot.empty) {
-                        return course.id;
-                    }
-                    return null;
-                });
-                
-                const results = await Promise.all(courseChecks);
-                results.forEach(courseId => {
-                    if (courseId) {
-                        facultyCourseIds.add(courseId);
-                    }
-                });
+                // Step 1: Efficiently find all timetable entries for the current faculty.
+                const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
+                const timetableSnapshot = await getDocs(timetablesQuery);
 
-                const courseIds = Array.from(facultyCourseIds);
-                if (courseIds.length > 0) {
-                    setFacultyCourses(allCourses.filter(course => courseIds.includes(course.id)));
+                if (timetableSnapshot.empty) {
+                    setFacultyCourses([]);
+                    setIsLoading(false);
+                    return;
+                }
+
+                // Step 2: Get unique course IDs from the timetable entries.
+                const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+
+                // Step 3: Fetch the full course documents for those IDs.
+                if (facultyCourseIds.length > 0) {
+                    const coursesData: Course[] = [];
+                    // Firestore 'in' query is limited to 30 items per query. Chunking handles this.
+                    for (let i = 0; i < facultyCourseIds.length; i += 30) {
+                        const chunk = facultyCourseIds.slice(i, i + 30);
+                        const coursesQuery = query(collection(firestore, 'courses'), where('id', 'in', chunk));
+                        const coursesSnapshot = await getDocs(coursesQuery);
+                        coursesSnapshot.forEach(doc => {
+                            coursesData.push({ id: doc.id, ...(doc.data() as Omit<Course, 'id'>) });
+                        });
+                    }
+                    setFacultyCourses(coursesData);
                 } else {
                     setFacultyCourses([]);
                 }
+                
             } catch (error) {
                 console.error("Error fetching faculty courses:", error);
+                // The error will be caught by the global error listener, but we can also toast.
                 toast({
                     variant: 'destructive',
-                    title: 'Error',
-                    description: 'Could not fetch your courses.',
+                    title: 'Error fetching courses',
+                    description: 'You may not have the required permissions to view your courses.',
                 });
                 setFacultyCourses([]);
             } finally {
@@ -75,7 +71,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, allCourses, areAllCoursesLoading, isAuthUserLoading, toast]);
+    }, [firestore, authUser, isAuthUserLoading, toast]);
 
     return { facultyCourses, isLoading };
 }

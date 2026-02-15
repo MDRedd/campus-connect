@@ -142,35 +142,51 @@ export default function TimetablePage() {
 
 
     useEffect(() => {
-        if (!firestore || !userProfile || !authUser || areAllCoursesLoading || !allCourses) return;
+        if (isUserLoading || areAllCoursesLoading || !userProfile || !firestore || !allCourses) {
+            return;
+        }
+
+        // Determine which courses to fetch timetables for
+        let targetCourses: Course[] | null = null;
+        if (userProfile.role === 'student') {
+            if (areEnrollmentsLoading || !enrolledCourses) return;
+            targetCourses = enrolledCourses;
+        } else if (userProfile.role === 'faculty') {
+            if (areFacultyCoursesLoading || !facultyCourses) return;
+            targetCourses = facultyCourses;
+        } else if (isAdmin) {
+            targetCourses = allCourses;
+        }
+
+        if (targetCourses === null) {
+            setFullTimetable([]);
+            setIsTimetableLoading(false);
+            return;
+        }
 
         const fetchTimetable = async () => {
           setIsTimetableLoading(true);
-          const allTimetableEntries: Timetable[] = [];
-          
           try {
-                const timetablesQuery = query(collectionGroup(firestore, 'timetables'));
-                const querySnapshot = await getDocs(timetablesQuery);
-                const courseMap = new Map(allCourses.map(c => [c.id, c]));
+            const courseMap = new Map(allCourses.map(c => [c.id, c]));
 
-                const studentCourseIds = new Set(enrolledCourses?.map(c => c.id) ?? []);
-
-                querySnapshot.forEach((doc) => {
+            const timetablePromises = targetCourses!.map(async (course) => {
+                const timetableQuery = query(collection(firestore, 'courses', course.id, 'timetables'));
+                const querySnapshot = await getDocs(timetableQuery);
+                return querySnapshot.docs.map(doc => {
                     const data = doc.data();
-                    const isStudentMatch = userProfile.role === 'student' && studentCourseIds.has(data.courseId);
-                    const isFacultyMatch = userProfile.role === 'faculty' && data.facultyId === authUser.uid;
-                    const canView = isStudentMatch || isFacultyMatch || isAdmin;
-
-                    if (canView) {
-                        const course = courseMap.get(data.courseId);
-                        if (course) {
-                            allTimetableEntries.push({ id: doc.id, ...data, course: { name: course.name, code: course.code } } as Timetable);
-                        }
+                    const courseDetails = courseMap.get(data.courseId);
+                    if (courseDetails) {
+                        return { id: doc.id, ...data, course: { name: courseDetails.name, code: courseDetails.code } } as Timetable;
                     }
-                });
+                    return null;
+                }).filter((e): e is Timetable => e !== null);
+            });
             
-            allTimetableEntries.sort((a, b) => a.startTime.localeCompare(b.startTime));
-            setFullTimetable(allTimetableEntries);
+            const results = await Promise.all(timetablePromises);
+            const flattenedResults = results.flat();
+            
+            flattenedResults.sort((a, b) => a.startTime.localeCompare(b.startTime));
+            setFullTimetable(flattenedResults);
           } catch (error) {
             errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
             setFullTimetable([]);
@@ -180,7 +196,10 @@ export default function TimetablePage() {
         };
     
         fetchTimetable();
-      }, [firestore, userProfile, authUser, allCourses, areAllCoursesLoading, enrolledCourses, areEnrollmentsLoading, isAdmin]);
+      }, [
+          isUserLoading, areAllCoursesLoading, userProfile, firestore, allCourses,
+          areEnrollmentsLoading, enrolledCourses, areFacultyCoursesLoading, facultyCourses, isAdmin
+      ]);
 
 
       const form = useForm<z.infer<typeof timetableSchema>>({
@@ -377,7 +396,7 @@ export default function TimetablePage() {
                                 gridColumn: col
                             }}
                             className={cn(
-                                "relative m-px p-2 flex flex-col rounded-lg border",
+                                "relative m-px p-2 flex flex-col rounded-lg border group",
                                 `bg-chart-${colorIndex}/10 border-chart-${colorIndex}/20 text-chart-${colorIndex}`
                             )}
                         >

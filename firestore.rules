@@ -202,7 +202,10 @@ service cloud.firestore {
     }
     
     match /{path=**}/timetables/{timetableId} {
-      allow read: if isSignedIn();
+      // Allow reading individual timetable entries if signed in.
+      allow get: if isSignedIn();
+      // Allow collection group queries by faculty for their own timetable, or by admins.
+      allow list: if (isFaculty() && request.query.where.facultyId == request.auth.uid) || isAnyAdmin();
     }
     
     match /{path=**}/attendance/{attendanceId} {
@@ -225,7 +228,7 @@ service cloud.firestore {
     match /clubs/{clubId} {
       allow get, list: if isSignedIn();
       // Only super-admins can create clubs
-      allow create: if isSuperAdmin();
+      allow create: if isSuperAdmin() && request.resource.data.facultyIncharge != null;
       // The faculty in charge or a super-admin can update club details.
       // A student can update the members list to join.
       allow update: if (isSuperAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid)) ||
