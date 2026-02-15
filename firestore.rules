@@ -204,6 +204,18 @@ service cloud.firestore {
     match /{path=**}/timetables/{timetableId} {
       allow read: if isSignedIn();
     }
+    
+    match /{path=**}/attendance/{attendanceId} {
+        // Allows faculty/admins to perform collection group queries on all attendance records
+        // to calculate statistics, like for the 'at-risk' students panel.
+        allow list: if isFacultyOrAnyAdmin();
+    }
+
+    match /{path=**}/results/{resultId} {
+        // Allows faculty/admins to perform collection group queries on all results
+        // to calculate statistics, like for the 'academically at-risk' students panel.
+        allow list: if isFacultyOrAnyAdmin();
+    }
 
     match /events/{eventId} {
       allow get, list: if true;
