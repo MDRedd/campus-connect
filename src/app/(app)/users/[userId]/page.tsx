@@ -1,16 +1,16 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useParams, useRouter } from 'next/navigation';
 import { useFirestore, useDoc, useMemoFirebase, useCollection, useUser } from '@/firebase';
-import { doc, collection, query, where } from 'firebase/firestore';
+import { doc, collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
-import { ArrowLeft, BookCopy, Mail, User, Briefcase, GraduationCap } from 'lucide-react';
+import { ArrowLeft, User, Briefcase, GraduationCap } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 
 type UserProfile = {
@@ -57,9 +57,54 @@ export default function UserProfilePage() {
     return allCourses.filter(course => enrolledCourseIds.has(course.id));
   }, [enrollments, allCourses, user]);
 
-  // For Faculty: (Future improvement could be to get courses they teach)
+  // For Faculty: Get courses they teach
+  const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
+  const [areFacultyCoursesLoading, setAreFacultyCoursesLoading] = useState(true);
 
-  const isLoading = isUserLoading || areEnrollmentsLoading || areAllCoursesLoading;
+  useEffect(() => {
+    if (!firestore || !user || user.role !== 'faculty') {
+        setFacultyCourses(null);
+        setAreFacultyCoursesLoading(false);
+        return;
+    }
+
+    const fetchFacultyCourses = async () => {
+        setAreFacultyCoursesLoading(true);
+        try {
+            const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', user.id));
+            const timetableSnapshot = await getDocs(timetablesQuery);
+
+            if (timetableSnapshot.empty) {
+                setFacultyCourses([]);
+                return;
+            }
+
+            const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
+
+            if (facultyCourseIds.length > 0 && allCourses) {
+                const courseMap = new Map(allCourses.map(c => [c.id, c]));
+                const coursesData = facultyCourseIds
+                    .map(id => courseMap.get(id))
+                    .filter((c): c is Course => c !== undefined);
+                setFacultyCourses(coursesData);
+            } else {
+                setFacultyCourses([]);
+            }
+        } catch (error) {
+            console.error("Error fetching faculty courses for profile:", error);
+            setFacultyCourses([]);
+        } finally {
+            setAreFacultyCoursesLoading(false);
+        }
+    };
+    
+    if (!areAllCoursesLoading) {
+        fetchFacultyCourses();
+    }
+  }, [firestore, user, allCourses, areAllCoursesLoading]);
+
+
+  const isLoading = isUserLoading || areEnrollmentsLoading || areAllCoursesLoading || areFacultyCoursesLoading;
   const userInitials = user?.name.split(' ').map((n) => n[0]).join('');
 
   const isMyProfile = viewingUserProfile?.id === userId;
@@ -125,6 +170,26 @@ export default function UserProfilePage() {
                         </div>
                     ) : (
                         <p className="text-sm text-muted-foreground">Not enrolled in any courses.</p>
+                    )}
+                </CardContent>
+              </Card>
+            )}
+
+            {user.role === 'faculty' && facultyCourses && (
+              <Card>
+                <CardHeader><CardTitle className="flex items-center gap-2"><Briefcase className="h-5 w-5" /> Courses Taught</CardTitle></CardHeader>
+                <CardContent>
+                    {facultyCourses.length > 0 ? (
+                        <div className="space-y-2">
+                            {facultyCourses.map(course => (
+                                <Link href={`/courses/${course.id}`} key={course.id} className="block p-2 rounded-md hover:bg-muted">
+                                    <p className="font-semibold">{course.name}</p>
+                                    <p className="text-sm text-muted-foreground">{course.code}</p>
+                                </Link>
+                            ))}
+                        </div>
+                    ) : (
+                        <p className="text-sm text-muted-foreground">Not assigned to teach any courses currently.</p>
                     )}
                 </CardContent>
               </Card>
