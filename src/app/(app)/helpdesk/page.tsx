@@ -31,17 +31,8 @@ import {
     DialogTrigger,
     DialogFooter,
     DialogClose,
+    DialogDescription,
 } from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
 import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -220,7 +211,7 @@ export default function HelpdeskPage() {
   const firestore = useFirestore();
   const { toast } = useToast();
 
-  const [resolvingTicket, setResolvingTicket] = useState<HelpdeskTicket | null>(null);
+  const [viewingTicket, setViewingTicket] = useState<HelpdeskTicket | null>(null);
   const [resolutionComment, setResolutionComment] = useState('');
 
   const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
@@ -239,9 +230,9 @@ export default function HelpdeskPage() {
   const { data: tickets, isLoading: areTicketsLoading } = useCollection<HelpdeskTicket>(ticketsQuery);
 
   const handleConfirmResolution = () => {
-    if (!firestore || !authUser || !resolvingTicket) return;
+    if (!firestore || !authUser || !viewingTicket) return;
 
-    const ticketRef = doc(firestore, 'helpdeskTickets', resolvingTicket.id);
+    const ticketRef = doc(firestore, 'helpdeskTickets', viewingTicket.id);
     updateDocumentNonBlocking(ticketRef, {
         status: 'closed',
         resolvedAt: serverTimestamp(),
@@ -254,7 +245,7 @@ export default function HelpdeskPage() {
         description: 'The ticket has been marked as resolved.',
     });
     
-    setResolvingTicket(null);
+    setViewingTicket(null);
     setResolutionComment('');
   };
   
@@ -306,17 +297,18 @@ export default function HelpdeskPage() {
                           </Link>
                           <div className="text-sm text-muted-foreground">{ticket.studentEmail}</div>
                         </TableCell>
-                        <TableCell>{ticket.subject}</TableCell>
+                        <TableCell>
+                            <Button variant="link" className="p-0 h-auto font-normal text-left whitespace-normal" onClick={() => setViewingTicket(ticket)}>
+                                {ticket.subject}
+                            </Button>
+                        </TableCell>
                         <TableCell>{ticket.category}</TableCell>
                         <TableCell>{ticket.createdAt ? format(ticket.createdAt.toDate(), 'PP') : '...'}</TableCell>
                         <TableCell><Badge variant={getStatusVariant(ticket.status)}>{ticket.status}</Badge></TableCell>
                         <TableCell className="text-right">
-                          {ticket.status === 'open' && (
-                            <Button variant="outline" size="sm" onClick={() => setResolvingTicket(ticket)}>
-                              <CheckCircle className="mr-2 h-4 w-4" />
-                              Close Ticket
-                            </Button>
-                          )}
+                          <Button variant="outline" size="sm" onClick={() => setViewingTicket(ticket)}>
+                            View
+                          </Button>
                         </TableCell>
                       </TableRow>
                     ))
@@ -325,24 +317,67 @@ export default function HelpdeskPage() {
                   )}
                 </TableBody>
               </Table>
-              <AlertDialog open={!!resolvingTicket} onOpenChange={(open) => !open && setResolvingTicket(null)}>
-                  <AlertDialogContent>
-                      <AlertDialogHeader>
-                          <AlertDialogTitle>Resolve Ticket</AlertDialogTitle>
-                          <AlertDialogDescription>
-                            Provide a comment for resolving this ticket. This will be visible to the student.
-                          </AlertDialogDescription>
-                      </AlertDialogHeader>
-                      <div className="py-4 space-y-2">
-                          <Label htmlFor="resolution-comment">Resolution Comment (Optional)</Label>
-                          <Textarea id="resolution-comment" value={resolutionComment} onChange={e => setResolutionComment(e.target.value)} />
-                      </div>
-                      <AlertDialogFooter>
-                          <AlertDialogCancel>Cancel</AlertDialogCancel>
-                          <AlertDialogAction onClick={handleConfirmResolution}>Confirm Resolution</AlertDialogAction>
-                      </AlertDialogFooter>
-                  </AlertDialogContent>
-              </AlertDialog>
+              <Dialog open={!!viewingTicket} onOpenChange={(open) => {
+                  if (!open) {
+                      setViewingTicket(null);
+                      setResolutionComment('');
+                  }
+              }}>
+                  <DialogContent className="sm:max-w-2xl">
+                      <DialogHeader>
+                          <DialogTitle>Ticket Details</DialogTitle>
+                          <DialogDescription>
+                              Review the student's issue and provide a resolution.
+                          </DialogDescription>
+                      </DialogHeader>
+                      {viewingTicket && (
+                        <div className="py-4 space-y-6">
+                            <div className="space-y-4 text-sm">
+                                <div className="grid grid-cols-4 items-start gap-4">
+                                    <Label className="text-right text-muted-foreground pt-1">Student</Label>
+                                    <p className="col-span-3 font-semibold">{viewingTicket.studentName} <span className="font-normal text-muted-foreground">({viewingTicket.studentEmail})</span></p>
+                                </div>
+                                <div className="grid grid-cols-4 items-start gap-4">
+                                    <Label className="text-right text-muted-foreground pt-1">Subject</Label>
+                                    <p className="col-span-3">{viewingTicket.subject}</p>
+                                </div>
+                                <div className="grid grid-cols-4 items-start gap-4">
+                                    <Label className="text-right text-muted-foreground pt-1">Description</Label>
+                                    <p className="col-span-3 bg-muted p-3 rounded-md whitespace-pre-wrap">{viewingTicket.description}</p>
+                                </div>
+                            </div>
+                            {viewingTicket.status === 'open' ? (
+                                <div className="space-y-2">
+                                    <Label htmlFor="resolution-comment">Resolution Comment</Label>
+                                    <Textarea id="resolution-comment" value={resolutionComment} onChange={e => setResolutionComment(e.target.value)} placeholder="Provide a helpful response for the student..." />
+                                </div>
+                            ) : (
+                                <div className="space-y-2">
+                                    <Label>Resolution</Label>
+                                     <Alert variant="default" className="w-full bg-background">
+                                        <MessageSquareQuote className="h-4 w-4" />
+                                        <AlertTitle>Resolution Comment</AlertTitle>
+                                        <AlertDescription>
+                                            {viewingTicket.resolverComments || "No comment was provided."}
+                                        </AlertDescription>
+                                    </Alert>
+                                    <p className="text-xs text-muted-foreground text-right">
+                                        Resolved on {viewingTicket.resolvedAt ? format(viewingTicket.resolvedAt.toDate(), 'PPP') : 'N/A'}
+                                    </p>
+                                </div>
+                            )}
+                        </div>
+                      )}
+                      <DialogFooter>
+                          <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
+                          {viewingTicket?.status === 'open' && (
+                            <Button onClick={handleConfirmResolution}>
+                                <CheckCircle className="mr-2 h-4 w-4" /> Close Ticket
+                            </Button>
+                          )}
+                      </DialogFooter>
+                  </DialogContent>
+              </Dialog>
             </>
           ) : (
             <div className="space-y-4">
