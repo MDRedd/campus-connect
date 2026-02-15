@@ -218,17 +218,25 @@ export default function AcademicsPage() {
   const materialForm = useForm<z.infer<typeof materialSchema>>({ resolver: zodResolver(materialSchema) });
 
 
-  function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
+  async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
     if (!firestore || !authUser) return;
     
-    addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'assignments'), {
+    const newAssignmentRef = await addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'assignments'), {
         title: values.title,
         description: values.description,
         courseId: values.courseId,
         deadline: new Date(values.deadline).toISOString(),
         facultyId: authUser.uid,
     });
+
+    if (!newAssignmentRef) {
+        toast({ variant: 'destructive', title: 'Error', description: 'Could not create assignment.' });
+        return;
+    }
+
     toast({ title: 'Success', description: 'Assignment added.' });
+
+    const link = `/academics/assignment/${newAssignmentRef.id}?courseId=${values.courseId}`;
 
     if (allStudents && allStudents.length > 0) {
         toast({ title: 'Generating Notifications', description: 'Sending alerts to enrolled students...' });
@@ -252,6 +260,7 @@ export default function AcademicsPage() {
                             message: notificationResult.notificationMessage,
                             read: false,
                             createdAt: new Date().toISOString(),
+                            link: link,
                         });
                     } catch (e) {
                         console.error(`Failed to generate or send notification for student ${student.id}`, e);

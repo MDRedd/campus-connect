@@ -42,6 +42,7 @@ type Notification = {
   message: string;
   read: boolean;
   createdAt: string;
+  link?: string;
 };
 
 export default function AppHeader() {
@@ -149,17 +150,35 @@ export default function AppHeader() {
                         <Skeleton className="h-10 w-full"/>
                     </DropdownMenuItem>
                 ) : notifications && notifications.length > 0 ? (
-                    notifications.map(notification => (
-                        <DropdownMenuItem key={notification.id} className="items-start gap-3 whitespace-normal">
-                             <div className={cn("h-2 w-2 rounded-full mt-1.5 shrink-0", notification.read ? "bg-transparent" : "bg-primary")} />
-                            <div className="flex-1 space-y-1">
-                                <p className="text-sm leading-snug">{notification.message}</p>
-                                <p className="text-xs text-muted-foreground">
-                                    {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
-                                </p>
-                            </div>
-                        </DropdownMenuItem>
-                    ))
+                    notifications.map(notification => {
+                        const content = (
+                            <>
+                                <div className={cn("h-2 w-2 rounded-full mt-1.5 shrink-0", notification.read ? "bg-transparent" : "bg-primary")} />
+                                <div className="flex-1 space-y-1">
+                                    <p className="text-sm leading-snug">{notification.message}</p>
+                                    <p className="text-xs text-muted-foreground">
+                                        {formatDistanceToNow(new Date(notification.createdAt), { addSuffix: true })}
+                                    </p>
+                                </div>
+                            </>
+                        );
+
+                        if (notification.link) {
+                            return (
+                                <Link href={notification.link} key={notification.id} passHref legacyBehavior>
+                                    <DropdownMenuItem as="a" className="items-start gap-3 whitespace-normal cursor-pointer">
+                                        {content}
+                                    </DropdownMenuItem>
+                                </Link>
+                            )
+                        }
+
+                        return (
+                            <DropdownMenuItem key={notification.id} className="items-start gap-3 whitespace-normal">
+                                {content}
+                            </DropdownMenuItem>
+                        )
+                    })
                 ) : (
                     <div className="text-center text-sm text-muted-foreground py-4">No notifications yet.</div>
                 )}

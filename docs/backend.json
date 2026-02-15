@@ -678,6 +678,10 @@
           "type": "string",
           "description": "The date and time the notification was created.",
           "format": "date-time"
+        },
+        "link": {
+          "type": "string",
+          "description": "Optional URL to navigate to when the notification is clicked."
         }
       },
       "required": [

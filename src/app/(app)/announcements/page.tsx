@@ -118,10 +118,11 @@ export default function AnnouncementsPage() {
     toast({ title: 'Success', description: 'Announcement deleted.' });
   }
 
-  function onSubmit(values: z.infer<typeof announcementSchema>) {
+  async function onSubmit(values: z.infer<typeof announcementSchema>) {
     if (!firestore || !authUser) return;
     
     const isNewAnnouncement = !editingAnnouncement;
+    let newAnnouncementId: string | null = null;
 
     if (editingAnnouncement) {
         const announcementRef = doc(firestore, 'announcements', editingAnnouncement.id);
@@ -132,11 +133,14 @@ export default function AnnouncementsPage() {
         toast({ title: 'Success', description: 'Announcement updated.' });
     } else {
         const announcementsRef = collection(firestore, 'announcements');
-        addDocumentNonBlocking(announcementsRef, {
+        const newAnnouncementRef = await addDocumentNonBlocking(announcementsRef, {
             ...values,
             date: serverTimestamp(),
             postedBy: authUser.uid,
         });
+        if (newAnnouncementRef) {
+            newAnnouncementId = newAnnouncementRef.id;
+        }
         toast({ title: 'Success', description: 'Announcement posted.' });
     }
     setOpenDialog(false);
@@ -144,8 +148,10 @@ export default function AnnouncementsPage() {
     form.reset();
 
     // ADD NOTIFICATION LOGIC - only for new announcements
-    if (isNewAnnouncement && allUsers && allUsers.length > 0) {
+    if (isNewAnnouncement && allUsers && allUsers.length > 0 && newAnnouncementId) {
         toast({ title: 'Sending Notifications', description: 'Alerting relevant users...' });
+
+        const link = `/announcements/view`;
 
         // Run notification generation in the background
         (async () => {
@@ -169,6 +175,7 @@ export default function AnnouncementsPage() {
                         message: notificationResult.notificationMessage,
                         read: false,
                         createdAt: new Date().toISOString(),
+                        link: link,
                     });
                 } catch (e) {
                     console.error(`Failed to generate or send notification for user ${user.id}`, e);
