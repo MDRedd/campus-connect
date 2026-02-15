@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useMemo, useEffect } from 'react';
+import { useState, useMemo, useEffect, useCallback } from 'react';
 import Image from 'next/image';
 import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp, doc, query, where } from 'firebase/firestore';
@@ -25,6 +25,7 @@ import { QrCode, Users } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
+import { Progress } from '@/components/ui/progress';
 
 type Course = { id: string; name: string; code: string; };
 type AttendanceSession = { courseId: string; facultyId: string; createdAt: any; attendees: string[]; id: string };
@@ -39,10 +40,11 @@ export default function MarkAttendancePage() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [activeSession, setActiveSession] = useState<AttendanceSession | null>(null);
   const [isGenerating, setIsGenerating] = useState(false);
+  const [countdown, setCountdown] = useState(60);
 
   const { facultyCourses, isLoading: areCoursesLoading } = useFacultyCourses();
   
-  const handleCourseSelect = async (courseId: string) => {
+  const handleCourseSelect = useCallback(async (courseId: string) => {
     setSelectedCourseId(courseId);
     setActiveSession(null);
     setIsGenerating(true);
@@ -61,7 +63,7 @@ export default function MarkAttendancePage() {
     try {
         const sessionDocRef = await addDocumentNonBlocking(collection(firestore, 'attendanceSessions'), sessionData);
         if (sessionDocRef) {
-            setActiveSession({ ...sessionData, id: sessionDocRef.id });
+            setActiveSession({ ...sessionData, id: sessionDocRef.id, createdAt: new Date() });
         }
     } catch(error) {
         console.error("Error creating attendance session:", error);
@@ -69,7 +71,29 @@ export default function MarkAttendancePage() {
     } finally {
         setIsGenerating(false);
     }
-  };
+  }, [firestore, authUser]);
+
+  // Effect for countdown timer and QR code refresh
+  useEffect(() => {
+    let timer: NodeJS.Timeout;
+    if (activeSession && selectedCourseId) {
+        setCountdown(60);
+        timer = setInterval(() => {
+            setCountdown(prev => {
+                if (prev <= 1) {
+                    clearInterval(timer);
+                    handleCourseSelect(selectedCourseId);
+                    return 0; // Returning 0, will be reset to 60 on next session
+                }
+                return prev - 1;
+            });
+        }, 1000);
+    }
+    return () => {
+        if(timer) clearInterval(timer);
+    }
+  }, [activeSession, selectedCourseId, handleCourseSelect]);
+
 
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore || !activeSession) return null;
@@ -109,7 +133,7 @@ export default function MarkAttendancePage() {
           <Card className="lg:col-span-2">
             <CardHeader>
               <CardTitle>Generate Attendance QR Code</CardTitle>
-              <CardDescription>Select a course to generate a unique QR code. Students can scan this code to mark their attendance for today's class.</CardDescription>
+              <CardDescription>Select a course to generate a unique QR code. The code will automatically refresh every 60 seconds.</CardDescription>
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
@@ -132,12 +156,9 @@ export default function MarkAttendancePage() {
                     </Select>
                   )}
                 </div>
-                <p className="text-sm text-muted-foreground">
-                  The QR code is valid for 60 seconds. A new code is generated when you select a course.
-                </p>
               </div>
               <div className="flex items-center justify-center rounded-lg border border-dashed bg-muted/50 p-8">
-                {isGenerating ? (
+                {isGenerating && !activeSession ? (
                    <div className="text-center flex flex-col items-center gap-4 text-muted-foreground">
                         <Skeleton className="h-16 w-16" />
                         <p>Generating session...</p>
@@ -149,8 +170,14 @@ export default function MarkAttendancePage() {
                             alt="Attendance QR Code"
                             width={250}
                             height={250}
+                            key={qrImageUrl}
                         />
-                        <p className="text-sm font-medium">Scan this code to mark your attendance.</p>
+                         <div className="w-full max-w-[250px] space-y-2">
+                            <Progress value={(countdown / 60) * 100} className="h-2" />
+                            <p className="text-sm font-medium text-muted-foreground">
+                                {countdown > 0 ? `Code refreshes in ${countdown}s` : 'Refreshing...'}
+                            </p>
+                        </div>
                     </div>
                 ) : (
                     <div className="text-center flex flex-col items-center gap-4 text-muted-foreground">
