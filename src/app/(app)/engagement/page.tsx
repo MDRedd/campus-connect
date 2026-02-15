@@ -27,6 +27,7 @@ import {
   Edit,
   Trash2,
   MapPin,
+  MessageCircle,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -49,12 +50,15 @@ import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
 type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
 type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
+type CommunityPost = { id: string; title: string; description: string; studentId: string; studentName: string; createdAt: any; };
+
 
 const clubSchema = z.object({
   name: z.string().min(3, 'Club name must be at least 3 characters long.'),
@@ -76,6 +80,12 @@ const forumSchema = z.object({
   description: z.string().min(10, 'Description must be at least 10 characters long.'),
 });
 
+const communityPostSchema = z.object({
+  title: z.string().min(5, 'Title must be at least 5 characters long.'),
+  description: z.string().min(10, 'Description is required.'),
+});
+
+
 export default function EngagementPage() {
     const firestore = useFirestore();
     const { user, profile: userProfile, isUserLoading } = useUser();
@@ -84,6 +94,7 @@ export default function EngagementPage() {
     const [openClubDialog, setOpenClubDialog] = useState(false);
     const [openEventDialog, setOpenEventDialog] = useState(false);
     const [openForumDialog, setOpenForumDialog] = useState(false);
+    const [openCommunityPostDialog, setOpenCommunityPostDialog] = useState(false);
     const [editingClub, setEditingClub] = useState<Club | null>(null);
     const [editingEvent, setEditingEvent] = useState<Event | null>(null);
     const [selectedEvent, setSelectedEvent] = useState<Event | null>(null);
@@ -95,6 +106,7 @@ export default function EngagementPage() {
 
     const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
     const isSuperAdmin = userProfile?.role === 'super-admin';
+    const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
     const coursesQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -116,6 +128,12 @@ export default function EngagementPage() {
         );
     }, [firestore, user]);
     const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
+
+    const communityPostsQuery = useMemoFirebase(() => {
+        if (!firestore) return null;
+        return query(collection(firestore, 'communityPosts'), orderBy('createdAt', 'desc'));
+    }, [firestore]);
+    const { data: communityPosts, isLoading: areCommunityPostsLoading } = useCollection<CommunityPost>(communityPostsQuery);
     
     // Fetch all forums from all courses
     useEffect(() => {
@@ -178,6 +196,9 @@ export default function EngagementPage() {
     });
     const forumForm = useForm<z.infer<typeof forumSchema>>({
       resolver: zodResolver(forumSchema),
+    });
+    const communityPostForm = useForm<z.infer<typeof communityPostSchema>>({
+        resolver: zodResolver(communityPostSchema),
     });
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
@@ -289,6 +310,20 @@ export default function EngagementPage() {
       setRefetchTrigger(c => c + 1);
     }
 
+    function onCommunityPostSubmit(values: z.infer<typeof communityPostSchema>) {
+        if (!firestore || !user || !userProfile) return;
+        addDocumentNonBlocking(collection(firestore, 'communityPosts'), {
+            title: values.title,
+            description: values.description,
+            studentId: user.uid,
+            studentName: userProfile.name,
+            createdAt: serverTimestamp(),
+        });
+        toast({ title: 'Success', description: 'Your post has been published.' });
+        setOpenCommunityPostDialog(false);
+        communityPostForm.reset();
+    }
+
     const isLoading = isUserLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
     const isForumCreationLoading = areCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
     const coursesForForum = userProfile?.role?.includes('admin') ? allCourses : facultyCourses;
@@ -303,10 +338,14 @@ export default function EngagementPage() {
       </div>
 
       <Tabs defaultValue="forums" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
+        <TabsList className="grid w-full max-w-lg grid-cols-4">
           <TabsTrigger value="forums">
             <MessageSquare className="mr-2 h-4 w-4" />
             Forums
+          </TabsTrigger>
+          <TabsTrigger value="community">
+            <MessageCircle className="mr-2 h-4 w-4" />
+            Community
           </TabsTrigger>
           <TabsTrigger value="clubs">
             <Users className="mr-2 h-4 w-4" />
@@ -408,6 +447,75 @@ export default function EngagementPage() {
               )}
             </CardContent>
           </Card>
+        </TabsContent>
+        
+        <TabsContent value="community" className="mt-6">
+            <Card>
+                <CardHeader>
+                    <div className="flex justify-between items-start">
+                        <div>
+                            <CardTitle>Community Board</CardTitle>
+                            <CardDescription>
+                                A place for all campus members to post and connect.
+                            </CardDescription>
+                        </div>
+                        <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
+                            <DialogTrigger asChild>
+                                <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Post</Button>
+                            </DialogTrigger>
+                            <DialogContent>
+                                <DialogHeader><DialogTitle>Create New Community Post</DialogTitle></DialogHeader>
+                                <Form {...communityPostForm}>
+                                    <form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4">
+                                        <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Post</Button></DialogFooter>
+                                    </form>
+                                </Form>
+                            </DialogContent>
+                        </Dialog>
+                    </div>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {areCommunityPostsLoading ? (
+                        <>
+                            <Skeleton className="h-24 w-full" />
+                            <Skeleton className="h-24 w-full" />
+                        </>
+                    ) : communityPosts && communityPosts.length > 0 ? (
+                        communityPosts.map((post) => (
+                            <Card key={post.id}>
+                                <CardHeader>
+                                    <CardTitle className="text-lg">{post.title}</CardTitle>
+                                </CardHeader>
+                                <CardContent>
+                                    <p className="text-sm text-muted-foreground">{post.description}</p>
+                                </CardContent>
+                                <CardFooter className="flex justify-between items-center text-sm text-muted-foreground">
+                                    <div className="flex items-center gap-2">
+                                        <Avatar className="h-6 w-6">
+                                            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={post.studentName} />}
+                                            <AvatarFallback>{post.studentName.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
+                                        </Avatar>
+                                        <Link href={`/users/${post.studentId}`} className="hover:underline text-foreground font-medium">
+                                            {post.studentName}
+                                        </Link>
+                                    </div>
+                                    <span>{format(post.createdAt.toDate(), 'PPP')}</span>
+                                </CardFooter>
+                            </Card>
+                        ))
+                    ) : (
+                        <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
+                            <MessageCircle className="h-12 w-12 text-muted-foreground" />
+                            <h3 className="mt-4 text-lg font-semibold">The board is empty!</h3>
+                            <p className="mt-1 text-sm text-muted-foreground">
+                                Be the first to create a post on the community board.
+                            </p>
+                        </div>
+                    )}
+                </CardContent>
+            </Card>
         </TabsContent>
 
         <TabsContent value="clubs" className="mt-6">

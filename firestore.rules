@@ -302,5 +302,13 @@ service cloud.firestore {
       // A student can delete their own open ticket. Admins can delete any.
       allow delete: if (isOwner(resource.data.studentId) && resource.data.status == 'open') || isAnyAdmin();
     }
+    
+    match /communityPosts/{postId} {
+      allow read: if isSignedIn();
+      allow create: if isSignedIn() 
+                      && request.resource.data.studentId == request.auth.uid
+                      && request.resource.data.studentName == getUser(request.auth.uid).data.name;
+      allow update, delete: if (isExistingDoc() && isOwner(resource.data.studentId)) || isAnyAdmin();
+    }
   }
 }
