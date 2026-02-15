@@ -224,10 +224,11 @@ service cloud.firestore {
 
     match /clubs/{clubId} {
       allow get, list: if isSignedIn();
-      // Only super-admins can manage clubs
-      allow create, update, delete: if isSuperAdmin();
-      // Allow students to update only the 'members' array to add themselves.
-      allow update: if isSuperAdmin() ||
+      // Only super-admins can create clubs
+      allow create: if isSuperAdmin();
+      // The faculty in charge or a super-admin can update club details.
+      // A student can update the members list to join.
+      allow update: if (isSuperAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid)) ||
                       (
                         isSignedIn() &&
                         // Check that only the 'members' field is being changed by the student.
@@ -235,6 +236,8 @@ service cloud.firestore {
                         // Check that the student is only adding their own UID to the array.
                         request.resource.data.members == resource.data.members.concat(request.auth.uid)
                       );
+      // The faculty in charge or a super-admin can delete a club.
+      allow delete: if isSuperAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid);
     }
 
     match /users/{userId}/notifications/{notificationId} {

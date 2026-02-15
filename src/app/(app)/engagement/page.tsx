@@ -58,11 +58,13 @@ type Forum = { id: string; courseId: string; title: string; description: string;
 type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
 type CommunityPost = { id: string; title: string; description: string; studentId: string; studentName: string; createdAt: any; };
+type UserProfile = { id: string; name: string; role: string; };
 
 
 const clubSchema = z.object({
   name: z.string().min(3, 'Club name must be at least 3 characters long.'),
   description: z.string().min(10, 'Description must be at least 10 characters long.'),
+  facultyIncharge: z.string().min(1, 'Please select a faculty in-charge.'),
 });
 
 const eventSchema = z.object({
@@ -113,6 +115,12 @@ export default function EngagementPage() {
         return collection(firestore, 'courses');
     }, [firestore, user]);
     const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
+    
+    const allFacultyQuery = useMemoFirebase(() => {
+        if (!firestore || !isSuperAdmin) return null;
+        return query(collection(firestore, 'users'), where('role', '==', 'faculty'));
+    }, [firestore, isSuperAdmin]);
+    const { data: allFaculty, isLoading: areFacultyLoading } = useCollection<UserProfile>(allFacultyQuery);
 
     const clubsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
@@ -215,6 +223,7 @@ export default function EngagementPage() {
         clubForm.reset({
             name: club.name,
             description: club.description,
+            facultyIncharge: club.facultyIncharge,
         });
         setOpenClubDialog(true);
     };
@@ -230,13 +239,11 @@ export default function EngagementPage() {
 
       if (editingClub) {
           const clubRef = doc(firestore, 'clubs', editingClub.id);
-          updateDocumentNonBlocking(clubRef, { name: values.name, description: values.description });
+          updateDocumentNonBlocking(clubRef, values);
           toast({ title: 'Success', description: 'Club updated successfully.' });
       } else {
           const clubData = {
-              name: values.name,
-              description: values.description,
-              facultyIncharge: user.uid,
+              ...values,
               members: [],
           };
           addDocumentNonBlocking(collection(firestore, 'clubs'), clubData);
@@ -324,7 +331,7 @@ export default function EngagementPage() {
         communityPostForm.reset();
     }
 
-    const isLoading = isUserLoading || areCoursesLoading || areClubsLoading || areEventsLoading;
+    const isLoading = isUserLoading || areCoursesLoading || areClubsLoading || areEventsLoading || (isSuperAdmin && areFacultyLoading);
     const isForumCreationLoading = areCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
     const coursesForForum = userProfile?.role?.includes('admin') ? allCourses : facultyCourses;
 
@@ -532,19 +539,37 @@ export default function EngagementPage() {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader><DialogTitle>{editingClub ? 'Edit Club' : 'Create New Club'}</DialogTitle></DialogHeader>
+                                {areFacultyLoading ? <Skeleton className="h-64"/> : (
                                 <Form {...clubForm}>
                                     <form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
                                         <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Club Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                                         <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={clubForm.control} name="facultyIncharge" render={({ field }) => (
+                                            <FormItem>
+                                            <FormLabel>Faculty In-Charge</FormLabel>
+                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
+                                                <FormControl>
+                                                    <SelectTrigger><SelectValue placeholder="Select a faculty member" /></SelectTrigger>
+                                                </FormControl>
+                                                <SelectContent>
+                                                    {allFaculty?.map(f => (
+                                                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
+                                                    ))}
+                                                </SelectContent>
+                                            </Select>
+                                            <FormMessage />
+                                            </FormItem>
+                                        )} />
                                         <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingClub ? 'Save Changes': 'Create Club'}</Button></DialogFooter>
                                     </form>
                                 </Form>
+                                )}
                             </DialogContent>
                         </Dialog>
                     )}
                 </CardHeader>
                 <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {areClubsLoading || isUserLoading ? (
+                    {isLoading ? (
                          [...Array(3)].map((_, i) => (
                             <Card key={i}>
                                 <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
@@ -555,6 +580,7 @@ export default function EngagementPage() {
                          ))
                     ) : clubs && clubs.length > 0 ? (
                         clubs.map(club => {
+                            const canManageClub = isSuperAdmin || (userProfile?.role === 'faculty' && club.facultyIncharge === user?.uid);
                             return (
                             <Card key={club.id} className="overflow-hidden flex flex-col">
                                 {clubImage && (
@@ -570,7 +596,7 @@ export default function EngagementPage() {
                                 <CardHeader>
                                     <div className="flex justify-between items-start">
                                       <CardTitle>{club.name}</CardTitle>
-                                      {isSuperAdmin && (
+                                      {canManageClub && (
                                           <div className="flex items-center -mr-2 -mt-2">
                                               <Button variant="ghost" size="icon" onClick={() => handleEditClub(club)}><Edit className="h-4 w-4" /></Button>
                                               <Button variant="ghost" size="icon" onClick={() => handleDeleteClub(club.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
