@@ -35,8 +35,9 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText, Pencil } from 'lucide-react';
+import { ArrowLeft, FileText, Pencil, Sparkles } from 'lucide-react';
 import { Label } from '@/components/ui/label';
+import { generateSubmissionFeedback } from '@/ai/flows/generate-submission-feedback';
 
 // Simplified types based on backend.json
 type Course = { id: string; name: string; code: string; };
@@ -68,6 +69,7 @@ export default function AssignmentDetailPage() {
 
     const [openGradingDialog, setOpenGradingDialog] = useState(false);
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
+    const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
 
     const isFaculty = userProfile?.role === 'faculty';
 
@@ -158,6 +160,40 @@ export default function AssignmentDetailPage() {
         toast({ title: 'Grade Saved', description: 'The marks and feedback have been updated.' });
         setOpenGradingDialog(false);
     }
+    
+    const handleGenerateFeedback = async () => {
+        if (!assignment || !selectedSubmission) return;
+    
+        const marks = gradingForm.getValues('marksAwarded');
+        if (marks === undefined || marks === null) {
+            toast({
+                variant: 'destructive',
+                title: 'Marks required',
+                description: 'Please enter marks before generating feedback.',
+            });
+            return;
+        }
+    
+        setIsGeneratingFeedback(true);
+        try {
+            const result = await generateSubmissionFeedback({
+                assignmentTitle: assignment.title,
+                assignmentDescription: assignment.description,
+                marksAwarded: marks,
+                studentName: selectedSubmission.studentName || 'Student',
+            });
+            gradingForm.setValue('facultyFeedback', result.feedback);
+        } catch (e) {
+            console.error("Error generating AI feedback:", e);
+            toast({
+                variant: 'destructive',
+                title: 'Error',
+                description: 'Could not generate AI feedback.',
+            });
+        } finally {
+            setIsGeneratingFeedback(false);
+        }
+    };
 
     if (!courseId) {
         return <div className="p-4"><Card><CardContent className="p-8">Error: Course ID is missing from the URL.</CardContent></Card></div>
@@ -343,7 +379,19 @@ export default function AssignmentDetailPage() {
                                     )} />
                                     <FormField control={gradingForm.control} name="facultyFeedback" render={({ field }) => (
                                         <FormItem>
-                                            <FormLabel>Feedback</FormLabel>
+                                            <div className="flex justify-between items-center">
+                                                <FormLabel>Feedback</FormLabel>
+                                                <Button
+                                                    type="button"
+                                                    variant="outline"
+                                                    size="sm"
+                                                    onClick={handleGenerateFeedback}
+                                                    disabled={isGeneratingFeedback || gradingForm.getValues('marksAwarded') === undefined}
+                                                >
+                                                    <Sparkles className="mr-2 h-4 w-4" />
+                                                    {isGeneratingFeedback ? 'Generating...' : 'Generate with AI'}
+                                                </Button>
+                                            </div>
                                             <FormControl><Textarea placeholder="Provide constructive feedback for the student..." {...field} /></FormControl>
                                             <FormMessage />
                                         </FormItem>
