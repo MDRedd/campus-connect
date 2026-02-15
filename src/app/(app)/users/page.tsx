@@ -47,7 +47,7 @@ import {
     DialogFooter,
     DialogClose,
 } from '@/components/ui/dialog';
-import { useForm } from 'react-hook-form';
+import { useForm, useWatch } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '@/components/ui/form';
@@ -76,6 +76,8 @@ const userCreationSchema = z.object({
     password: z.string().min(6, 'Password must be at least 6 characters.'),
     role: z.enum(['student', 'faculty', 'super-admin', 'user-admin', 'course-admin', 'attendance-admin']),
     department: z.string().optional(),
+    rollNumber: z.string().optional(),
+    facultyCode: z.string().optional(),
 });
 
 export default function UsersPage() {
@@ -108,7 +110,14 @@ export default function UsersPage() {
         password: '',
         role: 'student',
         department: '',
+        rollNumber: '',
+        facultyCode: '',
     },
+  });
+
+  const watchedRole = useWatch({
+    control: createForm.control,
+    name: 'role'
   });
 
   const handleEditClick = (user: UserProfile) => {
@@ -164,12 +173,14 @@ export default function UsersPage() {
         await updateProfile(newUser, { displayName: values.name });
         
         const userDocRef = doc(firestore, 'users', newUser.uid);
-        const userData = {
+        const userData: any = {
             id: newUser.uid,
             name: values.name,
             email: values.email,
             role: values.role,
             department: values.department || '',
+            ...(values.rollNumber && { rollNumber: values.rollNumber }),
+            ...(values.facultyCode && { facultyCode: values.facultyCode }),
         };
         
         setDocumentNonBlocking(userDocRef, userData, {});
@@ -247,6 +258,14 @@ export default function UsersPage() {
                                 </SelectContent>
                             </Select><FormMessage /></FormItem>
                         )} />
+
+                        {watchedRole === 'student' && (
+                            <FormField control={createForm.control} name="rollNumber" render={({ field }) => (<FormItem><FormLabel>Roll Number</FormLabel><FormControl><Input {...field} placeholder="e.g., 2024001" /></FormControl><FormMessage /></FormItem>)} />
+                        )}
+                        {watchedRole === 'faculty' && (
+                            <FormField control={createForm.control} name="facultyCode" render={({ field }) => (<FormItem><FormLabel>Faculty Code</FormLabel><FormControl><Input {...field} placeholder="e.g., FAC1001" /></FormControl><FormMessage /></FormItem>)} />
+                        )}
+
                         <FormField control={createForm.control} name="department" render={({ field }) => (<FormItem><FormLabel>Department (Optional)</FormLabel><FormControl><Input {...field} placeholder="e.g., Computer Science" /></FormControl><FormMessage /></FormItem>)} />
                         <DialogFooter>
                             <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
