@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -213,6 +214,8 @@ export default function HelpdeskPage() {
 
   const [viewingTicket, setViewingTicket] = useState<HelpdeskTicket | null>(null);
   const [resolutionComment, setResolutionComment] = useState('');
+  const [aiSuggestion, setAiSuggestion] = useState('');
+  const [isGeneratingSuggestion, setIsGeneratingSuggestion] = useState(false);
 
   const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
 
@@ -228,6 +231,27 @@ export default function HelpdeskPage() {
     }
   }, [firestore, authUser, isFacultyOrAdmin]);
   const { data: tickets, isLoading: areTicketsLoading } = useCollection<HelpdeskTicket>(ticketsQuery);
+
+  useEffect(() => {
+    if (viewingTicket && viewingTicket.status === 'open') {
+        const getSuggestion = async () => {
+            setIsGeneratingSuggestion(true);
+            setAiSuggestion('');
+            try {
+                const result = await suggestHelpdeskResponse({ issueDescription: viewingTicket.description });
+                setAiSuggestion(result.suggestedResponse);
+            } catch (e) {
+                console.error("Error generating admin suggestion:", e);
+                setAiSuggestion(''); // Clear on error
+            } finally {
+                setIsGeneratingSuggestion(false);
+            }
+        };
+        getSuggestion();
+    } else {
+        setAiSuggestion('');
+    }
+  }, [viewingTicket]);
 
   const handleConfirmResolution = () => {
     if (!firestore || !authUser || !viewingTicket) return;
@@ -321,6 +345,8 @@ export default function HelpdeskPage() {
                   if (!open) {
                       setViewingTicket(null);
                       setResolutionComment('');
+                      setAiSuggestion('');
+                      setIsGeneratingSuggestion(false);
                   }
               }}>
                   <DialogContent className="sm:max-w-2xl">
@@ -347,9 +373,27 @@ export default function HelpdeskPage() {
                                 </div>
                             </div>
                             {viewingTicket.status === 'open' ? (
-                                <div className="space-y-2">
-                                    <Label htmlFor="resolution-comment">Resolution Comment</Label>
-                                    <Textarea id="resolution-comment" value={resolutionComment} onChange={e => setResolutionComment(e.target.value)} placeholder="Provide a helpful response for the student..." />
+                                <div className="space-y-4">
+                                    {(isGeneratingSuggestion || aiSuggestion) && (
+                                        <Alert>
+                                            <Sparkles className="h-4 w-4" />
+                                            <AlertTitle>Suggested Response</AlertTitle>
+                                            <AlertDescription className="space-y-2">
+                                                {isGeneratingSuggestion ? 'Generating suggestion...' : (
+                                                    <>
+                                                        <p>{aiSuggestion}</p>
+                                                        <Button size="sm" variant="outline" onClick={() => setResolutionComment(aiSuggestion)}>
+                                                            <MessageSquareQuote className="mr-2 h-4 w-4" /> Use Suggestion
+                                                        </Button>
+                                                    </>
+                                                )}
+                                            </AlertDescription>
+                                        </Alert>
+                                    )}
+                                    <div className="space-y-2">
+                                        <Label htmlFor="resolution-comment">Resolution Comment</Label>
+                                        <Textarea id="resolution-comment" value={resolutionComment} onChange={e => setResolutionComment(e.target.value)} placeholder="Provide a helpful response for the student..." />
+                                    </div>
                                 </div>
                             ) : (
                                 <div className="space-y-2">
