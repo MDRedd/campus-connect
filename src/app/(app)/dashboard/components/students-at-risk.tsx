@@ -2,7 +2,7 @@
 
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { ArrowRight, UserX } from 'lucide-react';
+import { ArrowRight, UserX, Send } from 'lucide-react';
 import Link from 'next/link';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -17,9 +17,10 @@ export type AtRiskStudent = {
 
 type StudentsAtRiskProps = {
   students: AtRiskStudent[];
+  onNudge?: (student: AtRiskStudent) => void;
 };
 
-export default function StudentsAtRisk({ students }: StudentsAtRiskProps) {
+export default function StudentsAtRisk({ students, onNudge }: StudentsAtRiskProps) {
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
   return (
@@ -45,11 +46,18 @@ export default function StudentsAtRisk({ students }: StudentsAtRiskProps) {
                     {student.percentage}% attendance in {student.courseCode}
                   </p>
                 </div>
-                <Button asChild variant="ghost" size="sm">
-                  <Link href={`/attendance/view/${student.courseId}`}>
-                    View Course <ArrowRight className="ml-2 h-4 w-4" />
-                  </Link>
-                </Button>
+                <div className="flex items-center gap-2">
+                    {onNudge && (
+                        <Button variant="outline" size="sm" onClick={() => onNudge(student)}>
+                            <Send className="mr-2 h-4 w-4" /> Nudge
+                        </Button>
+                    )}
+                    <Button asChild variant="ghost" size="sm">
+                        <Link href={`/attendance/view/${student.courseId}`}>
+                            View Course <ArrowRight className="ml-2 h-4 w-4" />
+                        </Link>
+                    </Button>
+                </div>
               </li>
             ))}
           </ul>

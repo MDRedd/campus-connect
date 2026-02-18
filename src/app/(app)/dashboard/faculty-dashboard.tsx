@@ -1,8 +1,8 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, addDocumentNonBlocking } from '@/firebase';
+import { collection, query, orderBy, limit, where, getDocs, collectionGroup, doc } from 'firebase/firestore';
 import { BookOpen, Users, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
@@ -11,10 +11,12 @@ import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
 import UpcomingClasses, { UpcomingClass } from './components/upcoming-classes';
 import RecentAnnouncements from './components/recent-announcements';
-import StudentsAtRisk from './components/students-at-risk';
+import StudentsAtRisk, { AtRiskStudent } from './components/students-at-risk';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
-import AcademicallyAtRisk from './components/academically-at-risk';
+import AcademicallyAtRisk, { AcademicallyAtRiskStudent } from './components/academically-at-risk';
+import { useToast } from '@/hooks/use-toast';
+import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 
 type QuickStat = {
   title: string;
@@ -23,15 +25,14 @@ type QuickStat = {
 };
 type UserProfileData = { name: string; role: 'faculty'; id: string; };
 type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
-type AtRiskStudent = { studentId: string; studentName: string; courseId: string; courseCode: string; percentage: number; };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type FullUserProfile = { name: string; role: string; id: string; department?: string };
-type AcademicallyAtRiskStudent = { studentId: string; studentName: string; courseId: string; courseCode: string; grade: string; marks: number; };
 type ResultRecord = { studentId: string; courseId: string; grade: string; marks: number; published: boolean };
 
 export default function FacultyDashboard({ userProfile }: { userProfile: UserProfileData }) {
     const { user: authUser } = useUser();
     const firestore = useFirestore();
+    const { toast } = useToast();
 
     const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
     const [areStatsLoading, setAreStatsLoading] = useState(true);
@@ -266,6 +267,56 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
 
     }, [firestore, facultyCourses, areFacultyCoursesLoading]);
 
+    const handleNudgeAttendance = async (student: AtRiskStudent) => {
+        toast({ title: 'Sending Nudge', description: `Creating a supportive reminder for ${student.studentName}...` });
+        try {
+            const result = await generatePersonalizedNotification({
+                userId: student.studentId,
+                userName: student.studentName,
+                updateType: 'generalAnnouncement',
+                details: `SUPPORTIVE NUDGE: The student has low attendance (${student.percentage}%) in the course "${student.courseCode}". Encourage them to attend more regularly and ask if they need any help with hurdles they might be facing.`,
+            });
+
+            addDocumentNonBlocking(collection(firestore, 'users', student.studentId, 'notifications'), {
+                userId: student.studentId,
+                message: result.notificationMessage,
+                read: false,
+                createdAt: new Date().toISOString(),
+                link: `/attendance/history/${student.courseId}`,
+            });
+
+            toast({ title: 'Nudge Sent', description: `Encouragement sent to ${student.studentName}.` });
+        } catch (e) {
+            console.error("Error nudging student:", e);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not send nudge.' });
+        }
+    };
+
+    const handleNudgeAcademic = async (student: AcademicallyAtRiskStudent) => {
+        toast({ title: 'Sending Nudge', description: `Creating helpful advice for ${student.studentName}...` });
+        try {
+            const result = await generatePersonalizedNotification({
+                userId: student.studentId,
+                userName: student.studentName,
+                updateType: 'generalAnnouncement',
+                details: `ACADEMIC SUPPORT NUDGE: The student has a low grade (${student.grade}, ${student.marks}%) in the course "${student.courseCode}". Be encouraging, suggest they review recent materials, and offer a quick check-in or additional resources to help them improve.`,
+            });
+
+            addDocumentNonBlocking(collection(firestore, 'users', student.studentId, 'notifications'), {
+                userId: student.studentId,
+                message: result.notificationMessage,
+                read: false,
+                createdAt: new Date().toISOString(),
+                link: `/results`,
+            });
+
+            toast({ title: 'Nudge Sent', description: `Academic support sent to ${student.studentName}.` });
+        } catch (e) {
+            console.error("Error nudging student:", e);
+            toast({ variant: 'destructive', title: 'Error', description: 'Could not send nudge.' });
+        }
+    };
+
     const displayAnnouncements = useMemo(() => {
         if (!announcements) return [];
         return announcements
@@ -293,13 +344,13 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
             {areAtRiskStudentsLoading ? (
                 <Skeleton className="h-64" />
             ) : (
-                atRiskStudents && <StudentsAtRisk students={atRiskStudents} />
+                atRiskStudents && <StudentsAtRisk students={atRiskStudents} onNudge={handleNudgeAttendance} />
             )}
 
             {areAcademicallyAtRiskLoading ? (
                 <Skeleton className="h-64" />
             ) : (
-                academicallyAtRisk && <AcademicallyAtRisk students={academicallyAtRisk} />
+                academicallyAtRisk && <AcademicallyAtRisk students={academicallyAtRisk} onNudge={handleNudgeAcademic} />
             )}
             
             {areAnnouncementsLoading ? (
