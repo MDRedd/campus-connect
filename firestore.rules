@@ -10,46 +10,28 @@ service cloud.firestore {
      * Database-Backed Access Control (DBAC). Private student data (attendance, results, 
      * submissions) is secured via user-specific paths, while administrative and academic 
      * structures (departments, courses) are protected by user roles.
-     * 
-     * Data Structure:
-     * - /users/{userId}: Root for user profiles and roles.
-     * - /users/{userId}/[subcollections]: Private, user-owned data (Enrollments, Attendance, etc.).
-     * - /departments/{deptId}/courses/{courseId}: Hierarchical academic data.
-     * - /announcements, /events: Top-level public/campus-wide data.
-     * 
-     * Key Security Decisions:
-     * 1. DBAC: User roles (student, faculty, admin) are fetched from the user's document 
-     *    to determine administrative permissions.
-     * 2. Denormalization: Critical fields like `facultyId`, `studentId`, and `courseId` 
-     *    are enforced on write to ensure Collection Group queries remain secure and accurate.
-     * 3. Prototyping Flexibility: Logic enforces "Who" can write and "Relational Integrity" 
-     *    (ensuring IDs match paths), but does not strictly validate the content schema.
      */
 
     // --- Helper Functions ---
 
-    /** Checks if the user is authenticated. */
     function isSignedIn() {
       return request.auth != null;
     }
 
-    /** Checks if the authenticated user matches the provided userId from a path. */
     function isOwner(userId) {
       return isSignedIn() && request.auth.uid == userId;
     }
 
-    /** Verifies ownership and ensures the document exists for update/delete. */
     function isExistingOwner(userId) {
       return isOwner(userId) && resource != null;
     }
 
-    /** Fetches the user's role from their profile document. */
     function getUserRole() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
     }
 
     function isAdmin() {
-      return isSignedIn() && getUserRole() == 'admin';
+      return isSignedIn() && (getUserRole() == 'super-admin' || getUserRole() == 'user-admin' || getUserRole() == 'course-admin' || getUserRole() == 'attendance-admin');
     }
 
     function isFaculty() {
@@ -58,25 +40,12 @@ service cloud.firestore {
 
     // --- Collection Rules ---
 
-    /**
-     * @description User profiles containing roles and departmental info.
-     * @path /users/{userId}
-     * @allow (get, list) if signed in. (create, update) if owner or admin.
-     * @deny (delete) unless admin.
-     * @principle Ownership for profile management; Admin for role assignment.
-     */
     match /users/{userId} {
       allow get, list: if isSignedIn();
       allow create: if isOwner(userId) || isAdmin();
       allow update: if isExistingOwner(userId) || isAdmin();
       allow delete: if isAdmin();
 
-      /**
-       * @description Student enrollments in courses.
-       * @path /users/{userId}/enrollments/{enrollmentId}
-       * @allow (get, list) if owner, faculty, or admin.
-       * @principle Path-based ownership with faculty oversight.
-       */
       match /enrollments/{enrollmentId} {
         allow get, list: if isOwner(userId) || isFaculty() || isAdmin();
         allow create: if (isOwner(userId) && request.resource.data.studentId == userId) || isAdmin();
@@ -84,12 +53,6 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
-      /**
-       * @description Private attendance records.
-       * @path /users/{userId}/attendance/{attendanceId}
-       * @allow (create, update) if faculty or admin.
-       * @principle Restricted writes to authorized faculty only.
-       */
       match /attendance/{attendanceId} {
         allow get, list: if isOwner(userId) || isFaculty() || isAdmin();
         allow create: if (isFaculty() || isAdmin()) && request.resource.data.studentId == userId;
@@ -97,24 +60,12 @@ service cloud.firestore {
         allow delete: if isAdmin();
       }
 
-      /**
-       * @description Student academic results.
-       * @path /users/{userId}/results/{resultId}
-       * @allow (get, list) if owner (and published) or faculty/admin.
-       * @principle Publication state control for student visibility.
-       */
       match /results/{resultId} {
         allow get, list: if (isOwner(userId) && resource.data.published == true) || isFaculty() || isAdmin();
         allow create, update: if isFaculty() || isAdmin();
         allow delete: if isAdmin();
       }
 
-      /**
-       * @description Assignment submissions by students.
-       * @path /users/{userId}/submissions/{submissionId}
-       * @allow (create) if owner. (update) if owner or faculty (for grading).
-       * @principle Enforces student ownership and relational integrity for course links.
-       */
       match /submissions/{submissionId} {
         allow get, list: if isOwner(userId) || isFaculty() || isAdmin();
         allow create: if isOwner(userId) && request.resource.data.studentId == userId;
@@ -122,98 +73,73 @@ service cloud.firestore {
         allow delete: if isExistingOwner(userId) || isAdmin();
       }
 
-      /**
-       * @description Personal user notifications.
-       * @path /users/{userId}/notifications/{notificationId}
-       * @allow (get, list) if owner. (update) if owner (to mark as read).
-       * @principle Strict path-based ownership for private inbox.
-       */
       match /notifications/{notificationId} {
         allow get, list: if isOwner(userId);
         allow create: if isAdmin() || isFaculty();
         allow update: if isExistingOwner(userId);
         allow delete: if isExistingOwner(userId);
       }
+
+      match /fees/{feeId} {
+        allow get, list: if isOwner(userId) || isAdmin();
+        allow create, update, delete: if isAdmin();
+      }
     }
 
-    /**
-     * @description Academic departments.
-     * @path /departments/{departmentId}
-     * @allow (get, list) if signed in. (write) if admin.
-     * @principle Public academic structure with administrative control.
-     */
     match /departments/{departmentId} {
       allow get, list: if isSignedIn();
       allow create, update, delete: if isAdmin();
 
-      /**
-       * @description Courses within a department.
-       * @path /departments/{departmentId}/courses/{courseId}
-       * @principle Inherits department access patterns.
-       */
       match /courses/{courseId} {
         allow get, list: if isSignedIn();
         allow create, update, delete: if isAdmin();
       }
     }
 
-    /**
-     * @description Course-specific timetable entries.
-     * @path /courses/{courseId}/timetableEntries/{timetableEntryId}
-     * @allow (create, update) if admin or the assigned faculty.
-     * @principle Relational integrity between path, facultyId, and courseId.
-     */
-    match /courses/{courseId}/timetableEntries/{timetableEntryId} {
+    // Top-level courses collection used by catalog and results
+    match /courses/{courseId} {
       allow get, list: if isSignedIn();
-      allow create: if isAdmin() || (isFaculty() && request.resource.data.facultyId == request.auth.uid);
-      allow update: if isAdmin() || (isFaculty() && resource.data.facultyId == request.auth.uid);
-      allow delete: if isAdmin();
-    }
+      allow create, update, delete: if isAdmin();
 
-    /**
-     * @description Assignments and Study Materials for courses.
-     * @path /courses/{courseId}/assignments/{assignmentId}
-     * @path /courses/{courseId}/studyMaterials/{materialId}
-     */
-    match /courses/{courseId}/assignments/{assignmentId} {
-      allow get, list: if isSignedIn();
-      allow create, update, delete: if isFaculty() || isAdmin();
-    }
-
-    match /courses/{courseId}/studyMaterials/{materialId} {
-      allow get, list: if isSignedIn();
-      allow create: if (isFaculty() || isAdmin()) && request.resource.data.uploadedByUserId == request.auth.uid;
-      allow update: if (isFaculty() || isAdmin()) && resource.data.uploadedByUserId == request.auth.uid;
-      allow delete: if isAdmin() || (resource != null && resource.data.uploadedByUserId == request.auth.uid);
-    }
-
-    /**
-     * @description Course discussion forums and posts.
-     * @path /courses/{courseId}/forums/{forumId}
-     * @principle Course-based collaboration with owner-only post editing.
-     */
-    match /courses/{courseId}/forums/{forumId} {
-      allow get, list: if isSignedIn();
-      allow create, update: if isFaculty() || isAdmin();
-      allow delete: if isAdmin();
-
-      match /posts/{postId} {
+      match /timetables/{slotId} {
         allow get, list: if isSignedIn();
-        allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
-        allow update: if (resource != null && resource.data.userId == request.auth.uid) || isAdmin();
-        allow delete: if (resource != null && resource.data.userId == request.auth.uid) || isAdmin();
+        allow create: if isAdmin() || (isFaculty() && request.resource.data.facultyId == request.auth.uid);
+        allow update: if isAdmin() || (isFaculty() && resource.data.facultyId == request.auth.uid);
+        allow delete: if isAdmin();
+      }
+
+      match /assignments/{assignmentId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isFaculty() || isAdmin();
+
+        match /submissions/{submissionId} {
+          allow get, list: if isSignedIn();
+          allow create: if isOwner(request.resource.data.studentId);
+          allow update: if isFaculty() || isAdmin();
+        }
+      }
+
+      match /study_materials/{materialId} {
+        allow get, list: if isSignedIn();
+        allow create, update, delete: if isFaculty() || isAdmin();
+      }
+
+      match /forums/{forumId} {
+        allow get, list: if isSignedIn();
+        allow create, update: if isFaculty() || isAdmin();
+        allow delete: if isAdmin();
+
+        match /forum_posts/{postId} {
+          allow get, list: if isSignedIn();
+          allow create: if isSignedIn() && request.resource.data.userId == request.auth.uid;
+          allow update, delete: if (resource != null && resource.data.userId == request.auth.uid) || isAdmin();
+        }
       }
     }
 
-    /**
-     * @description Campus announcements and events.
-     * @path /announcements/{announcementId}
-     * @path /events/{eventId}
-     */
     match /announcements/{announcementId} {
       allow get, list: if isSignedIn();
-      allow create: if (isFaculty() || isAdmin()) && request.resource.data.postedByUserId == request.auth.uid;
-      allow update: if (isFaculty() || isAdmin()) && resource.data.postedByUserId == request.auth.uid;
+      allow create, update: if isFaculty() || isAdmin();
       allow delete: if isAdmin();
     }
 
@@ -222,28 +148,40 @@ service cloud.firestore {
       allow create, update, delete: if isAdmin();
     }
 
-    /**
-     * @description Student clubs and memberships.
-     * @path /clubs/{clubId}
-     */
     match /clubs/{clubId} {
       allow get, list: if isSignedIn();
       allow create: if isAdmin();
-      allow update: if isAdmin() || (isFaculty() && resource.data.facultyInchargeId == request.auth.uid);
-      allow delete: if isAdmin();
+      allow update: if isAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid);
+      allow delete: if isAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid);
+    }
 
-      match /memberships/{membershipId} {
-        allow get, list: if isSignedIn();
-        allow create: if isOwner(request.resource.data.studentId) || isAdmin();
-        allow update: if isAdmin() || (isFaculty() && get(/databases/$(database)/documents/clubs/$(clubId)).data.facultyInchargeId == request.auth.uid);
-        allow delete: if isOwner(resource.data.studentId) || isAdmin();
-      }
+    match /helpdeskTickets/{ticketId} {
+      allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isFaculty() || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isFaculty() || isAdmin();
+    }
+
+    match /communityPosts/{postId} {
+      allow get, list: if isSignedIn();
+      allow create: if isSignedIn();
+      allow update, delete: if isAdmin() || (resource != null && resource.data.studentId == request.auth.uid);
+    }
+
+    match /correctionRequests/{requestId} {
+      allow get, list: if isSignedIn() && (resource.data.studentId == request.auth.uid || isFaculty() || isAdmin());
+      allow create: if isSignedIn();
+      allow update: if isFaculty() || isAdmin();
+    }
+
+    match /attendanceSessions/{sessionId} {
+      allow get, list: if isSignedIn();
+      allow create: if isFaculty() || isAdmin();
+      allow update: if isSignedIn();
     }
 
     // --- Collection Group Rules ---
-    // These allow faculty and students to query subcollections across the root hierarchy.
 
-    match /{path=**}/timetableEntries/{entryId} {
+    match /{path=**}/timetables/{slotId} {
       allow list: if isSignedIn();
     }
 
@@ -255,8 +193,16 @@ service cloud.firestore {
       allow list: if isFaculty() || isAdmin();
     }
 
-    match /{path=**}/memberships/{membershipId} {
+    match /{path=**}/enrollments/{enrollmentId} {
       allow list: if isSignedIn();
+    }
+
+    match /{path=**}/results/{resultId} {
+      allow list: if isSignedIn();
+    }
+
+    match /{path=**}/fees/{feeId} {
+      allow list: if isAdmin();
     }
 
   }
