@@ -19,6 +19,6 @@ export interface UserAuthHookResult {
 }
 
 export const useUser = (): UserAuthHookResult => {
-  const { user, profile, isLoading, error } = useFirebase();
-  return { user, profile, isUserLoading: isLoading, userError: error };
+  const { user, profile, isUserLoading, userError } = useFirebase();
+  return { user, profile, isUserLoading, userError };
 };
