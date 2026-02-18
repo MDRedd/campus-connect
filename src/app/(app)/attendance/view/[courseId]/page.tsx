@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useFirestore, useDoc, useMemoFirebase, useCollection, useUser, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 import { format } from 'date-fns';
@@ -25,7 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Users, Pencil, Trash2, PlusCircle } from 'lucide-react';
+import { ArrowLeft, Users, Pencil, Trash2, PlusCircle, Search, FilterX } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -62,6 +62,7 @@ export default function FacultyAttendanceDetailsPage() {
 
     const [managingStudent, setManagingStudent] = useState<UserProfile | null>(null);
     const [editingRecord, setEditingRecord] = useState<AttendanceRecord | null>(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const courseDocRef = useMemoFirebase(() => {
         if (!firestore || !courseId) return null;
@@ -135,7 +136,7 @@ export default function FacultyAttendanceDetailsPage() {
             }
         };
         fetchRecords();
-    }, [firestore, courseId, managingStudent]); // Refetch when dialog opens/changes
+    }, [firestore, courseId, managingStudent]);
 
     // 3. Compute stats
     const studentStats = useMemo<StudentStats[] | null>(() => {
@@ -153,17 +154,23 @@ export default function FacultyAttendanceDetailsPage() {
             }
         }
         
-        return enrolledStudents.map(student => {
-            const stats = recordStats[student.id] || { attended: 0, total: 0 };
-            return {
-                profile: student,
-                attended: stats.attended,
-                total: stats.total,
-                percentage: stats.total > 0 ? Math.round((stats.attended / stats.total) * 100) : 0,
-            }
-        }).sort((a, b) => a.profile.name.localeCompare(b.profile.name));
+        return enrolledStudents
+            .map(student => {
+                const stats = recordStats[student.id] || { attended: 0, total: 0 };
+                return {
+                    profile: student,
+                    attended: stats.attended,
+                    total: stats.total,
+                    percentage: stats.total > 0 ? Math.round((stats.attended / stats.total) * 100) : 0,
+                }
+            })
+            .filter(stat => 
+                stat.profile.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                stat.profile.email.toLowerCase().includes(searchQuery.toLowerCase())
+            )
+            .sort((a, b) => a.profile.name.localeCompare(b.profile.name));
 
-    }, [enrolledStudents, courseAttendanceRecords]);
+    }, [enrolledStudents, courseAttendanceRecords, searchQuery]);
     
     const individualStudentRecords = useMemo(() => {
         if (!managingStudent || !courseAttendanceRecords) return [];
@@ -222,17 +229,35 @@ export default function FacultyAttendanceDetailsPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Dashboard
             </Button>
             
-            {isCourseLoading ? <Skeleton className="h-10 w-1/2" /> : (
-                <div className="space-y-1">
-                    <h1 className="text-3xl font-bold tracking-tight">{course?.name}</h1>
-                    <p className="text-muted-foreground">Attendance records for all enrolled students.</p>
+            <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
+                {isCourseLoading ? <Skeleton className="h-10 w-1/2" /> : (
+                    <div className="space-y-1">
+                        <h1 className="text-3xl font-bold tracking-tight">{course?.name}</h1>
+                        <p className="text-muted-foreground">Attendance records for all enrolled students.</p>
+                    </div>
+                )}
+                <div className="flex items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search students..." 
+                            className="pl-8 w-[250px]" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    {searchQuery && (
+                        <Button variant="ghost" size="icon" onClick={() => setSearchQuery('')}>
+                            <FilterX className="h-4 w-4" />
+                        </Button>
+                    )}
                 </div>
-            )}
+            </div>
             
             <Card>
                 <CardHeader>
-                    <CardTitle>Student Attendance</CardTitle>
-                    <CardDescription>Overview of attendance percentages for this course.</CardDescription>
+                    <CardTitle>Enrolled Students</CardTitle>
+                    <CardDescription>Overview of cumulative attendance percentages for this course.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -280,7 +305,7 @@ export default function FacultyAttendanceDetailsPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">
-                                        No students enrolled or no attendance data available for this course.
+                                        {searchQuery ? 'No students match your search.' : 'No students enrolled or no attendance data available.'}
                                     </TableCell>
                                 </TableRow>
                             )}

@@ -3,8 +3,8 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { useFirestore, useDoc, useCollection, useUser, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, doc, query, collectionGroup, where, getDocs, orderBy } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Download, FileText, Users, Sparkles, Lightbulb } from 'lucide-react';
+import { ArrowLeft, Download, FileText, Users, Sparkles, Lightbulb, GraduationCap, CheckCircle2, XCircle } from 'lucide-react';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
@@ -30,7 +30,9 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { format } from 'date-fns';
 import { summarizeCourseMaterials } from '@/ai/flows/summarize-course-materials';
 import { generateStudyQuestions } from '@/ai/flows/generate-study-questions';
+import { generateQuiz, type GenerateQuizOutput } from '@/ai/flows/generate-quiz';
 import GradeDistributionChart from '../../dashboard/components/grade-distribution-chart';
+import { cn } from '@/lib/utils';
 
 type Course = {
   id: string;
@@ -53,15 +55,28 @@ export default function CourseDetailPage() {
 
   const courseId = params.courseId as string;
 
+  // AI Summary State
   const [isSummarizing, setIsSummarizing] = useState(false);
   const [summary, setSummary] = useState('');
   const [summaryTitle, setSummaryTitle] = useState('');
   const [showSummaryDialog, setShowSummaryDialog] = useState(false);
   
+  // AI Questions State
   const [isGeneratingQuestions, setIsGeneratingQuestions] = useState(false);
   const [questions, setQuestions] = useState('');
   const [questionsTitle, setQuestionsTitle] = useState('');
   const [showQuestionsDialog, setShowQuestionsDialog] = useState(false);
+
+  // AI Quiz State
+  const [isGeneratingQuiz, setIsGeneratingQuiz] = useState(false);
+  const [quizData, setQuizData] = useState<GenerateQuizOutput['quiz'] | null>(null);
+  const [quizTitle, setQuestionsQuizTitle] = useState('');
+  const [showQuizDialog, setShowQuizDialog] = useState(false);
+  const [currentQuizIndex, setCurrentQuizIndex] = useState(0);
+  const [selectedOption, setSelectedOption] = useState<number | null>(null);
+  const [quizScore, setQuizScore] = useState(0);
+  const [quizSubmitted, setQuizSubmitted] = useState(false);
+  const [showExplanation, setShowExplanation] = useState(false);
 
   const courseDocRef = useMemoFirebase(() => {
     if (!firestore || !courseId) return null;
@@ -223,6 +238,57 @@ export default function CourseDetailPage() {
     }
   };
 
+  const handleStartQuiz = async (material: StudyMaterial) => {
+    if (!course) return;
+    setIsGeneratingQuiz(true);
+    setQuizData(null);
+    setCurrentQuizIndex(0);
+    setQuizScore(0);
+    setSelectedOption(null);
+    setQuizSubmitted(false);
+    setShowExplanation(false);
+    setQuestionsQuizTitle(material.title);
+    setShowQuizDialog(true);
+
+    try {
+        const result = await generateQuiz({
+            courseName: course.name,
+            material: `${material.title}\n\n${material.description}`,
+        });
+        setQuizData(result.quiz);
+    } catch (error) {
+        console.error("Error generating quiz:", error);
+    } finally {
+        setIsGeneratingQuiz(false);
+    }
+  };
+
+  const handleOptionSelect = (index: number) => {
+      if (showExplanation) return;
+      setSelectedOption(index);
+  };
+
+  const handleSubmitAnswer = () => {
+      if (selectedOption === null || !quizData) return;
+      
+      const correct = selectedOption === quizData[currentQuizIndex].correctAnswerIndex;
+      if (correct) {
+          setQuizScore(prev => prev + 1);
+      }
+      setShowExplanation(true);
+  };
+
+  const handleNextQuestion = () => {
+      if (!quizData) return;
+      if (currentQuizIndex < quizData.length - 1) {
+          setCurrentQuizIndex(prev => prev + 1);
+          setSelectedOption(null);
+          setShowExplanation(false);
+      } else {
+          setQuizSubmitted(true);
+      }
+  };
+
   const isDataLoading = areAssignmentsLoading || areMaterialsLoading || (userProfile?.role !== 'student' && (areStudentsLoading || isPerformanceLoading));
 
   return (
@@ -300,14 +366,15 @@ export default function CourseDetailPage() {
                             <Skeleton className="h-20 w-full" />
                         ) : materials && materials.length > 0 ? (
                             materials.map(material => (
-                                <Card key={material.id} className="flex items-center justify-between p-4">
+                                <Card key={material.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
                                     <div className="flex-1">
                                         <h4 className="font-semibold">{material.title}</h4>
                                         <p className="text-sm text-muted-foreground">{material.description}</p>
                                     </div>
-                                    <div className="flex items-center gap-2">
+                                    <div className="flex flex-wrap items-center gap-2">
                                         <Button variant="secondary" size="sm" onClick={() => handleSummarize(material)} disabled={isSummarizing}><Sparkles className="mr-2 h-4 w-4" />Summarize</Button>
                                         <Button variant="secondary" size="sm" onClick={() => handleGenerateQuestions(material)} disabled={isGeneratingQuestions}><Lightbulb className="mr-2 h-4 w-4" />Questions</Button>
+                                        <Button variant="secondary" size="sm" onClick={() => handleStartQuiz(material)} disabled={isGeneratingQuiz}><GraduationCap className="mr-2 h-4 w-4" />Practice Quiz</Button>
                                         <Button variant="outline" size="sm" asChild><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Download</a></Button>
                                     </div>
                                 </Card>
@@ -433,6 +500,92 @@ export default function CourseDetailPage() {
             ) : (
                 <p className="text-sm whitespace-pre-wrap">{questions}</p>
             )}
+            </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog open={showQuizDialog} onOpenChange={setShowQuizDialog}>
+        <DialogContent className="sm:max-w-2xl">
+            <DialogHeader>
+                <DialogTitle>Interactive Practice Quiz: {quizTitle}</DialogTitle>
+                <DialogDescription>Test your knowledge on the study material. Generated by AI.</DialogDescription>
+            </DialogHeader>
+            <div className="py-6 min-h-[300px]">
+                {isGeneratingQuiz ? (
+                    <div className="flex flex-col items-center justify-center gap-4 py-12">
+                        <GraduationCap className="h-12 w-12 animate-bounce text-primary" />
+                        <p className="text-sm text-muted-foreground font-medium">Creating your quiz questions...</p>
+                    </div>
+                ) : quizSubmitted ? (
+                    <div className="flex flex-col items-center justify-center gap-6 py-8">
+                        <div className="bg-primary/10 p-6 rounded-full">
+                            <GraduationCap className="h-16 w-16 text-primary" />
+                        </div>
+                        <div className="text-center">
+                            <h3 className="text-2xl font-bold">Quiz Completed!</h3>
+                            <p className="text-muted-foreground mt-1">You scored {quizScore} out of {quizData?.length}.</p>
+                        </div>
+                        <Button onClick={() => setShowQuizDialog(false)}>Close</Button>
+                    </div>
+                ) : quizData ? (
+                    <div className="space-y-6">
+                        <div className="flex justify-between items-center text-xs text-muted-foreground uppercase tracking-wider font-semibold">
+                            <span>Question {currentQuizIndex + 1} of {quizData.length}</span>
+                            <span>Score: {quizScore}</span>
+                        </div>
+                        
+                        <div className="space-y-4">
+                            <h3 className="text-lg font-semibold leading-tight">{quizData[currentQuizIndex].question}</h3>
+                            <div className="grid gap-3">
+                                {quizData[currentQuizIndex].options.map((option, idx) => {
+                                    const isCorrect = idx === quizData[currentQuizIndex].correctAnswerIndex;
+                                    const isSelected = selectedOption === idx;
+                                    
+                                    return (
+                                        <button
+                                            key={idx}
+                                            disabled={showExplanation}
+                                            onClick={() => handleOptionSelect(idx)}
+                                            className={cn(
+                                                "flex items-center justify-between p-4 rounded-xl border text-left transition-all text-sm",
+                                                isSelected && !showExplanation && "border-primary bg-primary/5 ring-1 ring-primary",
+                                                showExplanation && isCorrect && "border-green-500 bg-green-50 text-green-900",
+                                                showExplanation && isSelected && !isCorrect && "border-red-500 bg-red-50 text-red-900",
+                                                !isSelected && !showExplanation && "hover:bg-muted/50"
+                                            )}
+                                        >
+                                            <span>{option}</span>
+                                            {showExplanation && isCorrect && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                                            {showExplanation && isSelected && !isCorrect && <XCircle className="h-5 w-5 text-red-600" />}
+                                        </button>
+                                    );
+                                })}
+                            </div>
+                        </div>
+
+                        {showExplanation && (
+                            <div className="p-4 bg-muted/50 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
+                                <p className="text-sm font-semibold">Explanation:</p>
+                                <p className="text-sm text-muted-foreground mt-1">{quizData[currentQuizIndex].explanation}</p>
+                            </div>
+                        )}
+
+                        <div className="flex justify-end gap-3 pt-4">
+                            {!showExplanation ? (
+                                <Button onClick={handleSubmitAnswer} disabled={selectedOption === null}>Submit Answer</Button>
+                            ) : (
+                                <Button onClick={handleNextQuestion}>
+                                    {currentQuizIndex === quizData.length - 1 ? 'Finish Quiz' : 'Next Question'}
+                                </Button>
+                            )}
+                        </div>
+                    </div>
+                ) : (
+                    <div className="text-center py-12">
+                        <p className="text-destructive font-medium">Failed to load quiz. Please try again.</p>
+                        <Button variant="outline" className="mt-4" onClick={() => setShowQuizDialog(false)}>Close</Button>
+                    </div>
+                )}
             </div>
         </DialogContent>
       </Dialog>
