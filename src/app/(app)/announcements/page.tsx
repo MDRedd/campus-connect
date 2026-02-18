@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking } from '@/firebase';
-import { collection, doc, addDoc, updateDoc, serverTimestamp, query, orderBy } from 'firebase/firestore';
+import { collection, doc, serverTimestamp, query, orderBy } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -20,7 +20,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Megaphone, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { Megaphone, PlusCircle, Edit, Trash2, Sparkles } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -40,6 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
+import { generateAnnouncementDraft } from '@/ai/flows/generate-announcement-draft';
 
 type Announcement = {
   id: string;
@@ -69,6 +70,7 @@ export default function AnnouncementsPage() {
 
   const [openDialog, setOpenDialog] = useState(false);
   const [editingAnnouncement, setEditingAnnouncement] = useState<Announcement | null>(null);
+  const [isDrafting, setIsDrafting] = useState(false);
 
   const announcementsQuery = useMemoFirebase(() => {
     if (!firestore) return null;
@@ -78,7 +80,6 @@ export default function AnnouncementsPage() {
   
   const allUsersQuery = useMemoFirebase(() => {
     if (!firestore) return null;
-    // We only need this if we're an admin posting an announcement
     if (currentUserProfile?.role.includes('admin') || currentUserProfile?.role === 'faculty') {
         return collection(firestore, 'users');
     }
@@ -118,6 +119,32 @@ export default function AnnouncementsPage() {
     toast({ title: 'Success', description: 'Announcement deleted.' });
   }
 
+  const handleAIDraft = async () => {
+      const currentDesc = form.getValues('description');
+      const audience = form.getValues('targetAudience');
+      
+      if (!currentDesc || currentDesc.length < 10) {
+          toast({ variant: 'destructive', title: 'Input required', description: 'Please provide some key points in the description first.' });
+          return;
+      }
+
+      setIsDrafting(true);
+      try {
+          const result = await generateAnnouncementDraft({
+              keyPoints: currentDesc,
+              targetAudience: audience,
+          });
+          form.setValue('title', result.title);
+          form.setValue('description', result.description);
+          toast({ title: 'AI Draft Generated', description: 'Your announcement has been refined.' });
+      } catch (e) {
+          console.error("Error drafting with AI:", e);
+          toast({ variant: 'destructive', title: 'Error', description: 'Could not generate AI draft.' });
+      } finally {
+          setIsDrafting(false);
+      }
+  }
+
   async function onSubmit(values: z.infer<typeof announcementSchema>) {
     if (!firestore || !authUser) return;
     
@@ -128,7 +155,7 @@ export default function AnnouncementsPage() {
         const announcementRef = doc(firestore, 'announcements', editingAnnouncement.id);
         updateDocumentNonBlocking(announcementRef, {
             ...values,
-            date: serverTimestamp(), // Update the date on edit
+            date: serverTimestamp(),
         });
         toast({ title: 'Success', description: 'Announcement updated.' });
     } else {
@@ -147,13 +174,8 @@ export default function AnnouncementsPage() {
     setEditingAnnouncement(null);
     form.reset();
 
-    // ADD NOTIFICATION LOGIC - only for new announcements
     if (isNewAnnouncement && allUsers && allUsers.length > 0 && newAnnouncementId) {
-        toast({ title: 'Sending Notifications', description: 'Alerting relevant users...' });
-
         const link = `/announcements/view`;
-
-        // Run notification generation in the background
         (async () => {
             const targetUsers = allUsers.filter(user => {
                 if (values.targetAudience === 'all') return true;
@@ -186,7 +208,6 @@ export default function AnnouncementsPage() {
   }
 
   const isLoading = isUserLoading || areAnnouncementsLoading;
-
   const canManageAnnouncements = currentUserProfile?.role === 'faculty' || currentUserProfile?.role.includes('admin');
 
   if (isUserLoading) {
@@ -222,12 +243,10 @@ export default function AnnouncementsPage() {
             <DialogTrigger asChild>
                 <Button onClick={handleAddNewClick}><PlusCircle className="mr-2 h-4 w-4" /> New Announcement</Button>
             </DialogTrigger>
-            <DialogContent>
+            <DialogContent className="sm:max-w-2xl">
                 <DialogHeader><DialogTitle>{editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}</DialogTitle></DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                        <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Mid-term Exam Schedule" /></FormControl><FormMessage /></FormItem> )} />
-                        <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="Full details of the announcement..." /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="targetAudience" render={({ field }) => (
                             <FormItem>
                             <FormLabel>Target Audience</FormLabel>
@@ -240,6 +259,20 @@ export default function AnnouncementsPage() {
                                 </SelectContent>
                             </Select>
                             <FormMessage />
+                            </FormItem>
+                        )} />
+                        <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} placeholder="e.g., Mid-term Exam Schedule" /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="description" render={({ field }) => (
+                            <FormItem>
+                                <div className="flex justify-between items-center">
+                                    <FormLabel>Description / Key Points</FormLabel>
+                                    <Button type="button" variant="outline" size="sm" onClick={handleAIDraft} disabled={isDrafting}>
+                                        <Sparkles className="mr-2 h-4 w-4" />
+                                        {isDrafting ? 'Refining...' : 'Refine with AI'}
+                                    </Button>
+                                </div>
+                                <FormControl><Textarea rows={8} {...field} placeholder="Enter full details or just key points to refine with AI..." /></FormControl>
+                                <FormMessage />
                             </FormItem>
                         )} />
                         <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingAnnouncement ? 'Save Changes' : 'Post Announcement'}</Button></DialogFooter>

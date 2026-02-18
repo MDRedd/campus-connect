@@ -8,3 +8,4 @@ import '@/ai/flows/summarize-course-materials.ts';
 import '@/ai/flows/suggest-helpdesk-response.ts';
 import '@/ai/flows/generate-submission-feedback.ts';
 import '@/ai/flows/generate-class-summary.ts';
+import '@/ai/flows/generate-announcement-draft.ts';

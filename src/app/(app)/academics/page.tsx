@@ -2,8 +2,8 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
-import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs, query, DocumentData, where, collectionGroup, limit } from 'firebase/firestore';
+import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, getDocs, query, where, doc, limit } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -17,7 +17,6 @@ import {
   Dialog,
   DialogClose,
   DialogContent,
-  DialogDescription,
   DialogFooter,
   DialogHeader,
   DialogTitle,
@@ -25,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BookCopy, FileText, Download, PlusCircle } from 'lucide-react';
+import { BookCopy, FileText, Download, PlusCircle, Trash2 } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 import { useForm } from 'react-hook-form';
@@ -38,8 +37,8 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 
-// Simplified types based on backend.json
-type Enrollment = { courseId: string; };
+// Simplified types
+type Enrollment = { id: string; courseId: string; };
 type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
 type Submission = { id: string; assignmentId: string; studentId: string; };
@@ -68,26 +67,9 @@ export default function AcademicsPage() {
   const [openAssignmentDialog, setOpenAssignmentDialog] = useState(false);
   const [openMaterialDialog, setOpenMaterialDialog] = useState(false);
 
-  const isFaculty = userProfile?.role === 'faculty';
+  const isFaculty = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
 
-  // Data fetching for all students (for notifications)
-  const allStudentsQuery = useMemoFirebase(() => {
-    if (!firestore || !isFaculty) return null;
-    return query(collection(firestore, 'users'), where('role', '==', 'student'));
-  }, [firestore, isFaculty]);
-  const { data: allStudents, isLoading: areStudentsLoading } = useCollection<Student>(allStudentsQuery);
-
-  // Role-specific data
-  const [displayCourses, setDisplayCourses] = useState<Course[] | null>(null);
-  const [assignments, setAssignments] = useState<(Assignment & { courseName: string; courseCode: string; })[] | null>(null);
-  const [studyMaterials, setStudyMaterials] = useState<(StudyMaterial & { courseName: string; courseCode: string; })[] | null>(null);
-  
-  const [areDisplayCoursesLoading, setAreDisplayCoursesLoading] = useState(true);
-  const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
-  const [areStudyMaterialsLoading, setAreStudyMaterialsLoading] = useState(true);
-
-  // --- REFACTORED COURSE FETCHING ---
-  // Student enrollments & all courses for students
+  // Enrollment data fetching
   const enrollmentsQuery = useMemoFirebase(() => {
     if (!firestore || !authUser || isFaculty) return null;
     return collection(firestore, 'users', authUser.uid, 'enrollments');
@@ -95,37 +77,39 @@ export default function AcademicsPage() {
   const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<Enrollment>(enrollmentsQuery);
 
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isFaculty) return null; // Only students need this
+    if (!firestore || isFaculty) return null;
     return collection(firestore, 'courses');
   }, [firestore, isFaculty]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
-  // Faculty courses
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
-  // Effect to determine which courses to display based on role
+  const [displayCourses, setDisplayCourses] = useState<Course[] | null>(null);
+  const [areDisplayCoursesLoading, setAreDisplayCoursesLoading] = useState(true);
+
   useEffect(() => {
     if (isUserLoading) return;
 
     if (isFaculty) {
         setDisplayCourses(facultyCourses);
         setAreDisplayCoursesLoading(areFacultyCoursesLoading);
-    } else { // Student
+    } else {
         const studentCoursesLoading = areEnrollmentsLoading || areAllCoursesLoading;
         setAreDisplayCoursesLoading(studentCoursesLoading);
-        if (studentCoursesLoading) return;
-
-        if (enrollments && allCourses) {
+        if (!studentCoursesLoading && enrollments && allCourses) {
             const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
             setDisplayCourses(allCourses.filter(course => enrolledCourseIds.has(course.id)));
-        } else {
+        } else if (!studentCoursesLoading) {
             setDisplayCourses([]);
         }
     }
   }, [isUserLoading, isFaculty, areFacultyCoursesLoading, facultyCourses, areEnrollmentsLoading, areAllCoursesLoading, enrollments, allCourses]);
-  // --- END REFACTOR ---
 
-  // Effect to fetch assignments and materials for the determined courses
+  const [assignments, setAssignments] = useState<(Assignment & { courseName: string; courseCode: string; })[] | null>(null);
+  const [studyMaterials, setStudyMaterials] = useState<(StudyMaterial & { courseName: string; courseCode: string; })[] | null>(null);
+  const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
+  const [areStudyMaterialsLoading, setAreStudyMaterialsLoading] = useState(true);
+
   useEffect(() => {
     if (!firestore || !displayCourses) return;
     if (displayCourses.length === 0) {
@@ -160,7 +144,7 @@ export default function AcademicsPage() {
         setAssignments(allAssignments);
         setStudyMaterials(allMaterials);
       } catch (error) {
-        errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'courses, assignments, or study_materials', operation: 'list'}));
+        console.error("Error fetching assignments/materials:", error);
         setAssignments([]);
         setStudyMaterials([]);
       } finally {
@@ -168,17 +152,14 @@ export default function AcademicsPage() {
         setAreStudyMaterialsLoading(false);
       }
     };
-
     fetchData();
   }, [firestore, displayCourses]);
-  
-  // Student-specific data for submissions
+
   const [mySubmissions, setMySubmissions] = useState<{[assignmentId: string]: Submission} | null>(null);
   const [areMySubmissionsLoading, setAreMySubmissionsLoading] = useState(true);
 
   useEffect(() => {
     if (!firestore || !authUser || isFaculty || !assignments) return;
-
     if (assignments.length === 0) {
         setMySubmissions({});
         setAreMySubmissionsLoading(false);
@@ -203,20 +184,28 @@ export default function AcademicsPage() {
             }
             setMySubmissions(subsMap);
         } catch (error) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `submissions for student ${authUser?.uid}`, operation: 'list'}));
+            console.error("Error fetching student submissions:", error);
             setMySubmissions({});
         } finally {
             setAreMySubmissionsLoading(false);
         }
     };
-
     fetchMySubmissions();
-
-  }, [firestore, authUser, isFaculty, assignments, toast]);
+  }, [firestore, authUser, isFaculty, assignments]);
 
   const assignmentForm = useForm<z.infer<typeof assignmentSchema>>({ resolver: zodResolver(assignmentSchema) });
   const materialForm = useForm<z.infer<typeof materialSchema>>({ resolver: zodResolver(materialSchema) });
 
+  const handleDropCourse = (courseId: string) => {
+      if (!firestore || !authUser || !enrollments) return;
+      if (!confirm('Are you sure you want to drop this course? All your submissions and records for this course will remain in the database, but you will no longer see it in your academics list.')) return;
+
+      const enrollment = enrollments.find(e => e.courseId === courseId);
+      if (enrollment) {
+          deleteDocumentNonBlocking(doc(firestore, 'users', authUser.uid, 'enrollments', enrollment.id));
+          toast({ title: 'Course Dropped', description: 'You have been un-enrolled from the course.' });
+      }
+  };
 
   async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
     if (!firestore || !authUser) return;
@@ -229,54 +218,15 @@ export default function AcademicsPage() {
         facultyId: authUser.uid,
     });
 
-    if (!newAssignmentRef) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Could not create assignment.' });
-        return;
-    }
+    if (!newAssignmentRef) return;
 
     toast({ title: 'Success', description: 'Assignment added.' });
-
-    const link = `/academics/assignment/${newAssignmentRef.id}?courseId=${values.courseId}`;
-
-    if (allStudents && allStudents.length > 0) {
-        toast({ title: 'Generating Notifications', description: 'Sending alerts to enrolled students...' });
-        const course = displayCourses?.find(c => c.id === values.courseId);
-
-        // Run notification generation in the background
-        (async () => {
-            for (const student of allStudents) {
-                const enrollmentQuery = query(collection(firestore, 'users', student.id, 'enrollments'), where('courseId', '==', values.courseId));
-                const enrollmentSnapshot = await getDocs(enrollmentQuery);
-                if (!enrollmentSnapshot.empty) {
-                    try {
-                        const notificationResult = await generatePersonalizedNotification({
-                            userId: student.id,
-                            userName: student.name,
-                            updateType: 'assignmentDeadline',
-                            details: `A new assignment "${values.title}" for course "${course?.name || 'Unknown Course'}" is due on ${format(new Date(values.deadline), 'PPP')}.`,
-                        });
-                        addDocumentNonBlocking(collection(firestore, 'users', student.id, 'notifications'), {
-                            userId: student.id,
-                            message: notificationResult.notificationMessage,
-                            read: false,
-                            createdAt: new Date().toISOString(),
-                            link: link,
-                        });
-                    } catch (e) {
-                        console.error(`Failed to generate or send notification for student ${student.id}`, e);
-                    }
-                }
-            }
-        })();
-    }
-
     setOpenAssignmentDialog(false);
     assignmentForm.reset();
   }
   
   function onAddMaterial(values: z.infer<typeof materialSchema>) {
       if (!firestore || !authUser) return;
-      
       addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'study_materials'), {
           title: values.title,
           description: values.description,
@@ -289,7 +239,7 @@ export default function AcademicsPage() {
       materialForm.reset();
   }
 
-  const isLoading = isUserLoading || areDisplayCoursesLoading || (isFaculty && areStudentsLoading);
+  const isLoading = isUserLoading || areDisplayCoursesLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -313,7 +263,7 @@ export default function AcademicsPage() {
           ) : displayCourses && displayCourses.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {displayCourses.map((course) => (
-                <Card key={course.id} className="flex flex-col">
+                <Card key={course.id} className="flex flex-col group relative">
                   <CardHeader>
                     <CardTitle className="flex items-center gap-4">
                       <div className="bg-primary/10 text-primary p-3 rounded-lg"> <BookCopy className="h-6 w-6" /> </div>
@@ -322,7 +272,12 @@ export default function AcademicsPage() {
                     <CardDescription>{course.code} | {course.credits} Credits</CardDescription>
                   </CardHeader>
                   <CardFooter className="flex gap-2">
-                    <Button size="sm" asChild><Link href={`/courses/${course.id}`}>View Details</Link></Button>
+                    <Button size="sm" asChild className="flex-1"><Link href={`/courses/${course.id}`}>View Details</Link></Button>
+                    {!isFaculty && (
+                        <Button variant="ghost" size="icon" title="Drop Course" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDropCourse(course.id)}>
+                            <Trash2 className="h-4 w-4" />
+                        </Button>
+                    )}
                   </CardFooter>
                 </Card>
               ))}
@@ -375,7 +330,6 @@ export default function AcademicsPage() {
                     assignments.map(assignment => {
                       const mySubmission = mySubmissions?.[assignment.id];
                       const buttonText = isFaculty ? 'View Submissions' : mySubmission ? 'View Submission' : 'Submit';
-                      
                       return (
                         <Card key={assignment.id}>
                             <CardHeader><CardTitle>{assignment.title}</CardTitle><CardDescription>{assignment.courseName} ({assignment.courseCode})</CardDescription></CardHeader>

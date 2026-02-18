@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState } from 'react';
-import { useUser, useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, doc } from '@/firebase';
+import { useUser, useFirestore, useCollection, useMemoFirebase, updateDocumentNonBlocking, addDocumentNonBlocking, doc } from '@/firebase';
 import { collection, query, where, serverTimestamp } from 'firebase/firestore';
 import {
   Card,
@@ -37,6 +37,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
+import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 
 // Types
 type CorrectionRequest = {
@@ -59,7 +60,7 @@ type FullRequest = CorrectionRequest & {
 };
 
 export default function CorrectionRequestsPage() {
-    const { user: authUser, isUserLoading } = useUser();
+    const { user: authUser, profile: currentUserProfile, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
     const router = useRouter();
@@ -67,7 +68,6 @@ export default function CorrectionRequestsPage() {
     const [rejectingRequest, setRejectingRequest] = useState<FullRequest | null>(null);
     const [rejectionReason, setRejectionReason] = useState('');
 
-    // Fetch only pending requests
     const requestsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
         return query(collection(firestore, 'correctionRequests'), where('status', '==', 'pending'));
@@ -86,30 +86,45 @@ export default function CorrectionRequestsPage() {
     }, [firestore]);
     const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(coursesQuery);
     
-    // Join data once loaded
     const fullRequests = useMemo<FullRequest[] | null>(() => {
         if (!requests || !allStudents || !allCourses) return null;
-
         const studentMap = new Map(allStudents.map(s => [s.id, s.name]));
         const courseMap = new Map(allCourses.map(c => [c.id, c.code]));
-
         return requests.map(req => ({
             ...req,
             studentName: studentMap.get(req.studentId) || 'Unknown Student',
             courseCode: courseMap.get(req.courseId) || 'N/A',
         })).sort((a,b) => a.requestedAt.toDate() - b.requestedAt.toDate());
-
     }, [requests, allStudents, allCourses]);
     
-    
+    const notifyStudent = async (request: FullRequest, newStatus: string, comments?: string) => {
+        if (!firestore) return;
+        try {
+            const result = await generatePersonalizedNotification({
+                userId: request.studentId,
+                userName: request.studentName,
+                updateType: 'generalAnnouncement',
+                details: `ATTENDANCE REQUEST UPDATE: Your attendance correction request for class on ${format(request.attendanceDate.toDate(), 'PPP')} in course ${request.courseCode} has been ${newStatus.toUpperCase()}.${comments ? ` Faculty Comments: "${comments}"` : ''}`,
+            });
+
+            addDocumentNonBlocking(collection(firestore, 'users', request.studentId, 'notifications'), {
+                userId: request.studentId,
+                message: result.notificationMessage,
+                read: false,
+                createdAt: new Date().toISOString(),
+                link: `/attendance/history/${request.courseId}`,
+            });
+        } catch (e) {
+            console.error("Error sending notification to student:", e);
+        }
+    };
+
     const handleApprove = (request: FullRequest) => {
         if (!firestore || !authUser) return;
 
-        // 1. Update the original attendance record to 'present'
         const attendanceRef = doc(firestore, 'users', request.studentId, 'attendance', request.attendanceId);
         updateDocumentNonBlocking(attendanceRef, { status: 'present' });
 
-        // 2. Update the correction request
         const requestRef = doc(firestore, 'correctionRequests', request.id);
         updateDocumentNonBlocking(requestRef, {
             status: 'approved',
@@ -117,7 +132,8 @@ export default function CorrectionRequestsPage() {
             resolverId: authUser.uid,
         });
 
-        toast({ title: 'Request Approved', description: `Attendance for ${request.studentName} on ${format(request.attendanceDate.toDate(), 'PPP')} marked as present.` });
+        notifyStudent(request, 'approved');
+        toast({ title: 'Request Approved', description: `Attendance for ${request.studentName} marked as present.` });
     };
 
     const handleReject = () => {
@@ -131,14 +147,18 @@ export default function CorrectionRequestsPage() {
             resolverComments: rejectionReason,
         });
 
+        notifyStudent(rejectingRequest, 'rejected', rejectionReason);
         toast({ title: 'Request Rejected' });
         setRejectingRequest(null);
         setRejectionReason('');
     };
 
     const isLoading = isUserLoading || areRequestsLoading || areStudentsLoading || areCoursesLoading;
-    
-    // TODO: Add role check for faculty/admin
+    const isFacultyOrAdmin = currentUserProfile?.role === 'faculty' || currentUserProfile?.role.includes('admin');
+
+    if (!isUserLoading && !isFacultyOrAdmin) {
+        return <div className="p-8"><Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader></Card></div>
+    }
 
     return (
         <div className="flex flex-col gap-6">
