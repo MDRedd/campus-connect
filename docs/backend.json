@@ -4,7 +4,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "User",
       "type": "object",
-      "description": "Represents a user of the Campus Connect platform.",
+      "description": "Represents a user within the CampusConnect platform, including students, faculty, and administrators.",
       "properties": {
         "id": {
           "type": "string",
@@ -12,72 +12,65 @@
         },
         "name": {
           "type": "string",
-          "description": "The user's full name."
+          "description": "The full name of the user."
         },
         "email": {
           "type": "string",
-          "description": "The user's full email address, following domain conventions (e.g., @student.college.edu, @faculty.college.edu, @college.edu).",
+          "description": "The email address of the user, used for login and notifications.",
           "format": "email"
-        },
-        "rollNumber": {
-          "type": "string",
-          "description": "The student's unique roll number. Used for login."
-        },
-        "facultyCode": {
-          "type": "string",
-          "description": "The faculty member's unique code ID. Used for login."
         },
         "role": {
           "type": "string",
-          "description": "The user's role within the platform.",
-          "enum": [
-            "student",
-            "faculty",
-            "super-admin",
-            "user-admin",
-            "course-admin",
-            "attendance-admin"
-          ]
+          "description": "The role of the user within the platform (e.g., 'student', 'faculty', 'admin')."
         },
-        "department": {
+        "departmentId": {
           "type": "string",
-          "description": "The department the user belongs to."
-        },
-        "notificationPreferences": {
-          "type": "object",
-          "description": "User's notification settings.",
-          "properties": {
-            "email": {
-              "type": "boolean",
-              "default": true
-            },
-            "push": {
-              "type": "boolean",
-              "default": false
-            },
-            "newGrades": {
-              "type": "boolean",
-              "default": true
-            },
-            "deadlineReminders": {
-              "type": "boolean",
-              "default": true
-            }
-          }
+          "description": "Reference to the Department this user belongs to. (Relationship: Department 1:N User)"
         }
       },
       "required": [
         "id",
         "name",
         "email",
-        "role"
+        "role",
+        "departmentId"
+      ]
+    },
+    "Department": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "Department",
+      "type": "object",
+      "description": "Represents an academic or administrative department within the college.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the Department entity."
+        },
+        "name": {
+          "type": "string",
+          "description": "The full name of the department (e.g., 'Computer Science Engineering')."
+        },
+        "code": {
+          "type": "string",
+          "description": "A short code or abbreviation for the department (e.g., 'CSE')."
+        },
+        "description": {
+          "type": "string",
+          "description": "A brief description of the department."
+        }
+      },
+      "required": [
+        "id",
+        "name",
+        "code",
+        "description"
       ]
     },
     "Course": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Course",
       "type": "object",
-      "description": "Represents a course offered by the college.",
+      "description": "Represents an academic course offered by a department.",
       "properties": {
         "id": {
           "type": "string",
@@ -85,26 +78,26 @@
         },
         "name": {
           "type": "string",
-          "description": "The name of the course."
+          "description": "The title or name of the course (e.g., 'Data Structures and Algorithms')."
         },
         "code": {
           "type": "string",
-          "description": "The course code or number."
+          "description": "The unique course code (e.g., 'CS301')."
         },
-        "department": {
+        "departmentId": {
           "type": "string",
-          "description": "The department offering the course."
+          "description": "Reference to the Department offering this course. (Relationship: Department 1:N Course)"
         },
         "credits": {
           "type": "number",
-          "description": "The number of credits the course is worth."
+          "description": "The number of academic credits awarded for completing the course."
         }
       },
       "required": [
         "id",
         "name",
         "code",
-        "department",
+        "departmentId",
         "credits"
       ]
     },
@@ -112,7 +105,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Enrollment",
       "type": "object",
-      "description": "Represents a student's enrollment in a course.",
+      "description": "Represents a student's enrollment in a specific course for a given semester and year.",
       "properties": {
         "id": {
           "type": "string",
@@ -120,19 +113,19 @@
         },
         "studentId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Enrollment)"
+          "description": "Reference to the Student user enrolled in the course. (Relationship: User 1:N Enrollment)"
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N Enrollment)"
+          "description": "Reference to the Course in which the student is enrolled. (Relationship: Course 1:N Enrollment)"
         },
         "semester": {
           "type": "string",
-          "description": "The semester of the enrollment."
+          "description": "The academic semester of the enrollment (e.g., 'Fall', 'Spring', 'Summer')."
         },
         "year": {
           "type": "number",
-          "description": "The year of the enrollment."
+          "description": "The academic year of the enrollment."
         }
       },
       "required": [
@@ -147,7 +140,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Attendance",
       "type": "object",
-      "description": "Represents a student's attendance record for a specific course and date.",
+      "description": "Records the attendance status of a student for a specific course session.",
       "properties": {
         "id": {
           "type": "string",
@@ -155,24 +148,24 @@
         },
         "studentId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Attendance)"
+          "description": "Reference to the Student user whose attendance is being recorded. (Relationship: User 1:N Attendance)"
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N Attendance)"
+          "description": "Reference to the Course for which attendance is recorded. (Relationship: Course 1:N Attendance)"
         },
         "date": {
           "type": "string",
-          "description": "The date of the attendance record.",
+          "description": "The date and time when the attendance was marked.",
           "format": "date-time"
         },
         "status": {
           "type": "string",
-          "description": "The attendance status (e.g., present, absent)."
+          "description": "The attendance status (e.g., 'present', 'absent', 'excused')."
         },
-        "markedBy": {
+        "markedByFacultyId": {
           "type": "string",
-          "description": "Reference to User (Faculty). (Relationship: User 1:N Attendance)"
+          "description": "Reference to the Faculty user who marked the attendance. (Relationship: User 1:N Attendance)"
         }
       },
       "required": [
@@ -181,55 +174,50 @@
         "courseId",
         "date",
         "status",
-        "markedBy"
+        "markedByFacultyId"
       ]
     },
-    "Timetable": {
+    "TimetableEntry": {
       "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Timetable",
+      "title": "TimetableEntry",
       "type": "object",
-      "description": "Represents the timetable for a course.",
+      "description": "Represents a single entry in the academic timetable for classes, exams, or events.",
       "properties": {
         "id": {
           "type": "string",
-          "description": "Unique identifier for the Timetable entity."
+          "description": "Unique identifier for the TimetableEntry entity."
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N Timetable)"
+          "description": "Reference to the Course associated with this timetable entry. (Relationship: Course 1:N TimetableEntry)"
         },
         "facultyId": {
           "type": "string",
-          "description": "Reference to User (Faculty). (Relationship: User 1:N Timetable)"
+          "description": "Reference to the Faculty user assigned to this timetable entry. (Relationship: User 1:N TimetableEntry)"
         },
         "dayOfWeek": {
           "type": "string",
-          "description": "The day of the week for the timetable slot."
+          "description": "The day of the week for the timetable entry (e.g., 'Monday', 'Tuesday')."
         },
         "startTime": {
           "type": "string",
-          "description": "The start time of the timetable slot."
+          "description": "The start time of the session (e.g., '09:00 AM')."
         },
         "endTime": {
           "type": "string",
-          "description": "The end time of the timetable slot."
+          "description": "The end time of the session (e.g., '10:00 AM')."
         },
         "room": {
           "type": "string",
-          "description": "The room where the class takes place."
-        },
-        "meetingUrl": {
-          "type": "string",
-          "description": "URL for the online class meeting.",
-          "format": "uri"
+          "description": "The physical room or location where the session takes place."
         },
         "semester": {
           "type": "string",
-          "description": "The semester for the timetable slot."
+          "description": "The academic semester for this timetable entry."
         },
         "year": {
           "type": "number",
-          "description": "The year for the timetable slot."
+          "description": "The academic year for this timetable entry."
         }
       },
       "required": [
@@ -248,7 +236,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Result",
       "type": "object",
-      "description": "Represents a student's result for a course in a semester.",
+      "description": "Stores the academic results for a student in a specific course.",
       "properties": {
         "id": {
           "type": "string",
@@ -256,31 +244,31 @@
         },
         "studentId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Result)"
+          "description": "Reference to the Student user associated with this result. (Relationship: User 1:N Result)"
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N Result)"
+          "description": "Reference to the Course for which the result is recorded. (Relationship: Course 1:N Result)"
         },
         "semester": {
           "type": "string",
-          "description": "The semester for the result."
+          "description": "The academic semester of the result."
         },
         "year": {
           "type": "number",
-          "description": "The year for the result."
+          "description": "The academic year of the result."
         },
         "marks": {
           "type": "number",
-          "description": "The marks obtained by the student."
+          "description": "The numerical marks obtained by the student in the course."
         },
         "grade": {
           "type": "string",
-          "description": "The grade awarded to the student."
+          "description": "The letter grade awarded to the student (e.g., 'A', 'B+', 'C')."
         },
         "published": {
           "type": "boolean",
-          "description": "Indicates whether the result is published."
+          "description": "Indicates whether the result has been officially published and is visible to students."
         }
       },
       "required": [
@@ -298,7 +286,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Assignment",
       "type": "object",
-      "description": "Represents an assignment for a course.",
+      "description": "Defines an academic assignment for a particular course.",
       "properties": {
         "id": {
           "type": "string",
@@ -306,7 +294,7 @@
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N Assignment)"
+          "description": "Reference to the Course this assignment belongs to. (Relationship: Course 1:N Assignment)"
         },
         "title": {
           "type": "string",
@@ -314,21 +302,17 @@
         },
         "description": {
           "type": "string",
-          "description": "A description of the assignment."
+          "description": "A detailed description of the assignment requirements."
         },
         "deadline": {
           "type": "string",
-          "description": "The deadline for the assignment.",
+          "description": "The submission deadline for the assignment.",
           "format": "date-time"
         },
         "fileUrl": {
           "type": "string",
-          "description": "URL to access the assignment file.",
+          "description": "URL to any supplementary assignment files or instructions.",
           "format": "uri"
-        },
-        "facultyId": {
-          "type": "string",
-          "description": "Reference to User (Faculty) who created the assignment."
         }
       },
       "required": [
@@ -336,58 +320,44 @@
         "courseId",
         "title",
         "description",
-        "deadline",
-        "facultyId"
+        "deadline"
       ]
     },
     "Submission": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Submission",
       "type": "object",
-      "description": "Represents a student's submission for an assignment.",
+      "description": "Records a student's submission for a given assignment.",
       "properties": {
         "id": {
           "type": "string",
           "description": "Unique identifier for the Submission entity."
         },
-        "courseId": {
-          "type": "string",
-          "description": "Reference to Course. (Denormalized for querying)"
-        },
         "assignmentId": {
           "type": "string",
-          "description": "Reference to Assignment. (Relationship: Assignment 1:N Submission)"
+          "description": "Reference to the Assignment this submission is for. (Relationship: Assignment 1:N Submission)"
         },
         "studentId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Submission)"
+          "description": "Reference to the Student user who made the submission. (Relationship: User 1:N Submission)"
         },
         "submissionDate": {
           "type": "string",
-          "description": "The date of submission.",
+          "description": "The date and time when the assignment was submitted.",
           "format": "date-time"
         },
         "fileUrl": {
           "type": "string",
-          "description": "URL to access the submission file.",
+          "description": "URL to the submitted assignment file.",
           "format": "uri"
-        },
-        "comments": {
-          "type": "string",
-          "description": "Optional comments from the student."
         },
         "marksAwarded": {
           "type": "number",
-          "description": "The marks awarded for the submission."
-        },
-        "facultyFeedback": {
-          "type": "string",
-          "description": "Feedback provided by the faculty on the submission."
+          "description": "The marks awarded for the submission, if graded."
         }
       },
       "required": [
         "id",
-        "courseId",
         "assignmentId",
         "studentId",
         "submissionDate",
@@ -398,7 +368,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "StudyMaterial",
       "type": "object",
-      "description": "Represents study material for a course.",
+      "description": "Provides access to study resources and materials for courses.",
       "properties": {
         "id": {
           "type": "string",
@@ -406,7 +376,7 @@
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N StudyMaterial)"
+          "description": "Reference to the Course this material is relevant to. (Relationship: Course 1:N StudyMaterial)"
         },
         "title": {
           "type": "string",
@@ -414,20 +384,20 @@
         },
         "description": {
           "type": "string",
-          "description": "A description of the study material."
+          "description": "A brief description of the study material."
         },
         "fileUrl": {
           "type": "string",
-          "description": "URL to access the study material file.",
+          "description": "URL to the study material file (e.g., PDF, presentation).",
           "format": "uri"
         },
-        "uploadedBy": {
+        "uploadedByUserId": {
           "type": "string",
-          "description": "Reference to User (Faculty/Admin). (Relationship: User 1:N StudyMaterial)"
+          "description": "Reference to the User (faculty/admin) who uploaded the material. (Relationship: User 1:N StudyMaterial)"
         },
         "uploadDate": {
           "type": "string",
-          "description": "The date the study material was uploaded.",
+          "description": "The date and time when the material was uploaded.",
           "format": "date-time"
         }
       },
@@ -435,9 +405,8 @@
         "id",
         "courseId",
         "title",
-        "description",
         "fileUrl",
-        "uploadedBy",
+        "uploadedByUserId",
         "uploadDate"
       ]
     },
@@ -445,7 +414,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Announcement",
       "type": "object",
-      "description": "Represents an announcement within the platform.",
+      "description": "Communicates important messages to specific target audiences within the platform.",
       "properties": {
         "id": {
           "type": "string",
@@ -453,29 +422,24 @@
         },
         "title": {
           "type": "string",
-          "description": "The title of the announcement."
+          "description": "The title or subject of the announcement."
         },
         "description": {
           "type": "string",
-          "description": "A description of the announcement."
+          "description": "The full content of the announcement."
         },
         "targetAudience": {
           "type": "string",
-          "description": "The target audience for the announcement (e.g., all, students, faculty).",
-          "enum": [
-            "all",
-            "students",
-            "faculty"
-          ]
+          "description": "The intended audience for the announcement (e.g., 'all', 'students', 'faculty')."
         },
         "date": {
           "type": "string",
-          "description": "The date of the announcement.",
+          "description": "The date and time when the announcement was posted.",
           "format": "date-time"
         },
-        "postedBy": {
+        "postedByUserId": {
           "type": "string",
-          "description": "Reference to User (Faculty/Admin). (Relationship: User 1:N Announcement)"
+          "description": "Reference to the User (admin/faculty) who posted the announcement. (Relationship: User 1:N Announcement)"
         }
       },
       "required": [
@@ -484,14 +448,14 @@
         "description",
         "targetAudience",
         "date",
-        "postedBy"
+        "postedByUserId"
       ]
     },
     "Forum": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Forum",
       "type": "object",
-      "description": "Represents a forum for a course.",
+      "description": "Represents an online discussion forum, potentially linked to a specific course.",
       "properties": {
         "id": {
           "type": "string",
@@ -499,7 +463,7 @@
         },
         "courseId": {
           "type": "string",
-          "description": "Reference to Course. (Relationship: Course 1:N Forum)"
+          "description": "Reference to the Course this forum is associated with. (Relationship: Course 1:N Forum)"
         },
         "title": {
           "type": "string",
@@ -507,24 +471,23 @@
         },
         "description": {
           "type": "string",
-          "description": "A description of the forum."
+          "description": "A description of the forum's purpose or topic."
         },
-        "createdBy": {
+        "createdByUser": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Forum)"
+          "description": "Reference to the User who created the forum. (Relationship: User 1:N Forum)"
         },
         "createdAt": {
           "type": "string",
-          "description": "The date and time the forum was created.",
+          "description": "The date and time when the forum was created.",
           "format": "date-time"
         }
       },
       "required": [
         "id",
-        "courseId",
         "title",
         "description",
-        "createdBy",
+        "createdByUser",
         "createdAt"
       ]
     },
@@ -532,7 +495,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "ForumPost",
       "type": "object",
-      "description": "Represents a post within a forum.",
+      "description": "Represents an individual post within a discussion forum.",
       "properties": {
         "id": {
           "type": "string",
@@ -540,23 +503,19 @@
         },
         "forumId": {
           "type": "string",
-          "description": "Reference to Forum. (Relationship: Forum 1:N ForumPost)"
+          "description": "Reference to the Forum this post belongs to. (Relationship: Forum 1:N ForumPost)"
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N ForumPost)"
-        },
-        "userName": {
-          "type": "string",
-          "description": "The name of the user who created the post (denormalized)."
+          "description": "Reference to the User who authored this post. (Relationship: User 1:N ForumPost)"
         },
         "content": {
           "type": "string",
-          "description": "The content of the forum post."
+          "description": "The textual content of the forum post."
         },
         "postedAt": {
           "type": "string",
-          "description": "The date and time the post was created.",
+          "description": "The date and time when the post was created.",
           "format": "date-time"
         }
       },
@@ -564,7 +523,6 @@
         "id",
         "forumId",
         "userId",
-        "userName",
         "content",
         "postedAt"
       ]
@@ -573,7 +531,7 @@
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Event",
       "type": "object",
-      "description": "Represents an event organized by the college.",
+      "description": "Describes an event happening at the college, such as workshops, cultural fests, or seminars.",
       "properties": {
         "id": {
           "type": "string",
@@ -585,7 +543,7 @@
         },
         "description": {
           "type": "string",
-          "description": "A description of the event."
+          "description": "A detailed description of the event, including agenda and purpose."
         },
         "date": {
           "type": "string",
@@ -594,15 +552,15 @@
         },
         "time": {
           "type": "string",
-          "description": "The time of the event."
+          "description": "The time of the event (e.g., '10:00 AM - 12:00 PM')."
         },
         "location": {
           "type": "string",
-          "description": "The location of the event."
+          "description": "The physical or virtual location where the event will take place."
         },
-        "organizer": {
+        "organizerName": {
           "type": "string",
-          "description": "The organizer of the event (e.g., club, department)."
+          "description": "The name of the organizer (e.g., 'CSE Department', 'Photography Club')."
         }
       },
       "required": [
@@ -612,14 +570,14 @@
         "date",
         "time",
         "location",
-        "organizer"
+        "organizerName"
       ]
     },
     "Club": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Club",
       "type": "object",
-      "description": "Represents a club within the college.",
+      "description": "Represents a student club or organization at the college.",
       "properties": {
         "id": {
           "type": "string",
@@ -627,36 +585,59 @@
         },
         "name": {
           "type": "string",
-          "description": "The name of the club."
+          "description": "The full name of the club."
         },
         "description": {
           "type": "string",
-          "description": "A description of the club."
+          "description": "A description of the club's activities and mission."
         },
-        "facultyIncharge": {
+        "facultyInchargeId": {
           "type": "string",
-          "description": "Reference to User (Faculty). (Relationship: User 1:N Club)"
-        },
-        "members": {
-          "type": "array",
-          "description": "A list of student UIDs who are members of the club.",
-          "items": {
-            "type": "string"
-          }
+          "description": "Reference to the Faculty member who is in charge of the club. (Relationship: User 1:N Club)"
         }
       },
       "required": [
         "id",
         "name",
         "description",
-        "facultyIncharge"
+        "facultyInchargeId"
+      ]
+    },
+    "ClubMembership": {
+      "$schema": "http://json-schema.org/draft-07/schema#",
+      "title": "ClubMembership",
+      "type": "object",
+      "description": "Links a student user to a club and defines their role within it.",
+      "properties": {
+        "id": {
+          "type": "string",
+          "description": "Unique identifier for the ClubMembership entity."
+        },
+        "clubId": {
+          "type": "string",
+          "description": "Reference to the Club the student is a member of. (Relationship: Club 1:N ClubMembership)"
+        },
+        "studentId": {
+          "type": "string",
+          "description": "Reference to the Student user who is a member. (Relationship: User 1:N ClubMembership)"
+        },
+        "role": {
+          "type": "string",
+          "description": "The role of the student within the club (e.g., 'Member', 'Secretary', 'President')."
+        }
+      },
+      "required": [
+        "id",
+        "clubId",
+        "studentId",
+        "role"
       ]
     },
     "Notification": {
       "$schema": "http://json-schema.org/draft-07/schema#",
       "title": "Notification",
       "type": "object",
-      "description": "Represents a notification for a user.",
+      "description": "Manages notifications sent to individual users about various activities or updates.",
       "properties": {
         "id": {
           "type": "string",
@@ -664,24 +645,20 @@
         },
         "userId": {
           "type": "string",
-          "description": "Reference to User. (Relationship: User 1:N Notification)"
+          "description": "Reference to the User who is the recipient of this notification. (Relationship: User 1:N Notification)"
         },
         "message": {
           "type": "string",
-          "description": "The content of the notification."
+          "description": "The content of the notification message."
         },
         "read": {
           "type": "boolean",
-          "description": "Indicates whether the notification has been read."
+          "description": "Indicates whether the user has read the notification."
         },
         "createdAt": {
           "type": "string",
-          "description": "The date and time the notification was created.",
+          "description": "The date and time when the notification was created.",
           "format": "date-time"
-        },
-        "link": {
-          "type": "string",
-          "description": "Optional URL to navigate to when the notification is clicked."
         }
       },
       "required": [
@@ -691,417 +668,187 @@
         "read",
         "createdAt"
       ]
-    },
-    "AttendanceSession": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "AttendanceSession",
-      "type": "object",
-      "description": "Represents a single class session for taking attendance via QR code.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the AttendanceSession entity."
-        },
-        "courseId": {
-          "type": "string",
-          "description": "Reference to the Course for this session."
-        },
-        "facultyId": {
-          "type": "string",
-          "description": "Reference to the User (Faculty) who initiated the session."
-        },
-        "createdAt": {
-          "type": "string",
-          "description": "The timestamp when the session was created.",
-          "format": "date-time"
-        },
-        "attendees": {
-          "type": "array",
-          "description": "A list of student UIDs who have successfully scanned the QR code for this session.",
-          "items": {
-            "type": "string"
-          }
-        }
-      },
-      "required": [
-        "id",
-        "courseId",
-        "facultyId",
-        "createdAt"
-      ]
-    },
-    "CorrectionRequest": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CorrectionRequest",
-      "type": "object",
-      "description": "Represents a student's request to correct an attendance record.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the CorrectionRequest entity."
-        },
-        "studentId": {
-          "type": "string",
-          "description": "Reference to the User (Student) making the request."
-        },
-        "courseId": {
-          "type": "string",
-          "description": "Reference to the Course for which the correction is requested."
-        },
-        "attendanceId": {
-          "type": "string",
-          "description": "Reference to the specific Attendance record to be corrected."
-        },
-        "attendanceDate": {
-            "type": "string",
-            "format": "date-time",
-            "description": "The date of the attendance record being corrected (denormalized)."
-        },
-        "originalStatus": {
-            "type": "string",
-            "description": "The original status of the attendance record (e.g., 'absent')."
-        },
-        "reason": {
-          "type": "string",
-          "description": "The reason provided by the student for the correction."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the request.",
-          "enum": [
-            "pending",
-            "approved",
-            "rejected"
-          ]
-        },
-        "requestedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the request was submitted."
-        },
-        "resolvedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the request was resolved."
-        },
-        "resolverId": {
-          "type": "string",
-          "description": "Reference to the User (Faculty/Admin) who resolved the request."
-        },
-        "resolverComments": {
-          "type": "string",
-          "description": "Comments from the faculty/admin who resolved the request."
-        }
-      },
-      "required": [
-        "id",
-        "studentId",
-        "courseId",
-        "attendanceId",
-        "reason",
-        "status",
-        "requestedAt"
-      ]
-    },
-    "Fee": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "Fee",
-      "type": "object",
-      "description": "Represents a fee owed by a student.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the Fee entity."
-        },
-        "studentId": {
-          "type": "string",
-          "description": "Reference to the User (Student) who owes the fee."
-        },
-        "description": {
-          "type": "string",
-          "description": "A description of the fee (e.g., Tuition Fee - Fall 2024)."
-        },
-        "totalAmount": {
-          "type": "number",
-          "description": "The total amount of the fee."
-        },
-        "amountPaid": {
-          "type": "number",
-          "description": "The amount that has been paid."
-        },
-        "dueDate": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The date the fee is due."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the fee.",
-          "enum": [
-            "Paid",
-            "Unpaid",
-            "Overdue"
-          ]
-        }
-      },
-      "required": [
-        "id",
-        "studentId",
-        "description",
-        "totalAmount",
-        "amountPaid",
-        "dueDate",
-        "status"
-      ]
-    },
-    "HelpdeskTicket": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "HelpdeskTicket",
-      "type": "object",
-      "description": "Represents a student's support ticket.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the HelpdeskTicket entity."
-        },
-        "studentId": {
-          "type": "string",
-          "description": "Reference to the User (Student) who created the ticket."
-        },
-        "studentName": {
-          "type": "string",
-          "description": "Denormalized name of the student for easy display."
-        },
-        "studentEmail": {
-          "type": "string",
-          "description": "Denormalized email of the student."
-        },
-        "category": {
-          "type": "string",
-          "description": "The category of the support ticket.",
-          "enum": [
-            "Academics",
-            "Technical",
-            "Fees",
-            "Other"
-          ]
-        },
-        "subject": {
-          "type": "string",
-          "description": "The subject line of the ticket."
-        },
-        "description": {
-          "type": "string",
-          "description": "The detailed description of the issue."
-        },
-        "status": {
-          "type": "string",
-          "description": "The current status of the ticket.",
-          "enum": [
-            "open",
-            "closed"
-          ]
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the ticket was created."
-        },
-        "resolvedAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the ticket was resolved."
-        },
-        "resolvedBy": {
-          "type": "string",
-          "description": "Reference to the User (Faculty/Admin) who resolved the ticket."
-        },
-        "resolverComments": {
-            "type": "string",
-            "description": "Comments from the faculty/admin who resolved the ticket."
-        }
-      },
-      "required": [
-        "id",
-        "studentId",
-        "studentName",
-        "studentEmail",
-        "category",
-        "subject",
-        "description",
-        "status",
-        "createdAt"
-      ]
-    },
-    "CommunityPost": {
-      "$schema": "http://json-schema.org/draft-07/schema#",
-      "title": "CommunityPost",
-      "type": "object",
-      "description": "Represents a post on the general community board.",
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique identifier for the CommunityPost entity."
-        },
-        "title": {
-          "type": "string",
-          "description": "The title of the community post."
-        },
-        "description": {
-          "type": "string",
-          "description": "The content of the community post."
-        },
-        "studentId": {
-          "type": "string",
-          "description": "Reference to the User (Student) who created the post."
-        },
-        "studentName": {
-          "type": "string",
-          "description": "Denormalized name of the student for easy display."
-        },
-        "createdAt": {
-          "type": "string",
-          "format": "date-time",
-          "description": "The timestamp when the post was created."
-        }
-      },
-      "required": [
-        "id",
-        "title",
-        "description",
-        "studentId",
-        "studentName",
-        "createdAt"
-      ]
     }
   },
   "auth": {
     "providers": [
       "password",
-      "anonymous",
-      "google.com"
+      "anonymous"
     ]
   },
   "firestore": {
-    "/users/{userId}": {
-      "schema": {
-        "$ref": "#/backend/entities/User"
+    "structure": [
+      {
+        "path": "/users/{userId}",
+        "definition": {
+          "entityName": "User",
+          "schema": {
+            "$ref": "#/backend/entities/User"
+          },
+          "description": "Stores user profiles including roles and departmental affiliations. The `id` matches `request.auth.uid`. The `role` field is used for DBAC."
+        }
       },
-      "description": "Stores user data.  Path-based ownership.  Each user can only read/write their own document."
-    },
-    "/courses/{courseId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Course"
+      {
+        "path": "/departments/{departmentId}",
+        "definition": {
+          "entityName": "Department",
+          "schema": {
+            "$ref": "#/backend/entities/Department"
+          },
+          "description": "Contains information about academic departments. Accessible broadly, editable by admin."
+        }
       },
-      "description": "Stores course information."
-    },
-    "/users/{userId}/enrollments/{enrollmentId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Enrollment"
+      {
+        "path": "/departments/{departmentId}/courses/{courseId}",
+        "definition": {
+          "entityName": "Course",
+          "schema": {
+            "$ref": "#/backend/entities/Course"
+          },
+          "description": "Courses offered by a specific department. `departmentId` is in the path for clear hierarchy."
+        }
       },
-      "description": "Stores enrollment data for a specific user. Path-based ownership: user can only read/write enrollments associated with their user ID."
-    },
-    "/users/{userId}/attendance/{attendanceId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Attendance"
+      {
+        "path": "/users/{studentId}/enrollments/{enrollmentId}",
+        "definition": {
+          "entityName": "Enrollment",
+          "schema": {
+            "$ref": "#/backend/entities/Enrollment"
+          },
+          "description": "Student-specific enrollments in courses. `studentId` is in the path. `courseId` is denormalized in the document for faculty collection group queries."
+        }
       },
-      "description": "Stores attendance data for a specific user. Path-based ownership, only faculty or admins should be able to create/update attendance, students can only view their own."
-    },
-    "/courses/{courseId}/timetables/{timetableId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Timetable"
+      {
+        "path": "/users/{studentId}/attendance/{attendanceId}",
+        "definition": {
+          "entityName": "Attendance",
+          "schema": {
+            "$ref": "#/backend/entities/Attendance"
+          },
+          "description": "Records student attendance. `studentId` in path for student access. `courseId` and `markedByFacultyId` are denormalized for faculty collection group queries."
+        }
       },
-      "description": "Stores timetable data for a specific course."
-    },
-    "/users/{userId}/results/{resultId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Result"
+      {
+        "path": "/courses/{courseId}/timetableEntries/{timetableEntryId}",
+        "definition": {
+          "entityName": "TimetableEntry",
+          "schema": {
+            "$ref": "#/backend/entities/TimetableEntry"
+          },
+          "description": "Timetable entries for specific courses. `courseId` is in the path. `facultyId` is denormalized in the document, crucial for faculty to query their assigned timetable entries via a collection group query without using `get()`."
+        }
       },
-      "description": "Stores result data for a specific user. Path-based ownership, but faculty/admin need write access."
-    },
-    "/courses/{courseId}/assignments/{assignmentId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Assignment"
+      {
+        "path": "/users/{studentId}/results/{resultId}",
+        "definition": {
+          "entityName": "Result",
+          "schema": {
+            "$ref": "#/backend/entities/Result"
+          },
+          "description": "Academic results for students. `studentId` in path. `courseId` and `published` status are denormalized for faculty collection group queries and explicit state modeling."
+        }
       },
-      "description": "Stores assignment data for a specific course."
-    },
-    "/courses/{courseId}/assignments/{assignmentId}/submissions/{submissionId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Submission"
+      {
+        "path": "/courses/{courseId}/assignments/{assignmentId}",
+        "definition": {
+          "entityName": "Assignment",
+          "schema": {
+            "$ref": "#/backend/entities/Assignment"
+          },
+          "description": "Assignments posted for a specific course. `courseId` is in the path."
+        }
       },
-      "description": "Stores submission data for a specific assignment within a course."
-    },
-    "/courses/{courseId}/study_materials/{studyMaterialId}": {
-      "schema": {
-        "$ref": "#/backend/entities/StudyMaterial"
+      {
+        "path": "/users/{studentId}/submissions/{submissionId}",
+        "definition": {
+          "entityName": "Submission",
+          "schema": {
+            "$ref": "#/backend/entities/Submission"
+          },
+          "description": "Student submissions for assignments. `studentId` is in the path. `assignmentId` and `courseId` are denormalized in the document for faculty collection group queries for grading."
+        }
       },
-      "description": "Stores study material data for a specific course."
-    },
-    "/announcements/{announcementId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Announcement"
+      {
+        "path": "/courses/{courseId}/studyMaterials/{materialId}",
+        "definition": {
+          "entityName": "StudyMaterial",
+          "schema": {
+            "$ref": "#/backend/entities/StudyMaterial"
+          },
+          "description": "Study materials for a specific course. `courseId` in path. `uploadedByUserId` denormalized for authorization independence."
+        }
       },
-      "description": "Stores announcements."
-    },
-    "/courses/{courseId}/forums/{forumId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Forum"
+      {
+        "path": "/announcements/{announcementId}",
+        "definition": {
+          "entityName": "Announcement",
+          "schema": {
+            "$ref": "#/backend/entities/Announcement"
+          },
+          "description": "Global or targeted announcements. `postedByUserId` and `targetAudience` are denormalized to allow secure list operations based on user role and audience without `get()`."
+        }
       },
-      "description": "Stores forum data for a specific course."
-    },
-    "/courses/{courseId}/forums/{forumId}/forum_posts/{forumPostId}": {
-      "schema": {
-        "$ref": "#/backend/entities/ForumPost"
+      {
+        "path": "/courses/{courseId}/forums/{forumId}",
+        "definition": {
+          "entityName": "Forum",
+          "schema": {
+            "$ref": "#/backend/entities/Forum"
+          },
+          "description": "Discussion forums associated with a course. `courseId` in path. `createdByUser` denormalized."
+        }
       },
-      "description": "Stores forum posts for a specific forum. Includes denormalized 'members' map for authorization independence."
-    },
-    "/events/{eventId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Event"
+      {
+        "path": "/courses/{courseId}/forums/{forumId}/posts/{postId}",
+        "definition": {
+          "entityName": "ForumPost",
+          "schema": {
+            "$ref": "#/backend/entities/ForumPost"
+          },
+          "description": "Individual posts within a course forum. `courseId` and `forumId` in path. `userId` denormalized for clear ownership."
+        }
       },
-      "description": "Stores event data."
-    },
-    "/clubs/{clubId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Club"
+      {
+        "path": "/events/{eventId}",
+        "definition": {
+          "entityName": "Event",
+          "schema": {
+            "$ref": "#/backend/entities/Event"
+          },
+          "description": "Information about college events. Publicly readable."
+        }
       },
-      "description": "Stores club data."
-    },
-    "/users/{userId}/notifications/{notificationId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Notification"
+      {
+        "path": "/clubs/{clubId}",
+        "definition": {
+          "entityName": "Club",
+          "schema": {
+            "$ref": "#/backend/entities/Club"
+          },
+          "description": "Student clubs and organizations. `facultyInchargeId` denormalized for authorization independence (e.g., faculty can manage their club)."
+        }
       },
-      "description": "Stores notifications for a specific user. Path-based ownership; users can only access their own notifications."
-    },
-    "/users/{userId}/fees/{feeId}": {
-      "schema": {
-        "$ref": "#/backend/entities/Fee"
+      {
+        "path": "/clubs/{clubId}/memberships/{membershipId}",
+        "definition": {
+          "entityName": "ClubMembership",
+          "schema": {
+            "$ref": "#/backend/entities/ClubMembership"
+          },
+          "description": "Links students to clubs. `clubId` in path. `studentId` and `role` are denormalized for student collection group queries (viewing their own memberships) and club management."
+        }
       },
-      "description": "Stores fee data for a specific user. Path-based ownership."
-    },
-    "/attendanceSessions/{sessionId}": {
-      "schema": {
-        "$ref": "#/backend/entities/AttendanceSession"
-      },
-      "description": "Stores live attendance data for a class session. Created by faculty, updated by students."
-    },
-    "/correctionRequests/{requestId}": {
-      "schema": {
-        "$ref": "#/backend/entities/CorrectionRequest"
-      },
-      "description": "Stores student-submitted requests for attendance corrections. Students can create, faculty/admins can read and update."
-    },
-    "/helpdeskTickets/{ticketId}": {
-      "schema": {
-        "$ref": "#/backend/entities/HelpdeskTicket"
-      },
-      "description": "Stores student helpdesk tickets. Students can create for themselves. Admins/Faculty can view all and resolve."
-    },
-    "/communityPosts/{postId}": {
-      "schema": {
-        "$ref": "#/backend/entities/CommunityPost"
-      },
-      "description": "Stores posts made by students on the community board. Students can create/edit/delete their own, admins can moderate all."
-    }
+      {
+        "path": "/users/{userId}/notifications/{notificationId}",
+        "definition": {
+          "entityName": "Notification",
+          "schema": {
+            "$ref": "#/backend/entities/Notification"
+          },
+          "description": "Individual notifications for users. `userId` is in the path, enabling secure and efficient retrieval of a user's notifications (QAP)."
+        }
+      }
+    ],
+    "reasoning": "The proposed Firestore structure for CampusConnect is designed adhering to the core principles of Authorization Independence, Structural Segregation, and Access Modeling, ensuring a secure, scalable, and debuggable database.The primary strategy for Authorization Independence is **denormalization of authorization context**. Key IDs and role-related fields are duplicated into child documents where access control is required. This eliminates the need for expensive and complex `get()` calls in security rules, which also enables atomic operations and simplifies rule debugging.For example, in collections like `users/{studentId}/attendance` or `users/{studentId}/submissions`, the `studentId` is part of the path, providing immediate ownership context. Additionally, fields like `courseId` and `facultyId` (e.g., in `TimetableEntry`) or `published` (in `Result`) are denormalized into the document itself. This allows for secure collection group queries without `get()` operations, directly addressing the console error related to `TimetableEntry` and `facultyId`.\n\n**QAPs (Queries as Authorization Primitives)** are enabled through several structural choices:\n1.  **Path-Based Ownership:** For user-specific data (e.g., attendance, results, notifications, personal enrollments, submissions), data is nested directly under `/users/{userId}/...`. This allows students to query `their` data directly and efficiently, with security rules simply checking `request.auth.uid == userId` in the path. This supports secure `list` operations for personal data.\n2.  **Collection Group Queries with Denormalized Fields:** For faculty needing to view all `TimetableEntry`, `Attendance`, `Enrollment`, `Result`, or `Submission` documents across various courses they teach, these entities are structured as subcollections. Critical fields like `facultyId`, `courseId`, and `studentId` are denormalized within each document. This allows faculty to perform collection group queries filtered by `facultyId` or a list of `courseId`s (`where('facultyId', '==', request.auth.uid)` or `where('courseId', 'in', facultyCourseIds)`). Similarly, students can query `timetableEntries` or `clubMemberships` that are relevant to them using collection group queries filtered by their `studentId` or `courseId`s.\n3.  **Structural Segregation:** Collections like `/announcements` use an explicit `targetAudience` field, allowing rules to filter visibility based on user roles without needing separate physical collections for each audience, while still maintaining homogeneous security within the collection (all documents are announcements, but their `read` permission is role-dependent).\n\n**DBAC (Database-Backed Access Control)** is implemented by storing user roles directly in the `/users/{userId}` documents. Security rules will read the `role` field from the authenticated user's document to determine permissions. For example, an `admin` user would have broad permissions, while `faculty` would manage specific courses, and `students` would mostly view their own or publicly available data.\n\nIn summary, the design prioritizes atomic rule evaluation by minimizing cross-document lookups, facilitates efficient and secure list queries through strategic path design and denormalization, and simplifies rule logic by embedding authorization context directly within the data structure."
   }
 }
