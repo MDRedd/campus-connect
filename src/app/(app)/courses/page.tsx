@@ -22,7 +22,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { BookCopy, PlusCircle, Edit, Trash2 } from 'lucide-react';
+import { BookCopy, PlusCircle, Edit, Trash2, Search, FilterX } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -62,12 +62,22 @@ export default function CoursesPage() {
 
   const [openCourseDialog, setOpenCourseDialog] = useState(false);
   const [editingCourse, setEditingCourse] = useState<Course | null>(null);
+  const [searchQuery, setSearchQuery] = useState('');
 
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore) return null;
     return collection(firestore, 'courses');
   }, [firestore]);
   const { data: allCourses, isLoading: areCoursesLoading } = useCollection<Course>(allCoursesQuery);
+
+  const filteredCourses = useMemo(() => {
+    if (!allCourses) return null;
+    return allCourses.filter(course => 
+        course.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        course.department.toLowerCase().includes(searchQuery.toLowerCase())
+    );
+  }, [allCourses, searchQuery]);
 
   // Student-specific data
   const [enrollingCourseId, setEnrollingCourseId] = useState<string | null>(null);
@@ -151,9 +161,6 @@ export default function CoursesPage() {
       description: `You have been enrolled in ${course.name}.`,
     });
     
-    // Non-blocking, so we can't easily wait for the operation to finish
-    // For a better UX, we could handle the promise returned by addDocumentNonBlocking
-    // but for this optimistic update, we reset the state immediately.
     setEnrollingCourseId(null);
   };
 
@@ -183,17 +190,12 @@ export default function CoursesPage() {
   if (canManageCourses) {
     return (
         <div className="flex flex-col gap-6">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Course Management</h1>
-            <p className="text-muted-foreground">
-            Add, edit, and manage all courses offered.
-            </p>
-        </div>
-        <Card>
-            <CardHeader className="flex-row justify-between items-start">
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
             <div>
-                <CardTitle>All Courses</CardTitle>
-                <CardDescription>A list of all available courses.</CardDescription>
+                <h1 className="text-3xl font-bold tracking-tight">Course Management</h1>
+                <p className="text-muted-foreground">
+                Add, edit, and manage all courses offered.
+                </p>
             </div>
             <Dialog open={openCourseDialog} onOpenChange={setOpenCourseDialog}>
                 <DialogTrigger asChild>
@@ -212,6 +214,31 @@ export default function CoursesPage() {
                     </Form>
                 </DialogContent>
             </Dialog>
+        </div>
+        <Card>
+            <CardHeader>
+                <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div>
+                        <CardTitle>All Courses</CardTitle>
+                        <CardDescription>A list of all available courses.</CardDescription>
+                    </div>
+                    <div className="flex items-center gap-2">
+                        <div className="relative">
+                            <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                            <Input 
+                                placeholder="Search courses..." 
+                                className="pl-8 w-[250px]" 
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                            />
+                        </div>
+                        {searchQuery && (
+                            <Button variant="ghost" size="icon" onClick={() => setSearchQuery('')} title="Clear Search">
+                                <FilterX className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+                </div>
             </CardHeader>
             <CardContent>
             <Table>
@@ -231,8 +258,8 @@ export default function CoursesPage() {
                         <TableCell colSpan={5}><Skeleton className="h-10 w-full" /></TableCell>
                     </TableRow>
                     ))
-                ) : allCourses && allCourses.length > 0 ? (
-                    allCourses.map(course => (
+                ) : filteredCourses && filteredCourses.length > 0 ? (
+                    filteredCourses.map(course => (
                     <TableRow key={course.id}>
                         <TableCell className="font-medium">
                             <Link href={`/courses/${course.id}`} className="hover:underline">
@@ -271,13 +298,31 @@ export default function CoursesPage() {
   if (currentUserProfile?.role === 'student') {
     return (
       <div className="flex flex-col gap-6">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Course Catalog</h1>
-            <p className="text-muted-foreground">Browse and enroll in available courses.</p>
+        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <h1 className="text-3xl font-bold tracking-tight">Course Catalog</h1>
+                <p className="text-muted-foreground">Browse and enroll in available courses.</p>
+            </div>
+            <div className="flex items-center gap-2">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                    <Input 
+                        placeholder="Search for courses..." 
+                        className="pl-8 w-full md:w-[300px]" 
+                        value={searchQuery}
+                        onChange={(e) => setSearchQuery(e.target.value)}
+                    />
+                </div>
+                {searchQuery && (
+                    <Button variant="ghost" size="icon" onClick={() => setSearchQuery('')} title="Clear Search">
+                        <FilterX className="h-4 w-4" />
+                    </Button>
+                )}
+            </div>
         </div>
-        {allCourses && allCourses.length > 0 ? (
+        {filteredCourses && filteredCourses.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                {allCourses.map((course) => {
+                {filteredCourses.map((course) => {
                     const isEnrolled = enrolledCourseIds.has(course.id);
                     const isEnrolling = enrollingCourseId === course.id;
                     return (
@@ -302,13 +347,13 @@ export default function CoursesPage() {
                 })}
             </div>
         ) : (
-            <Card><CardContent className="p-8 text-center"><p className="text-muted-foreground">No courses are available in the catalog at this time.</p></CardContent></Card>
+            <Card><CardContent className="p-8 text-center"><p className="text-muted-foreground">No courses found matching your search.</p></CardContent></Card>
         )}
       </div>
     );
   }
 
-  // Fallback for faculty or other roles
+  // Fallback
   return (
     <Card>
         <CardHeader>

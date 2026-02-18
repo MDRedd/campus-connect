@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, PlusCircle } from 'lucide-react';
+import { Edit, Trash2, PlusCircle, Search, FilterX } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -92,11 +92,25 @@ export default function UsersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
 
+  // Filter States
+  const [searchQuery, setSearchQuery] = useState('');
+  const [roleFilter, setRoleFilter] = useState<string>('all');
+
   const allUsersQuery = useMemoFirebase(() => {
     if (!firestore || !currentUserProfile || !['super-admin', 'user-admin'].includes(currentUserProfile.role)) return null;
     return collection(firestore, 'users');
   }, [firestore, currentUserProfile]);
   const { data: allUsers, isLoading: areUsersLoading } = useCollection<UserProfile>(allUsersQuery);
+
+  const filteredUsers = useMemo(() => {
+    if (!allUsers) return null;
+    return allUsers.filter(user => {
+        const matchesSearch = user.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
+                             user.email.toLowerCase().includes(searchQuery.toLowerCase());
+        const matchesRole = roleFilter === 'all' || user.role === roleFilter;
+        return matchesSearch && matchesRole;
+    });
+  }, [allUsers, searchQuery, roleFilter]);
 
   const editForm = useForm<z.infer<typeof userEditSchema>>({
     resolver: zodResolver(userEditSchema),
@@ -220,19 +234,14 @@ export default function UsersPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-        <p className="text-muted-foreground">
-          View and manage all users on the platform.
-        </p>
-      </div>
-      <Card>
-        <CardHeader className="flex flex-row justify-between items-start">
-          <div>
-            <CardTitle>All Users</CardTitle>
-            <CardDescription>A list of all registered users.</CardDescription>
-          </div>
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
+            <p className="text-muted-foreground">
+            View and manage all users on the platform.
+            </p>
+        </div>
+        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
             <DialogTrigger asChild>
                 <Button><PlusCircle className="mr-2 h-4 w-4" /> Create User</Button>
             </DialogTrigger>
@@ -277,6 +286,46 @@ export default function UsersPage() {
                 </Form>
             </DialogContent>
           </Dialog>
+      </div>
+
+      <Card>
+        <CardHeader>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div>
+                    <CardTitle>All Users</CardTitle>
+                    <CardDescription>A list of all registered users. Use filters to narrow down the list.</CardDescription>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                    <div className="relative">
+                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+                        <Input 
+                            placeholder="Search by name or email..." 
+                            className="pl-8 w-[250px]" 
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                        />
+                    </div>
+                    <Select value={roleFilter} onValueChange={setRoleFilter}>
+                        <SelectTrigger className="w-[180px]">
+                            <SelectValue placeholder="Filter by role" />
+                        </SelectTrigger>
+                        <SelectContent>
+                            <SelectItem value="all">All Roles</SelectItem>
+                            <SelectItem value="student">Student</SelectItem>
+                            <SelectItem value="faculty">Faculty</SelectItem>
+                            <SelectItem value="user-admin">User Admin</SelectItem>
+                            <SelectItem value="course-admin">Course Admin</SelectItem>
+                            <SelectItem value="attendance-admin">Attendance Admin</SelectItem>
+                            <SelectItem value="super-admin">Super Admin</SelectItem>
+                        </SelectContent>
+                    </Select>
+                    {(searchQuery || roleFilter !== 'all') && (
+                        <Button variant="ghost" size="icon" onClick={() => { setSearchQuery(''); setRoleFilter('all'); }} title="Clear Filters">
+                            <FilterX className="h-4 w-4" />
+                        </Button>
+                    )}
+                </div>
+            </div>
         </CardHeader>
         <CardContent>
           <Table>
@@ -300,8 +349,8 @@ export default function UsersPage() {
                     <TableCell><Skeleton className="h-10 w-full" /></TableCell>
                   </TableRow>
                 ))
-              ) : allUsers && allUsers.length > 0 ? (
-                allUsers.map(user => (
+              ) : filteredUsers && filteredUsers.length > 0 ? (
+                filteredUsers.map(user => (
                   <TableRow key={user.id}>
                     <TableCell>
                       <div className="flex items-center gap-3">
@@ -314,8 +363,8 @@ export default function UsersPage() {
                     </TableCell>
                     <TableCell>{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role.includes('admin') ? 'destructive' : user.role === 'faculty' ? 'default' : 'secondary'}>
-                        {user.role}
+                      <Badge variant={user.role.includes('admin') ? 'destructive' : user.role === 'faculty' ? 'default' : 'secondary'} className="capitalize">
+                        {user.role.replace('-', ' ')}
                       </Badge>
                     </TableCell>
                     <TableCell>{user.department || 'N/A'}</TableCell>
@@ -334,7 +383,7 @@ export default function UsersPage() {
               ) : (
                 <TableRow>
                   <TableCell colSpan={5} className="h-24 text-center">
-                    No users found.
+                    {allUsers && allUsers.length > 0 ? 'No users match your filters.' : 'No users found.'}
                   </TableCell>
                 </TableRow>
               )}

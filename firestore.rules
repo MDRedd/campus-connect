@@ -136,7 +136,7 @@ service cloud.firestore {
     match /courses/{courseId}/timetables/{timetableId} {
       allow get, list: if isSignedIn();
       allow create: if isCourseAdmin() || (isFaculty() && request.resource.data.facultyId == request.auth.uid);
-      allow update, delete: if (isFaculty() && resource.data.facultyId == request.auth.uid) || isCourseAdmin();
+      allow update, delete: if (isFaculty() && request.resource.data.facultyId == request.auth.uid) || isCourseAdmin();
     }
 
     match /users/{userId}/results/{resultId} {
@@ -230,14 +230,15 @@ service cloud.firestore {
       // Only super-admins can create clubs
       allow create: if isSuperAdmin() && request.resource.data.facultyIncharge != null;
       // The faculty in charge or a super-admin can update club details.
-      // A student can update the members list to join.
+      // A student can update the members list to join or leave.
       allow update: if (isSuperAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid)) ||
                       (
                         isSignedIn() &&
                         // Check that only the 'members' field is being changed by the student.
                         request.resource.data.diff(resource.data).affectedKeys().hasOnly(['members']) &&
-                        // Check that the student is only adding their own UID to the array.
-                        request.resource.data.members == resource.data.members.concat(request.auth.uid)
+                        // Check that the student is only adding or removing their own UID from the array.
+                        (request.resource.data.members == resource.data.members.concat([request.auth.uid]) ||
+                         request.resource.data.members == resource.data.members.removeAll([request.auth.uid]))
                       );
       // The faculty in charge or a super-admin can delete a club.
       allow delete: if isSuperAdmin() || (isFaculty() && resource.data.facultyIncharge == request.auth.uid);

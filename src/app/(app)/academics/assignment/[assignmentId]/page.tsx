@@ -35,9 +35,10 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText, Pencil, Sparkles } from 'lucide-react';
+import { ArrowLeft, FileText, Pencil, Sparkles, TrendingUp } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { generateSubmissionFeedback } from '@/ai/flows/generate-submission-feedback';
+import { generateClassSummary } from '@/ai/flows/generate-class-summary';
 
 // Simplified types based on backend.json
 type Course = { id: string; name: string; code: string; };
@@ -70,8 +71,11 @@ export default function AssignmentDetailPage() {
     const [openGradingDialog, setOpenGradingDialog] = useState(false);
     const [selectedSubmission, setSelectedSubmission] = useState<Submission | null>(null);
     const [isGeneratingFeedback, setIsGeneratingFeedback] = useState(false);
+    const [isGeneratingClassSummary, setIsGeneratingClassSummary] = useState(false);
+    const [classSummary, setClassSummary] = useState('');
+    const [showClassSummaryDialog, setShowClassSummaryDialog] = useState(false);
 
-    const isFaculty = userProfile?.role === 'faculty';
+    const isFaculty = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
 
     const assignmentDocRef = useMemoFirebase(() => {
         if (!firestore || !courseId || !assignmentId) return null;
@@ -195,6 +199,36 @@ export default function AssignmentDetailPage() {
         }
     };
 
+    const handleGenerateClassInsights = async () => {
+        if (!assignment || !submissionsWithStudentNames) return;
+        if (submissionsWithStudentNames.length === 0) {
+            toast({ title: "No submissions", description: "There are no submissions to analyze yet." });
+            return;
+        }
+
+        setIsGeneratingClassSummary(true);
+        setClassSummary('');
+        setShowClassSummaryDialog(true);
+
+        try {
+            const result = await generateClassSummary({
+                assignmentTitle: assignment.title,
+                submissions: submissionsWithStudentNames.map(s => ({
+                    studentName: s.studentName!,
+                    marks: s.marksAwarded,
+                    comments: s.comments,
+                    feedback: s.facultyFeedback,
+                })),
+            });
+            setClassSummary(result.summary);
+        } catch (e) {
+            console.error("Error generating class insights:", e);
+            setClassSummary("Failed to generate insights. Please ensure there are graded submissions available.");
+        } finally {
+            setIsGeneratingClassSummary(false);
+        }
+    };
+
     if (!courseId) {
         return <div className="p-4"><Card><CardContent className="p-8">Error: Course ID is missing from the URL.</CardContent></Card></div>
     }
@@ -210,17 +244,24 @@ export default function AssignmentDetailPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
             </Button>
             
-            <div className="space-y-1">
-                {isLoading ? (
-                    <>
-                        <Skeleton className="h-9 w-3/4" />
-                        <Skeleton className="h-5 w-1/2" />
-                    </>
-                ) : (
-                    <>
-                        <h1 className="text-3xl font-bold tracking-tight">{pageTitle}</h1>
-                        <p className="text-muted-foreground">{pageDescription}</p>
-                    </>
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                <div className="space-y-1">
+                    {isLoading ? (
+                        <>
+                            <Skeleton className="h-9 w-3/4" />
+                            <Skeleton className="h-5 w-1/2" />
+                        </>
+                    ) : (
+                        <>
+                            <h1 className="text-3xl font-bold tracking-tight">{pageTitle}</h1>
+                            <p className="text-muted-foreground">{pageDescription}</p>
+                        </>
+                    )}
+                </div>
+                {isFaculty && (
+                    <Button onClick={handleGenerateClassInsights} disabled={isLoading || areSubmissionsLoading}>
+                        <TrendingUp className="mr-2 h-4 w-4" /> Class Insights (AI)
+                    </Button>
                 )}
             </div>
             
@@ -404,6 +445,30 @@ export default function AssignmentDetailPage() {
                                     </DialogFooter>
                                 </form>
                             </Form>
+                        </DialogContent>
+                    </Dialog>
+
+                    <Dialog open={showClassSummaryDialog} onOpenChange={setShowClassSummaryDialog}>
+                        <DialogContent className="sm:max-w-2xl">
+                            <DialogHeader>
+                                <DialogTitle>Class Performance Insights</DialogTitle>
+                                <DialogDescription>AI-generated analysis of student submissions for this assignment.</DialogDescription>
+                            </DialogHeader>
+                            <div className="py-4 max-h-[60vh] overflow-y-auto">
+                                {isGeneratingClassSummary ? (
+                                    <div className="flex flex-col items-center justify-center p-8 space-y-4">
+                                        <Sparkles className="h-8 w-8 animate-pulse text-primary" />
+                                        <p className="text-sm text-muted-foreground">Analyzing submissions and generating insights...</p>
+                                    </div>
+                                ) : (
+                                    <div className="prose prose-sm dark:prose-invert">
+                                        <p className="whitespace-pre-wrap">{classSummary}</p>
+                                    </div>
+                                )}
+                            </div>
+                            <DialogFooter>
+                                <Button onClick={() => setShowClassSummaryDialog(false)}>Close</Button>
+                            </DialogFooter>
                         </DialogContent>
                     </Dialog>
                 </>

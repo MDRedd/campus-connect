@@ -4,12 +4,12 @@ import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
-import { doc, arrayUnion, collection, query, where } from 'firebase/firestore';
+import { doc, arrayUnion, arrayRemove, collection, query, where } from 'firebase/firestore';
 
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
-import { ArrowLeft, UserPlus, Users } from 'lucide-react';
+import { ArrowLeft, UserPlus, Users, UserMinus } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
@@ -26,7 +26,7 @@ export default function ClubDetailPage() {
     const { toast } = useToast();
     const clubId = params.clubId as string;
     const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
-    const [isJoining, setIsJoining] = useState(false);
+    const [isUpdatingMembership, setIsUpdatingMembership] = useState(false);
 
     // Fetch Club Details
     const clubDocRef = useMemoFirebase(() => {
@@ -46,7 +46,7 @@ export default function ClubDetailPage() {
     const memberIds = useMemo(() => club?.members || [], [club]);
     const membersQuery = useMemoFirebase(() => {
         if (!firestore || memberIds.length === 0) return null;
-        // Firestore 'in' query is limited to 30 items, which is acceptable for this feature.
+        // Firestore 'in' query is limited to 30 items
         return query(collection(firestore, 'users'), where('id', 'in', memberIds.slice(0, 30)));
     }, [firestore, memberIds]);
     const { data: members, isLoading: areMembersLoading } = useCollection<UserProfile>(membersQuery);
@@ -58,7 +58,7 @@ export default function ClubDetailPage() {
 
     const handleJoinClub = () => {
         if (!firestore || !authUser || !club) return;
-        setIsJoining(true);
+        setIsUpdatingMembership(true);
         
         const clubRef = doc(firestore, 'clubs', club.id);
         updateDocumentNonBlocking(clubRef, {
@@ -69,6 +69,24 @@ export default function ClubDetailPage() {
             title: "Successfully Joined Club!",
             description: "Welcome! You're now a member.",
         });
+        setIsUpdatingMembership(false);
+    };
+
+    const handleLeaveClub = () => {
+        if (!firestore || !authUser || !club) return;
+        if (!confirm("Are you sure you want to leave this club?")) return;
+        
+        setIsUpdatingMembership(true);
+        const clubRef = doc(firestore, 'clubs', club.id);
+        updateDocumentNonBlocking(clubRef, {
+            members: arrayRemove(authUser.uid)
+        });
+
+        toast({
+            title: "Left Club",
+            description: "You are no longer a member of this club.",
+        });
+        setIsUpdatingMembership(false);
     };
 
     const isLoading = isClubLoading || isFacultyLoading || areMembersLoading;
@@ -112,11 +130,18 @@ export default function ClubDetailPage() {
                         </div>
                     )}
 
-                    {!isMember && authUser && (
-                        <Button onClick={handleJoinClub} disabled={isJoining}>
-                            <UserPlus className="mr-2 h-4 w-4" />
-                            {isJoining ? 'Joining...' : 'Join Club'}
-                        </Button>
+                    {authUser && (
+                        isMember ? (
+                            <Button variant="outline" onClick={handleLeaveClub} disabled={isUpdatingMembership}>
+                                <UserMinus className="mr-2 h-4 w-4 text-destructive" />
+                                {isUpdatingMembership ? 'Leaving...' : 'Leave Club'}
+                            </Button>
+                        ) : (
+                            <Button onClick={handleJoinClub} disabled={isUpdatingMembership}>
+                                <UserPlus className="mr-2 h-4 w-4" />
+                                {isUpdatingMembership ? 'Joining...' : 'Join Club'}
+                            </Button>
+                        )
                     )}
 
                 </CardContent>
