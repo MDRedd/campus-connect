@@ -26,16 +26,20 @@ service cloud.firestore {
       return isOwner(userId) && resource != null;
     }
 
-    function getUserRole() {
-      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role;
+    function getUserData() {
+      return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
+    }
+
+    function userDocExists() {
+      return exists(/databases/$(database)/documents/users/$(request.auth.uid));
     }
 
     function isAdmin() {
-      return isSignedIn() && (getUserRole() == 'super-admin' || getUserRole() == 'user-admin' || getUserRole() == 'course-admin' || getUserRole() == 'attendance-admin');
+      return isSignedIn() && userDocExists() && (getUserData().role == 'super-admin' || getUserData().role == 'user-admin' || getUserData().role == 'course-admin' || getUserData().role == 'attendance-admin');
     }
 
     function isFaculty() {
-      return isSignedIn() && getUserRole() == 'faculty';
+      return isSignedIn() && userDocExists() && getUserData().role == 'faculty';
     }
 
     // --- Collection Rules ---

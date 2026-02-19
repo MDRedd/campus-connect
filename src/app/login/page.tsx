@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect, useState } from 'react';
 import Image from 'next/image';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
@@ -11,7 +12,6 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { BookOpen, KeyRound, AlertCircle } from 'lucide-react';
 import { useAuth, useUser } from '@/firebase';
 import { initiateGoogleSignIn } from '@/firebase/non-blocking-login';
-import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
@@ -21,10 +21,17 @@ export default function LoginPage() {
   const auth = useAuth();
   const { user, isUserLoading } = useUser();
   const { toast } = useToast();
-  const loginImage = PlaceHolderImages.find((img) => img.id === 'login-image');
+  
+  const [mounted, setMounted] = useState(false);
   const [identifier, setIdentifier] = useState('');
   const [password, setPassword] = useState('');
   const [isLoggingIn, setIsLoggingIn] = useState(false);
+
+  const loginImage = PlaceHolderImages.find((img) => img.id === 'login-image');
+
+  useEffect(() => {
+    setMounted(true);
+  }, []);
 
   useEffect(() => {
     if (!isUserLoading && user) {
@@ -76,6 +83,9 @@ export default function LoginPage() {
     });
   };
 
+  // Prevent hydration mismatch by only rendering logic-dependent attributes after mount
+  const isDisabled = !mounted || isLoggingIn || isUserLoading;
+
   return (
     <div className="w-full min-h-screen lg:grid lg:grid-cols-2">
       <div className="relative hidden h-full flex-col bg-muted p-10 text-white dark:border-r lg:flex">
@@ -112,7 +122,7 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin} className="grid gap-4">
+              <form onSubmit={handleLogin} className="grid gap-4" suppressHydrationWarning>
                 <div className="grid gap-2">
                   <Label htmlFor="identifier">Roll No. / Faculty ID / Email</Label>
                   <Input
@@ -122,7 +132,8 @@ export default function LoginPage() {
                     required
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
-                    disabled={isLoggingIn || isUserLoading}
+                    disabled={isDisabled}
+                    suppressHydrationWarning
                   />
                 </div>
                 <div className="grid gap-2">
@@ -135,13 +146,14 @@ export default function LoginPage() {
                     required
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    disabled={isLoggingIn || isUserLoading}
+                    disabled={isDisabled}
+                    suppressHydrationWarning
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isLoggingIn || isUserLoading}>
+                <Button type="submit" className="w-full" disabled={isDisabled}>
                   {isLoggingIn ? 'Logging in...' : 'Login'}
                 </Button>
-                <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin} disabled={isLoggingIn || isUserLoading}>
+                <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin} disabled={isDisabled}>
                   Login with Google
                 </Button>
               </form>
