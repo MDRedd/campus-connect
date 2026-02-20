@@ -44,18 +44,20 @@ export default function MarkAttendancePage() {
   const [countdown, setCountdown] = useState(60);
 
   // Allow admins to see all courses, otherwise show only assigned faculty courses
+  const isAdmin = useMemo(() => !!userProfile?.role?.includes('admin'), [userProfile]);
+
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || !userProfile?.role.includes('admin')) return null;
+    if (!firestore || !isAdmin) return null;
     return collection(firestore, 'courses');
-  }, [firestore, userProfile]);
+  }, [firestore, isAdmin]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
   const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
   
   const displayCourses = useMemo(() => {
-    if (userProfile?.role.includes('admin')) return allCourses;
+    if (isAdmin) return allCourses;
     return facultyCourses;
-  }, [userProfile, allCourses, facultyCourses]);
+  }, [isAdmin, allCourses, facultyCourses]);
 
   const areCoursesLoading = areFacultyCoursesLoading || areAllCoursesLoading;
   const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
@@ -135,6 +137,13 @@ export default function MarkAttendancePage() {
 
   const isLoading = isAuthUserLoading || areCoursesLoading;
 
+  const placeholderText = useMemo(() => {
+    if (isLoading) return "Loading courses...";
+    if (displayCourses && displayCourses.length > 0) return "Select a course...";
+    if (isAdmin) return "No courses found in system";
+    return "No courses assigned to you";
+  }, [isLoading, displayCourses, isAdmin]);
+
   return (
     <div className="flex flex-col gap-6">
       <div>
@@ -167,7 +176,7 @@ export default function MarkAttendancePage() {
                   ) : (
                     <Select onValueChange={handleCourseSelect} disabled={!displayCourses || displayCourses.length === 0 || isGenerating}>
                       <SelectTrigger id="course-select">
-                        <SelectValue placeholder={displayCourses && displayCourses.length > 0 ? "Select a course..." : "No courses assigned"} />
+                        <SelectValue placeholder={placeholderText} />
                       </SelectTrigger>
                       <SelectContent>
                         {displayCourses?.map(course => (
@@ -177,6 +186,11 @@ export default function MarkAttendancePage() {
                         ))}
                       </SelectContent>
                     </Select>
+                  )}
+                  {!isLoading && (!displayCourses || displayCourses.length === 0) && (
+                      <p className="text-xs text-muted-foreground">
+                          {isAdmin ? "You need to add courses in the Course Management tab first." : "You haven't been assigned to any classes in the weekly timetable yet."}
+                      </p>
                   )}
                 </div>
               </div>
