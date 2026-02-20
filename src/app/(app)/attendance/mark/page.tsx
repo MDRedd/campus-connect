@@ -59,7 +59,7 @@ export default function MarkAttendancePage() {
     return facultyCourses;
   }, [isAdmin, allCourses, facultyCourses]);
 
-  const areCoursesLoading = areFacultyCoursesLoading || areAllCoursesLoading;
+  const areCoursesLoading = isAdmin ? areAllCoursesLoading : areFacultyCoursesLoading;
   const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
 
   const handleCourseSelect = useCallback(async (courseId: string) => {
@@ -151,7 +151,7 @@ export default function MarkAttendancePage() {
         <p className="text-muted-foreground">Generate a QR code for students to scan and monitor live attendance.</p>
       </div>
 
-      {isIndexError && (
+      {isIndexError && !isAdmin && (
           <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Database Index Required</AlertTitle>
