@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup, doc } from 'firebase/firestore';
-import { BookOpen, Users, CheckCircle } from 'lucide-react';
+import { BookOpen, Users, CheckCircle, AlertCircle } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 
@@ -17,6 +17,7 @@ import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 import AcademicallyAtRisk, { AcademicallyAtRiskStudent } from './components/academically-at-risk';
 import { useToast } from '@/hooks/use-toast';
 import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type QuickStat = {
   title: string;
@@ -43,7 +44,7 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     const [academicallyAtRisk, setAcademicallyAtRisk] = useState<AcademicallyAtRiskStudent[] | null>(null);
     const [areAcademicallyAtRiskLoading, setAreAcademicallyAtRiskLoading] = useState(true);
 
-    const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
+    const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
 
     const announcementsQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -51,6 +52,8 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     }, [firestore]);
     const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
     
+    const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.includes('index');
+
     useEffect(() => {
         if (!firestore || !facultyCourses || areFacultyCoursesLoading) {
             if (!areFacultyCoursesLoading) setAreStatsLoading(false);
@@ -331,6 +334,17 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     return (
         <div className="flex flex-col gap-6">
             <WelcomeBanner user={userProfile} />
+
+            {isIndexError && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Database Index Required</AlertTitle>
+                    <AlertDescription>
+                        This dashboard requires a Firestore index. Please <strong>check the browser console</strong> and click the link to create the required index for the <code>timetables</code> collection group.
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
             <div className="grid grid-cols-1 gap-6">

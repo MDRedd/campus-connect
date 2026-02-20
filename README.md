@@ -11,6 +11,7 @@ Campus Connect is a unified digital platform designed to streamline academic and
 - **Tailwind CSS**: Utility-first CSS for responsive design.
 - **ShadCN UI**: High-quality accessible components built on Radix UI.
 - **Lucide React**: Vector icons for clear navigation.
+- **Recharts**: Data visualization for dashboards.
 
 ### Backend & Infrastructure (Firebase)
 - **Firestore**: Real-time NoSQL database for assignments, attendance, and results.
@@ -30,9 +31,17 @@ Campus Connect is a unified digital platform designed to streamline academic and
 
 ## 🔧 Troubleshooting
 
-### Missing Firestore Indexes
-If you see errors in the console like "The query requires a COLLECTION_GROUP_ASC index...", you **must** click the link provided in the error message. Firestore requires these indexes for "Collection Group" queries used by faculty to see data across all students. Once clicked, the Firebase console will create the index for you. Common collections requiring indexes:
+### Missing Firestore Indexes (Critical)
+Firestore requires specific indexes for "Collection Group" queries used by faculty to see data across all students. If the app displays a "Database Index Required" message:
+1.  **Open your browser's developer console** (Press F12).
+2.  **Locate the FirebaseError** message.
+3.  **Click the link** provided in the error text.
+4.  In the Firebase Console, click **"Create Index"**. 
+5.  Wait until the status is **"Active"** (approx. 2 mins).
+
+Common collections requiring manual indexes:
 - `timetables` (field `facultyId`)
 - `enrollments` (field `courseId`)
 - `attendance` (field `courseId`)
 - `results` (field `courseId`)
+- `submissions` (field `courseId`)

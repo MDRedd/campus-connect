@@ -15,9 +15,10 @@ import {
 import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ClipboardCheck, ClipboardList, QrCode } from 'lucide-react';
+import { ClipboardCheck, ClipboardList, QrCode, AlertCircle } from 'lucide-react';
 import type { Course } from '@/lib/data';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type AttendanceRecord = {
   courseId: string;
@@ -91,11 +92,12 @@ export default function AttendancePage() {
   }, [attendanceRecords, enrolledCourses, isAttendanceLoading, areAllCoursesLoading, areEnrollmentsLoading, userProfile]);
 
   // --- Faculty & Admin specific data ---
-  const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
+  const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
   const canManageAttendance = userProfile?.role === 'faculty' || userProfile?.role === 'attendance-admin' || userProfile?.role === 'super-admin';
   const coursesForManager = userProfile?.role === 'faculty' ? facultyCourses : allCourses;
   const areManagerCoursesLoading = userProfile?.role === 'faculty' ? areFacultyCoursesLoading : areAllCoursesLoading;
 
+  const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.includes('index');
 
   const isLoading = isUserLoading || areAllCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (canManageAttendance && areManagerCoursesLoading);
 
@@ -133,6 +135,16 @@ export default function AttendancePage() {
             </Button>
           </div>
         </div>
+
+        {isIndexError && (
+            <Alert variant="destructive">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Database Index Required</AlertTitle>
+                <AlertDescription>
+                    This view requires a Firestore index. Please <strong>check the browser console</strong> and click the link to create the required index for the <code>timetables</code> collection group.
+                </AlertDescription>
+            </Alert>
+        )}
         
         <Card>
           <CardHeader>

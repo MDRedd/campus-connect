@@ -1,11 +1,9 @@
-
 'use client';
 
 import { useState, useEffect } from 'react';
 import { useUser, useFirestore } from '@/firebase';
 import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
-import { useToast } from './use-toast';
 
 /**
  * Custom hook to fetch all courses assigned to a faculty member.
@@ -14,10 +12,10 @@ import { useToast } from './use-toast';
 export function useFacultyCourses() {
     const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
     const firestore = useFirestore();
-    const { toast } = useToast();
 
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
     const [isLoading, setIsLoading] = useState(true);
+    const [error, setError] = useState<any>(null);
 
     useEffect(() => {
         if (isAuthUserLoading || !firestore || !authUser) {
@@ -30,7 +28,9 @@ export function useFacultyCourses() {
 
         const fetchCourses = async () => {
             setIsLoading(true);
+            setError(null);
             try {
+                // This query requires a COLLECTION_GROUP index on 'timetables' for 'facultyId'
                 const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
                 const timetableSnapshot = await getDocs(timetablesQuery);
 
@@ -57,18 +57,9 @@ export function useFacultyCourses() {
                     setFacultyCourses([]);
                 }
                 
-            } catch (error: any) {
-                console.error("Error fetching faculty courses:", error);
-                
-                const isIndexError = error.code === 'failed-precondition' || error.message?.includes('index');
-                
-                if (isIndexError) {
-                    toast({
-                        variant: 'destructive',
-                        title: 'Database Index Required',
-                        description: 'Please check the browser console and click the link to create the required Firestore index for timetables.',
-                    });
-                }
+            } catch (err: any) {
+                console.error("Error fetching faculty courses:", err);
+                setError(err);
                 setFacultyCourses([]);
             } finally {
                 setIsLoading(false);
@@ -76,7 +67,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, isAuthUserLoading, toast]);
+    }, [firestore, authUser, isAuthUserLoading]);
 
-    return { facultyCourses, isLoading };
+    return { facultyCourses, isLoading, error };
 }
