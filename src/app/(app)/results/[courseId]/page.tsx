@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, doc, useDoc, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { useUser, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, doc, useDoc, useCollection } from '@/firebase';
+import { collection, query, where, collectionGroup } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -66,7 +66,6 @@ type UserProfile = {
 
 const resultSchema = z.object({
   studentId: z.string().min(1, 'Please select a student.'),
-  // courseId is removed from form, will be added from URL
   semester: z.string().min(3, 'Semester is required.'),
   year: z.coerce.number().min(2020, 'Year must be valid.'),
   marks: z.coerce.number().min(0).max(100, 'Marks must be between 0 and 100.'),
@@ -91,84 +90,39 @@ export default function CourseResultsPage() {
   }, [firestore, courseId]);
   const { data: course, isLoading: isCourseLoading } = useDoc<Course>(courseDocRef);
 
-  const [enrolledStudents, setEnrolledStudents] = useState<UserProfile[] | null>(null);
-  const [areStudentsLoading, setAreStudentsLoading] = useState(true);
+  // 1. Fetch enrolled students via collection group
+  const enrollmentsQuery = useMemoFirebase(() => {
+      if (!firestore || !courseId) return null;
+      return query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
+  }, [firestore, courseId]);
+  const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<any>(enrollmentsQuery);
 
-  const [courseResults, setCourseResults] = useState<(Result & { studentName: string })[] | null>(null);
-  const [areResultsLoading, setAreResultsLoading] = useState(true);
+  const studentIds = useMemo(() => {
+      if (!enrollments) return [];
+      return [...new Set(enrollments.map(e => e.studentId as string))];
+  }, [enrollments]);
 
-  // 1. Fetch enrolled students
-    useEffect(() => {
-        if (!firestore || !courseId) return;
-        const fetchStudents = async () => {
-            setAreStudentsLoading(true);
-            try {
-                const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
-                const snapshot = await getDocs(enrollmentsQuery);
-                const studentIds = snapshot.docs.map(d => d.data().studentId as string);
-
-                if (studentIds.length > 0) {
-                    const studentProfiles: UserProfile[] = [];
-                    for (let i = 0; i < studentIds.length; i += 30) {
-                        const chunk = studentIds.slice(i, i + 30);
-                        const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
-                        const studentsSnapshot = await getDocs(studentsQuery);
-                        studentsSnapshot.forEach(doc => studentProfiles.push(doc.data() as UserProfile));
-                    }
-                    setEnrolledStudents(studentProfiles);
-                } else {
-                    setEnrolledStudents([]);
-                }
-            } catch (e: any) {
-                console.error("Error fetching students for course results:", e);
-                if (e.code === 'permission-denied') {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'enrollments', operation: 'list'}));
-                }
-                setEnrolledStudents([]);
-            } finally {
-                setAreStudentsLoading(false);
-            }
-        };
-        fetchStudents();
-    }, [firestore, courseId]);
+  const studentsQuery = useMemoFirebase(() => {
+      if (!firestore || studentIds.length === 0) return null;
+      return query(collection(firestore, 'users'), where('id', 'in', studentIds.slice(0, 30)));
+  }, [firestore, studentIds]);
+  const { data: enrolledStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(studentsQuery);
   
-  // 2. Fetch results for this course
-  useEffect(() => {
-    if (!firestore || !courseId || !enrolledStudents) {
-        if (!areStudentsLoading) setAreResultsLoading(false);
-        return;
-    }
-    
-    const fetchResults = async () => {
-        setAreResultsLoading(true);
-        const studentMap = new Map(enrolledStudents.map(s => [s.id, s.name]));
-        try {
-            const resultsQuery = query(collectionGroup(firestore, 'results'), where('courseId', '==', courseId));
-            const snapshot = await getDocs(resultsQuery);
-            const resultsData = snapshot.docs.map(d => {
-                const studentId = d.ref.parent.parent!.id;
-                return {
-                    id: d.id,
-                    studentId,
-                    studentName: studentMap.get(studentId) || 'Unknown Student',
-                    ...(d.data() as Omit<Result, 'studentId'>),
-                };
-            });
-            resultsData.sort((a,b) => a.studentName.localeCompare(b.studentName));
-            setCourseResults(resultsData);
-        } catch (e: any) {
-            console.error("Error fetching results for course:", e);
-            if (e.code === 'permission-denied') {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'results', operation: 'list'}));
-            }
-            setCourseResults([]);
-        } finally {
-            setAreResultsLoading(false);
-        }
-    }
-    fetchResults();
+  // 2. Fetch results for this course via collection group
+  const resultsQuery = useMemoFirebase(() => {
+      if (!firestore || !courseId) return null;
+      return query(collectionGroup(firestore, 'results'), where('courseId', '==', courseId));
+  }, [firestore, courseId]);
+  const { data: rawResults, isLoading: areResultsLoading } = useCollection<Result>(resultsQuery);
 
-  }, [firestore, courseId, enrolledStudents, areStudentsLoading]);
+  const courseResults = useMemo(() => {
+      if (!rawResults || !enrolledStudents) return null;
+      const studentMap = new Map(enrolledStudents.map(s => [s.id, s.name]));
+      return rawResults.map(result => ({
+          ...result,
+          studentName: studentMap.get(result.studentId) || 'Unknown Student',
+      })).sort((a, b) => a.studentName.localeCompare(b.studentName));
+  }, [rawResults, enrolledStudents]);
 
   const resultForm = useForm<z.infer<typeof resultSchema>>({
     resolver: zodResolver(resultSchema),
@@ -221,7 +175,7 @@ export default function CourseResultsPage() {
     resultForm.reset();
   }
 
-  const isLoading = isCourseLoading || areStudentsLoading || areResultsLoading;
+  const isLoading = isCourseLoading || areEnrollmentsLoading || areStudentsLoading || areResultsLoading;
 
   return (
     <div className="flex flex-col gap-6">
@@ -308,7 +262,7 @@ export default function CourseResultsPage() {
                                 </TableRow>
                             ))
                         ) : (
-                            <TableRow><TableCell colSpan={6} className="text-center h-24">No results found for this course.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={6} className="text-center h-24">No results found for this course. Make sure you have created the required COLLECTION_GROUP index.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>

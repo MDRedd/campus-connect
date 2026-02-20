@@ -1,3 +1,4 @@
+
 # Campus Connect - Digital College Platform
 
 Campus Connect is a unified digital platform designed to streamline academic and administrative tasks for students, faculty, and administrators.
@@ -18,20 +19,20 @@ Campus Connect is a unified digital platform designed to streamline academic and
 
 ### Artificial Intelligence (Genkit)
 - **Google Genkit**: Orchestration layer for AI operations.
-- **Gemini 2.5 Flash**: Multi-modal LLM powering features like:
-  - **AI Feedback**: Automated constructive feedback for student submissions.
-  - **Quiz Gen**: Interactive MCQ generation from study materials.
-  - **Announcement Assistant**: Professional drafting from simple notes.
-  - **Nudge System**: AI-crafted encouragement for at-risk students.
-
-### Data & Utilities
-- **Recharts**: Dynamic dashboards for performance tracking.
-- **date-fns**: Precise date and time formatting.
-- **Zod**: Schema-based validation for forms and data.
+- **Gemini 2.5 Flash**: Multi-modal LLM powering features like AI Feedback, Quiz Gen, and Announcement drafting.
 
 ## 🛠️ Key Features
 - **Real-time Attendance**: QR-code based live check-in system.
 - **Academic Management**: Course materials, assignments, and automated grading loops.
 - **Interactive Engagement**: Discussion forums, club memberships, and community boards.
 - **Fee Management**: Individual and bulk fee assignment with status tracking.
-- **Support Helpdesk**: AI-assisted ticketing system for technical and academic queries.
+- **AI Practice Quizzes**: Instantly generate interactive quizzes from study materials.
+
+## 🔧 Troubleshooting
+
+### Missing Firestore Indexes
+If you see errors in the console like "The query requires a COLLECTION_GROUP_ASC index...", you **must** click the link provided in the error message. Firestore requires these indexes for "Collection Group" queries used by faculty to see data across all students. Once clicked, the Firebase console will create the index for you. Common collections requiring indexes:
+- `timetables` (field `facultyId`)
+- `enrollments` (field `courseId`)
+- `attendance` (field `courseId`)
+- `results` (field `courseId`)

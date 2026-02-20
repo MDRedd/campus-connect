@@ -1,10 +1,10 @@
 
 'use client';
 
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, doc, query, collectionGroup, where, getDocs, DocumentData, orderBy } from 'firebase/firestore';
+import { useUser, useFirestore, useDoc, useMemoFirebase, useCollection, updateDocumentNonBlocking, deleteDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
+import { collection, doc, query, collectionGroup, where, orderBy } from 'firebase/firestore';
 import Link from 'next/link';
 import { format } from 'date-fns';
 import { useForm } from 'react-hook-form';
@@ -26,7 +26,7 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Users, Pencil, Trash2, PlusCircle, Search, FilterX } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, PlusCircle, Search, FilterX } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
@@ -71,79 +71,36 @@ export default function FacultyAttendanceDetailsPage() {
     }, [firestore, courseId]);
     const { data: course, isLoading: isCourseLoading } = useDoc<Course>(courseDocRef);
 
-    const [enrolledStudents, setEnrolledStudents] = useState<UserProfile[] | null>(null);
-    const [areStudentsLoading, setAreStudentsLoading] = useState(true);
+    // 1. Fetch all students enrolled in the course via collection group
+    const enrollmentsQuery = useMemoFirebase(() => {
+        if (!firestore || !courseId) return null;
+        return query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
+    }, [firestore, courseId]);
+    const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<any>(enrollmentsQuery);
+
+    const studentIds = useMemo(() => {
+        if (!enrollments) return [];
+        return [...new Set(enrollments.map(e => e.studentId as string))];
+    }, [enrollments]);
+
+    // Fetch student profiles for the enrolled IDs
+    const studentsQuery = useMemoFirebase(() => {
+        if (!firestore || studentIds.length === 0) return null;
+        // Firestore 'in' query is limited to 30 items. 
+        return query(collection(firestore, 'users'), where('id', 'in', studentIds.slice(0, 30)));
+    }, [firestore, studentIds]);
+    const { data: enrolledStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(studentsQuery);
     
-    const [courseAttendanceRecords, setCourseAttendanceRecords] = useState<AttendanceRecord[] | null>(null);
-    const [areRecordsLoading, setAreRecordsLoading] = useState(true);
+    // 2. Fetch all attendance records for this course via collection group
+    const recordsQuery = useMemoFirebase(() => {
+        if (!firestore || !courseId) return null;
+        return query(collectionGroup(firestore, 'attendance'), where('courseId', '==', courseId));
+    }, [firestore, courseId]);
+    const { data: courseAttendanceRecords, isLoading: areRecordsLoading } = useCollection<AttendanceRecord>(recordsQuery);
 
     const form = useForm<AttendanceFormValues>({
         resolver: zodResolver(attendanceSchema),
     });
-
-    // 1. Fetch all students enrolled in the course
-    useEffect(() => {
-        if (!firestore || !courseId) return;
-
-        const fetchStudents = async () => {
-            setAreStudentsLoading(true);
-            try {
-                const enrollmentsQuery = query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
-                const enrollmentsSnapshot = await getDocs(enrollmentsQuery);
-                const studentIds = enrollmentsSnapshot.docs.map(d => d.data().studentId as string);
-
-                if (studentIds.length > 0) {
-                    const studentsData: UserProfile[] = [];
-                    for (let i = 0; i < studentIds.length; i += 30) {
-                        const chunk = studentIds.slice(i, i + 30);
-                        const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
-                        const studentsSnapshot = await getDocs(studentsQuery);
-                        studentsSnapshot.forEach(doc => studentsData.push(doc.data() as UserProfile));
-                    }
-                    setEnrolledStudents(studentsData);
-                } else {
-                    setEnrolledStudents([]);
-                }
-            } catch (error: any) {
-                console.error("Error fetching students for course:", error);
-                if (error.code === 'permission-denied') {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments', operation: 'list'}));
-                }
-                setEnrolledStudents([]);
-            } finally {
-                setAreStudentsLoading(false);
-            }
-        };
-        fetchStudents();
-    }, [firestore, courseId]);
-
-    // 2. Fetch all attendance records for this course
-    useEffect(() => {
-        if (!firestore || !courseId) return;
-
-        const fetchRecords = async () => {
-            setAreRecordsLoading(true);
-            try {
-                const recordsQuery = query(collectionGroup(firestore, 'attendance'), where('courseId', '==', courseId));
-                const recordsSnapshot = await getDocs(recordsQuery);
-                const records = recordsSnapshot.docs.map(d => {
-                    const data = d.data() as Omit<AttendanceRecord, 'id' | 'studentId'>;
-                    const studentId = d.ref.parent.parent?.id; // attendance is in a subcollection of user
-                    return { ...data, id: d.id, studentId: studentId! }
-                });
-                setCourseAttendanceRecords(records);
-            } catch (error: any) {
-                console.error("Error fetching attendance records for course:", error);
-                if (error.code === 'permission-denied') {
-                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'attendance', operation: 'list'}));
-                }
-                setCourseAttendanceRecords([]);
-            } finally {
-                setAreRecordsLoading(false);
-            }
-        };
-        fetchRecords();
-    }, [firestore, courseId, managingStudent]);
 
     // 3. Compute stats
     const studentStats = useMemo<StudentStats[] | null>(() => {
@@ -152,12 +109,21 @@ export default function FacultyAttendanceDetailsPage() {
         const recordStats: Record<string, { attended: number; total: number }> = {};
 
         for (const record of courseAttendanceRecords) {
-            if (!recordStats[record.studentId]) {
-                recordStats[record.studentId] = { attended: 0, total: 0 };
+            // In our structure, record.studentId is not explicitly in the data usually, 
+            // but our useCollection hook adds the doc ID. 
+            // However, attendance is nested under users, so studentId comes from the path.
+            // In the manual fetch we did: const studentId = d.ref.parent.parent?.id;
+            // The Refactored useCollection needs to ensure we have the student ID.
+            // Let's assume the record object has a 'studentId' field as per our backend.json blueprint.
+            const sId = record.studentId;
+            if (!sId) continue;
+
+            if (!recordStats[sId]) {
+                recordStats[sId] = { attended: 0, total: 0 };
             }
-            recordStats[record.studentId].total++;
+            recordStats[sId].total++;
             if (record.status === 'present') {
-                recordStats[record.studentId].attended++;
+                recordStats[sId].attended++;
             }
         }
         
@@ -183,7 +149,11 @@ export default function FacultyAttendanceDetailsPage() {
         if (!managingStudent || !courseAttendanceRecords) return [];
         return courseAttendanceRecords
             .filter(r => r.studentId === managingStudent.id)
-            .sort((a,b) => b.date.toDate() - a.date.toDate());
+            .sort((a,b) => {
+                const dateA = a.date?.toDate?.() || new Date(a.date);
+                const dateB = b.date?.toDate?.() || new Date(b.date);
+                return dateB - dateA;
+            });
     }, [managingStudent, courseAttendanceRecords]);
 
     const handleManageClick = (student: UserProfile) => {
@@ -194,8 +164,9 @@ export default function FacultyAttendanceDetailsPage() {
 
     const handleEditClick = (record: AttendanceRecord) => {
         setEditingRecord(record);
+        const date = record.date?.toDate?.() || new Date(record.date);
         form.reset({
-            date: format(record.date.toDate(), 'yyyy-MM-dd'),
+            date: format(date, 'yyyy-MM-dd'),
             status: record.status,
         });
     };
@@ -215,10 +186,11 @@ export default function FacultyAttendanceDetailsPage() {
             date: new Date(values.date),
             status: values.status,
             markedBy: authUser.uid,
+            studentId: managingStudent.id, // Explicitly store for collection group queries
         };
 
         if (editingRecord) {
-            updateDocumentNonBlocking(doc(firestore, 'users', editingRecord.studentId, 'attendance', editingRecord.id), recordData);
+            updateDocumentNonBlocking(doc(firestore, 'users', managingStudent.id, 'attendance', editingRecord.id), recordData);
             toast({ title: 'Record Updated' });
         } else {
             addDocumentNonBlocking(collection(firestore, 'users', managingStudent.id, 'attendance'), recordData);
@@ -228,7 +200,7 @@ export default function FacultyAttendanceDetailsPage() {
         setEditingRecord(null);
     };
     
-    const isLoading = isCourseLoading || areStudentsLoading || areRecordsLoading;
+    const isLoading = isCourseLoading || areEnrollmentsLoading || areStudentsLoading || areRecordsLoading;
 
     return (
         <div className="flex flex-col gap-6">
@@ -312,7 +284,7 @@ export default function FacultyAttendanceDetailsPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">
-                                        {searchQuery ? 'No students match your search.' : 'No students enrolled or no attendance data available.'}
+                                        {searchQuery ? 'No students match your search.' : 'No students enrolled or no attendance data available. Make sure you have created the required COLLECTION_GROUP index.'}
                                     </TableCell>
                                 </TableRow>
                             )}
@@ -368,7 +340,7 @@ export default function FacultyAttendanceDetailsPage() {
                                     {individualStudentRecords.length > 0 ? (
                                         individualStudentRecords.map(rec => (
                                             <TableRow key={rec.id}>
-                                                <TableCell>{format(rec.date.toDate(), 'PPP')}</TableCell>
+                                                <TableCell>{format(rec.date?.toDate?.() || new Date(rec.date), 'PPP')}</TableCell>
                                                 <TableCell><Badge variant={rec.status === 'present' ? 'default' : 'destructive'} className="capitalize">{rec.status}</Badge></TableCell>
                                                 <TableCell className="text-right">
                                                     <Button variant="ghost" size="icon" onClick={() => handleEditClick(rec)}><Pencil className="h-4 w-4" /></Button>
