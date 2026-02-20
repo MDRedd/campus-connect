@@ -62,20 +62,27 @@ export function useCollection<T = any>(
         setIsLoading(false);
       },
       (err: FirestoreError) => {
-        const path: string =
-          memoizedTargetRefOrQuery.type === 'collection'
-            ? (memoizedTargetRefOrQuery as CollectionReference).path
-            : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
+        console.error("Firestore useCollection error:", err);
+        
+        if (err.code === 'permission-denied') {
+            const path: string =
+              memoizedTargetRefOrQuery.type === 'collection'
+                ? (memoizedTargetRefOrQuery as CollectionReference).path
+                : (memoizedTargetRefOrQuery as unknown as InternalQuery)._query.path.canonicalString();
 
-        const contextualError = new FirestorePermissionError({
-          operation: 'list',
-          path,
-        });
+            const contextualError = new FirestorePermissionError({
+              operation: 'list',
+              path,
+            });
 
-        setError(contextualError);
+            setError(contextualError);
+            errorEmitter.emit('permission-error', contextualError);
+        } else {
+            setError(err);
+        }
+        
         setData(null);
         setIsLoading(false);
-        errorEmitter.emit('permission-error', contextualError);
       }
     );
 

@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup, doc } from 'firebase/firestore';
 import { BookOpen, Users, CheckCircle } from 'lucide-react';
 import { format } from 'date-fns';
@@ -79,8 +79,8 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
                     { title: 'Total Students', value: studentCount.toString(), icon: Users },
                     { title: 'Submissions to Grade', value: submissionsToGrade.toString(), icon: CheckCircle },
                 ]);
-            } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments or submissions', operation: 'list'}));
+            } catch (error: any) {
+                console.error("Dashboard stats error:", error);
                 setQuickStats([]);
             } finally {
                 setAreStatsLoading(false);
@@ -152,8 +152,8 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
                     }
                 });
                 setAtRiskStudents(atRisk);
-            } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments, users, or attendance', operation: 'list'}));
+            } catch (error: any) {
+                console.error("At-risk students error:", error);
                 setAtRiskStudents([]);
             } finally {
                 setAreAtRiskStudentsLoading(false);
@@ -193,8 +193,8 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
                     });
                 allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
                 setTodaysClasses(allClasses);
-            } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
+            } catch (error: any) {
+                console.error("Classes fetch error:", error);
                 setTodaysClasses([]);
             } finally {
                 setAreTodaysClassesLoading(false);
@@ -255,8 +255,8 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
 
                 setAcademicallyAtRisk(finalAtRiskList);
 
-            } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'results or users', operation: 'list'}));
+            } catch (error: any) {
+                console.error("Academically at risk error:", error);
                 setAcademicallyAtRisk([]);
             } finally {
                 setAreAcademicallyAtRiskLoading(false);

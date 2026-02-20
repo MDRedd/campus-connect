@@ -56,13 +56,17 @@ export function useFacultyCourses() {
                     setFacultyCourses([]);
                 }
                 
-            } catch (error) {
+            } catch (error: any) {
                 console.error("Error fetching faculty courses:", error);
-                // The error will be caught by the global error listener, but we can also toast.
+                
+                const isIndexError = error.code === 'failed-precondition' || error.message?.includes('index');
+                
                 toast({
                     variant: 'destructive',
-                    title: 'Error fetching courses',
-                    description: 'You may not have the required permissions to view your courses.',
+                    title: isIndexError ? 'Database Index Required' : 'Error fetching courses',
+                    description: isIndexError 
+                        ? 'This feature requires a database index that is currently being created. Please check the browser console and click the provided link if you haven\'t already.'
+                        : 'You may not have the required permissions to view your courses.',
                 });
                 setFacultyCourses([]);
             } finally {
@@ -71,7 +75,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, isAuthUserLoading, toast]);
+    }, [firestore, authUser, isUserLoading, toast]);
 
     return { facultyCourses, isLoading };
 }
