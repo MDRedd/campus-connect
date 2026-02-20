@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -118,8 +119,11 @@ export default function CourseResultsPage() {
                 } else {
                     setEnrolledStudents([]);
                 }
-            } catch (e) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'enrollments or users', operation: 'list'}));
+            } catch (e: any) {
+                console.error("Error fetching students for course results:", e);
+                if (e.code === 'permission-denied') {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'enrollments', operation: 'list'}));
+                }
                 setEnrolledStudents([]);
             } finally {
                 setAreStudentsLoading(false);
@@ -152,8 +156,11 @@ export default function CourseResultsPage() {
             });
             resultsData.sort((a,b) => a.studentName.localeCompare(b.studentName));
             setCourseResults(resultsData);
-        } catch (e) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'results', operation: 'list'}));
+        } catch (e: any) {
+            console.error("Error fetching results for course:", e);
+            if (e.code === 'permission-denied') {
+                errorEmitter.emit('permission-error', new FirestorePermissionError({path: 'results', operation: 'list'}));
+            }
             setCourseResults([]);
         } finally {
             setAreResultsLoading(false);
@@ -235,7 +242,7 @@ export default function CourseResultsPage() {
                 <DialogTrigger asChild>
                     <Button onClick={handleAddNewClick} disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> {editingResult ? 'Edit Result' : 'Add Result'}</Button>
                 </DialogTrigger>
-                <DialogContent className="sm:max-w-md">
+                <DialogContent className="sm:max-md">
                     <DialogHeader><DialogTitle>{editingResult ? 'Edit Result' : 'Add New Result'}</DialogTitle></DialogHeader>
                     {areStudentsLoading ? <Skeleton className="h-96"/> : (
                     <Form {...resultForm}>

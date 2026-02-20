@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -103,8 +104,11 @@ export default function FacultyAttendanceDetailsPage() {
                 } else {
                     setEnrolledStudents([]);
                 }
-            } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments or users', operation: 'list'}));
+            } catch (error: any) {
+                console.error("Error fetching students for course:", error);
+                if (error.code === 'permission-denied') {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'enrollments', operation: 'list'}));
+                }
                 setEnrolledStudents([]);
             } finally {
                 setAreStudentsLoading(false);
@@ -128,8 +132,11 @@ export default function FacultyAttendanceDetailsPage() {
                     return { ...data, id: d.id, studentId: studentId! }
                 });
                 setCourseAttendanceRecords(records);
-            } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: `attendance for course ${courseId}`, operation: 'list'}));
+            } catch (error: any) {
+                console.error("Error fetching attendance records for course:", error);
+                if (error.code === 'permission-denied') {
+                    errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'attendance', operation: 'list'}));
+                }
                 setCourseAttendanceRecords([]);
             } finally {
                 setAreRecordsLoading(false);
