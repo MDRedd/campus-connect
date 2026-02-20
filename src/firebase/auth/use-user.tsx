@@ -1,15 +1,14 @@
 'use client';
-import { useFirebase } from '@/firebase/provider';
+import { useFirebase } from '../provider';
 
-// This should match the User entity in backend.json for consistency
+// Standardized UserProfile type
 type UserProfile = {
   id: string;
   name: string;
   email: string;
   role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
-  [key: string]: any; // Allow other properties like department, rollNumber etc.
+  [key: string]: any;
 };
-
 
 export interface UserAuthHookResult {
   user: import('firebase/auth').User | null;
@@ -18,6 +17,9 @@ export interface UserAuthHookResult {
   userError: Error | null;
 }
 
+/**
+ * Hook to access the current authenticated user and their Firestore profile.
+ */
 export const useUser = (): UserAuthHookResult => {
   const { user, profile, isUserLoading, userError } = useFirebase();
   return { user, profile, isUserLoading, userError };
