@@ -26,13 +26,14 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Pencil, Trash2, PlusCircle, Search, FilterX } from 'lucide-react';
+import { ArrowLeft, Pencil, Trash2, PlusCircle, Search, FilterX, AlertCircle } from 'lucide-react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Progress } from '@/components/ui/progress';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 
 // Types
@@ -76,7 +77,7 @@ export default function FacultyAttendanceDetailsPage() {
         if (!firestore || !courseId) return null;
         return query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
     }, [firestore, courseId]);
-    const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<any>(enrollmentsQuery);
+    const { data: enrollments, isLoading: areEnrollmentsLoading, error: enrollmentsError } = useCollection<any>(enrollmentsQuery);
 
     const studentIds = useMemo(() => {
         if (!enrollments) return [];
@@ -86,7 +87,6 @@ export default function FacultyAttendanceDetailsPage() {
     // Fetch student profiles for the enrolled IDs
     const studentsQuery = useMemoFirebase(() => {
         if (!firestore || studentIds.length === 0) return null;
-        // Firestore 'in' query is limited to 30 items. 
         return query(collection(firestore, 'users'), where('id', 'in', studentIds.slice(0, 30)));
     }, [firestore, studentIds]);
     const { data: enrolledStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(studentsQuery);
@@ -96,25 +96,18 @@ export default function FacultyAttendanceDetailsPage() {
         if (!firestore || !courseId) return null;
         return query(collectionGroup(firestore, 'attendance'), where('courseId', '==', courseId));
     }, [firestore, courseId]);
-    const { data: courseAttendanceRecords, isLoading: areRecordsLoading } = useCollection<AttendanceRecord>(recordsQuery);
+    const { data: courseAttendanceRecords, isLoading: areRecordsLoading, error: recordsError } = useCollection<AttendanceRecord>(recordsQuery);
 
     const form = useForm<AttendanceFormValues>({
         resolver: zodResolver(attendanceSchema),
     });
 
-    // 3. Compute stats
     const studentStats = useMemo<StudentStats[] | null>(() => {
         if (!enrolledStudents || !courseAttendanceRecords) return null;
 
         const recordStats: Record<string, { attended: number; total: number }> = {};
 
         for (const record of courseAttendanceRecords) {
-            // In our structure, record.studentId is not explicitly in the data usually, 
-            // but our useCollection hook adds the doc ID. 
-            // However, attendance is nested under users, so studentId comes from the path.
-            // In the manual fetch we did: const studentId = d.ref.parent.parent?.id;
-            // The Refactored useCollection needs to ensure we have the student ID.
-            // Let's assume the record object has a 'studentId' field as per our backend.json blueprint.
             const sId = record.studentId;
             if (!sId) continue;
 
@@ -186,7 +179,7 @@ export default function FacultyAttendanceDetailsPage() {
             date: new Date(values.date),
             status: values.status,
             markedBy: authUser.uid,
-            studentId: managingStudent.id, // Explicitly store for collection group queries
+            studentId: managingStudent.id,
         };
 
         if (editingRecord) {
@@ -201,6 +194,7 @@ export default function FacultyAttendanceDetailsPage() {
     };
     
     const isLoading = isCourseLoading || areEnrollmentsLoading || areStudentsLoading || areRecordsLoading;
+    const isIndexError = (enrollmentsError as any)?.code === 'failed-precondition' || (recordsError as any)?.code === 'failed-precondition';
 
     return (
         <div className="flex flex-col gap-6">
@@ -232,6 +226,16 @@ export default function FacultyAttendanceDetailsPage() {
                     )}
                 </div>
             </div>
+
+            {isIndexError && (
+                <Alert variant="destructive">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertTitle>Database Index Required</AlertTitle>
+                    <AlertDescription>
+                        This view requires a Firestore index that is currently missing. Please <strong>click the link in your browser console</strong> to create the necessary index for the <code>enrollments</code> and <code>attendance</code> collections.
+                    </AlertDescription>
+                </Alert>
+            )}
             
             <Card>
                 <CardHeader>
@@ -284,7 +288,7 @@ export default function FacultyAttendanceDetailsPage() {
                             ) : (
                                 <TableRow>
                                     <TableCell colSpan={4} className="h-24 text-center">
-                                        {searchQuery ? 'No students match your search.' : 'No students enrolled or no attendance data available. Make sure you have created the required COLLECTION_GROUP index.'}
+                                        {searchQuery ? 'No students match your search.' : 'No students enrolled or no attendance data available.'}
                                     </TableCell>
                                 </TableRow>
                             )}

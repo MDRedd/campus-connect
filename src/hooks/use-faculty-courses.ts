@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useEffect } from 'react';
@@ -19,7 +20,6 @@ export function useFacultyCourses() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
-        // Wait for auth to initialize
         if (isAuthUserLoading || !firestore || !authUser) {
              if (!isAuthUserLoading) {
                 setIsLoading(false);
@@ -31,7 +31,6 @@ export function useFacultyCourses() {
         const fetchCourses = async () => {
             setIsLoading(true);
             try {
-                // Step 1: Find all timetable slots for this faculty across all courses
                 const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
                 const timetableSnapshot = await getDocs(timetablesQuery);
 
@@ -41,13 +40,10 @@ export function useFacultyCourses() {
                     return;
                 }
 
-                // Step 2: Get unique course IDs
                 const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
 
-                // Step 3: Fetch the course details
                 if (facultyCourseIds.length > 0) {
                     const coursesData: Course[] = [];
-                    // Chunk because 'in' query limit is 30
                     for (let i = 0; i < facultyCourseIds.length; i += 30) {
                         const chunk = facultyCourseIds.slice(i, i + 30);
                         const coursesQuery = query(collection(firestore, 'courses'), where('id', 'in', chunk));
@@ -66,13 +62,13 @@ export function useFacultyCourses() {
                 
                 const isIndexError = error.code === 'failed-precondition' || error.message?.includes('index');
                 
-                toast({
-                    variant: 'destructive',
-                    title: isIndexError ? 'Database Index Required' : 'Error fetching courses',
-                    description: isIndexError 
-                        ? 'This feature requires a database index that is currently being created. Please check the browser console and click the provided link if you haven\'t already.'
-                        : 'You may not have the required permissions to view your courses.',
-                });
+                if (isIndexError) {
+                    toast({
+                        variant: 'destructive',
+                        title: 'Database Index Required',
+                        description: 'Please check the browser console and click the link to create the required Firestore index for timetables.',
+                    });
+                }
                 setFacultyCourses([]);
             } finally {
                 setIsLoading(false);
@@ -80,7 +76,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, isAuthUserLoading, toast]); // Corrected isAuthUserLoading name
+    }, [firestore, authUser, isAuthUserLoading, toast]);
 
     return { facultyCourses, isLoading };
 }
