@@ -45,6 +45,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogTrigger,
     DialogFooter,
     DialogClose,
@@ -341,7 +342,9 @@ export default function FeesPage() {
                             <Button><PlusCircle className="mr-2 h-4 w-4" /> Individual Fee</Button>
                         </DialogTrigger>
                         <DialogContent>
-                            <DialogHeader><DialogTitle>Assign Individual Fee</DialogTitle></DialogHeader>
+                            <DialogHeader>
+                                <DialogTitle>Assign Individual Fee</DialogTitle>
+                            </DialogHeader>
                              <Form {...newFeeForm}>
                                 <form onSubmit={newFeeForm.handleSubmit(onNewFeeSubmit)} className="space-y-4">
                                      <FormField control={newFeeForm.control} name="studentId" render={({ field }) => (
@@ -395,7 +398,6 @@ export default function FeesPage() {
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">${adminStats.totalPaid.toLocaleString()}</div></CardContent>
-                </Card>
                  <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Students with Dues</CardTitle>
