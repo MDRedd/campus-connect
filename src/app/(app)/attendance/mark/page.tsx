@@ -21,11 +21,12 @@ import {
 } from '@/components/ui/select';
 import { Label } from '@/components/ui/label';
 import { Skeleton } from '@/components/ui/skeleton';
-import { QrCode, Users } from 'lucide-react';
+import { QrCode, Users, AlertCircle } from 'lucide-react';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 import { Progress } from '@/components/ui/progress';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Course = { id: string; name: string; code: string; };
 type AttendanceSession = { courseId: string; facultyId: string; createdAt: any; attendees: string[]; id: string };
@@ -33,7 +34,7 @@ type UserProfile = { id: string; name: string; email: string; };
 
 
 export default function MarkAttendancePage() {
-  const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+  const { user: authUser, profile: userProfile, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
   const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
@@ -42,8 +43,23 @@ export default function MarkAttendancePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [countdown, setCountdown] = useState(60);
 
-  const { facultyCourses, isLoading: areCoursesLoading } = useFacultyCourses();
+  // Allow admins to see all courses, otherwise show only assigned faculty courses
+  const allCoursesQuery = useMemoFirebase(() => {
+    if (!firestore || !userProfile?.role.includes('admin')) return null;
+    return collection(firestore, 'courses');
+  }, [firestore, userProfile]);
+  const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
+
+  const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
   
+  const displayCourses = useMemo(() => {
+    if (userProfile?.role.includes('admin')) return allCourses;
+    return facultyCourses;
+  }, [userProfile, allCourses, facultyCourses]);
+
+  const areCoursesLoading = areFacultyCoursesLoading || areAllCoursesLoading;
+  const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
+
   const handleCourseSelect = useCallback(async (courseId: string) => {
     setSelectedCourseId(courseId);
     setActiveSession(null);
@@ -67,13 +83,11 @@ export default function MarkAttendancePage() {
         }
     } catch(error) {
         console.error("Error creating attendance session:", error);
-        // The non-blocking function will emit a global error, but we can also log here if needed.
     } finally {
         setIsGenerating(false);
     }
   }, [firestore, authUser]);
 
-  // Effect for countdown timer and QR code refresh
   useEffect(() => {
     let timer: NodeJS.Timeout;
     if (activeSession && selectedCourseId) {
@@ -83,7 +97,7 @@ export default function MarkAttendancePage() {
                 if (prev <= 1) {
                     clearInterval(timer);
                     handleCourseSelect(selectedCourseId);
-                    return 0; // Returning 0, will be reset to 60 on next session
+                    return 0;
                 }
                 return prev - 1;
             });
@@ -105,7 +119,6 @@ export default function MarkAttendancePage() {
 
   const attendeesQuery = useMemoFirebase(() => {
     if (!firestore || attendeeIds.length === 0) return null;
-    // Firestore 'in' query is limited to 30 items. For larger classes, another approach is needed.
     return query(collection(firestore, 'users'), where('id', 'in', attendeeIds.slice(0, 30)));
   }, [firestore, attendeeIds]);
   const { data: attendees, isLoading: areAttendeesLoading } = useCollection<UserProfile>(attendeesQuery);
@@ -129,6 +142,16 @@ export default function MarkAttendancePage() {
         <p className="text-muted-foreground">Generate a QR code for students to scan and monitor live attendance.</p>
       </div>
 
+      {isIndexError && (
+          <Alert variant="destructive">
+              <AlertCircle className="h-4 w-4" />
+              <AlertTitle>Database Index Required</AlertTitle>
+              <AlertDescription>
+                  Cannot load assigned courses because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link to create the required index for the <code>timetables</code> collection group.
+              </AlertDescription>
+          </Alert>
+      )}
+
       <div className="grid gap-6 lg:grid-cols-3">
           <Card className="lg:col-span-2">
             <CardHeader>
@@ -142,12 +165,12 @@ export default function MarkAttendancePage() {
                   {isLoading ? (
                     <Skeleton className="h-10 w-full" />
                   ) : (
-                    <Select onValueChange={handleCourseSelect} disabled={!facultyCourses || facultyCourses.length === 0 || isGenerating}>
+                    <Select onValueChange={handleCourseSelect} disabled={!displayCourses || displayCourses.length === 0 || isGenerating}>
                       <SelectTrigger id="course-select">
-                        <SelectValue placeholder={facultyCourses && facultyCourses.length > 0 ? "Select a course..." : "No courses assigned"} />
+                        <SelectValue placeholder={displayCourses && displayCourses.length > 0 ? "Select a course..." : "No courses assigned"} />
                       </SelectTrigger>
                       <SelectContent>
-                        {facultyCourses?.map(course => (
+                        {displayCourses?.map(course => (
                           <SelectItem key={course.id} value={course.id}>
                             {course.name} ({course.code})
                           </SelectItem>
