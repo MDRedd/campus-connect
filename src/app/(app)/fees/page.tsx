@@ -367,6 +367,7 @@ export default function FeesPage() {
                                             <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
                                             <SelectContent>
                                                 <SelectItem value="Unpaid">Unpaid</SelectItem>
+                                                <SelectItem value="Paid">Paid</SelectItem>
                                                 <SelectItem value="Overdue">Overdue</SelectItem>
                                             </SelectContent>
                                         </Select>
@@ -408,7 +409,7 @@ export default function FeesPage() {
                 </Card>
             </div>
             
-            <Card>
+            <Card className="mt-6">
                 <CardHeader>
                     <CardTitle>Fee Balances by Student</CardTitle>
                     <CardDescription>Click a student to manage their individual fee records.</CardDescription>
