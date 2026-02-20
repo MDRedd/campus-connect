@@ -174,7 +174,7 @@ export default function FeesPage() {
             acc.totalPaid += fee.amountPaid;
         } else {
             acc.totalOutstanding += fee.totalAmount - fee.amountPaid;
-            if (fee.dueDate.toDate() < now) {
+            if (fee.dueDate && fee.dueDate.toDate() < now) {
                 acc.overdueCount++;
             }
         }
@@ -398,7 +398,8 @@ export default function FeesPage() {
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">${adminStats.totalPaid.toLocaleString()}</div></CardContent>
-                 <Card>
+                </Card>
+                <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
                         <CardTitle className="text-sm font-medium">Students with Dues</CardTitle>
                         <Users className="h-4 w-4 text-muted-foreground" />
