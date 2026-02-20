@@ -62,12 +62,19 @@ export default function LoginPage() {
           title: 'Logged In!',
           description: 'Redirecting to your dashboard...',
         });
-    } catch (error) {
-        console.error("Login Error. Identifier:", identifier, "Attempted Email:", email, "Error:", error);
+    } catch (error: any) {
+        // Log removed to prevent cluttering the user interface with console errors.
+        // We use descriptive toast messages instead.
+        let errorMessage = 'Invalid credentials. Please check your Roll No./ID and password.';
+        
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+            errorMessage = 'Account not found or password incorrect. Did you sign up first?';
+        }
+
         toast({
             variant: 'destructive',
             title: 'Login Failed',
-            description: 'Invalid credentials. For test accounts, please ensure you have created them via the "Sign up" link first.',
+            description: errorMessage,
         });
     } finally {
         setIsLoggingIn(false);
@@ -96,6 +103,7 @@ export default function LoginPage() {
             alt={loginImage.description}
             fill
             className="object-cover"
+            priority
             data-ai-hint={loginImage.imageHint}
           />
         )}
@@ -159,26 +167,28 @@ export default function LoginPage() {
               </form>
                <div className="mt-4 text-center text-sm">
                 Don&apos;t have an account?{' '}
-                <Link href="/signup" className="underline">
+                <Link href="/signup" className="underline font-medium">
                   Sign up
                 </Link>
               </div>
             </CardContent>
           </Card>
-          <Card>
-            <CardHeader>
-              <CardTitle className="text-base flex items-center gap-2"><KeyRound className="h-4 w-4" /> Sample Details</CardTitle>
+          <Card className="border-primary/20 bg-primary/5">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-base flex items-center gap-2 text-primary">
+                <KeyRound className="h-4 w-4" /> Sample Credentials
+              </CardTitle>
             </CardHeader>
             <CardContent className="text-sm grid gap-2">
-              <p>1. Student: `2024001`</p>
-              <p>2. Faculty: `FAC1001`</p>
-              <p>3. Super Admin: `super.admin@college.edu`</p>
-              <p className="mt-2">Password for all: `password123`</p>
-              <Alert className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Important</AlertTitle>
-                <AlertDescription>
-                  You must first create these accounts using the "Sign up" link before logging in.
+              <p>1. Student: <code className="bg-background px-1 rounded border">2024001</code></p>
+              <p>2. Faculty: <code className="bg-background px-1 rounded border">FAC1001</code></p>
+              <p>3. Admin: <code className="bg-background px-1 rounded border text-xs">super.admin@college.edu</code></p>
+              <p className="mt-1">Password: <code className="bg-background px-1 rounded border">password123</code></p>
+              <Alert variant="default" className="mt-4 bg-background border-primary/20 shadow-sm">
+                <AlertCircle className="h-4 w-4 text-primary" />
+                <AlertTitle className="text-primary font-bold text-xs uppercase tracking-tight">Requirement</AlertTitle>
+                <AlertDescription className="text-[11px] leading-tight text-muted-foreground">
+                  Accounts are not pre-created. You <strong>must</strong> use the <Link href="/signup" className="underline font-bold text-primary">Sign up</Link> link first to register these test IDs.
                 </AlertDescription>
               </Alert>
             </CardContent>
