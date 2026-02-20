@@ -97,7 +97,7 @@ export default function AttendancePage() {
   const coursesForManager = userProfile?.role === 'faculty' ? facultyCourses : allCourses;
   const areManagerCoursesLoading = userProfile?.role === 'faculty' ? areFacultyCoursesLoading : areAllCoursesLoading;
 
-  const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.includes('index');
+  const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
 
   const isLoading = isUserLoading || areAllCoursesLoading || (userProfile?.role === 'student' && (areEnrollmentsLoading || isAttendanceLoading)) || (canManageAttendance && areManagerCoursesLoading);
 
@@ -137,11 +137,11 @@ export default function AttendancePage() {
         </div>
 
         {isIndexError && (
-            <Alert variant="destructive">
+            <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
                 <AlertCircle className="h-4 w-4" />
                 <AlertTitle>Database Index Required</AlertTitle>
                 <AlertDescription>
-                    This view requires a Firestore index. Please <strong>check the browser console</strong> and click the link to create the required index for the <code>timetables</code> collection group.
+                    The dashboard cannot load data because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link in the error message to create the required index for the <code>timetables</code> collection group.
                 </AlertDescription>
             </Alert>
         )}

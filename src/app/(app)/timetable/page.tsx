@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -12,7 +11,7 @@ import {
   CardContent,
   CardDescription
 } from '@/components/ui/card';
-import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video } from 'lucide-react';
+import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -34,6 +33,7 @@ import { useToast } from '@/hooks/use-toast';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 import { cn } from '@/lib/utils';
 import React from 'react';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type UserProfile = { id: string; name: string; role: string; };
 
@@ -132,7 +132,7 @@ export default function TimetablePage() {
     const [fullTimetable, setFullTimetable] = useState<Timetable[] | null>(null);
     const [isTimetableLoading, setIsTimetableLoading] = useState(true);
 
-    const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
+    const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
 
     const allFacultyQuery = useMemoFirebase(() => {
         if (!firestore || !isAdmin) return null;
@@ -267,6 +267,7 @@ export default function TimetablePage() {
 
       const isLoading = isUserLoading || isTimetableLoading;
       const coursesForForm = isAdmin ? allCourses : facultyCourses;
+      const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
 
   return (
     <div className="flex flex-col gap-6">
@@ -339,6 +340,16 @@ export default function TimetablePage() {
             </Dialog>
         )}
       </div>
+
+      {isIndexError && (
+            <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Database Index Required</AlertTitle>
+                <AlertDescription>
+                    The timetable cannot load data because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link in the error message to create the required index for the <code>timetables</code> collection group.
+                </AlertDescription>
+            </Alert>
+        )}
       
         <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
             {isLoading ? <Skeleton className="h-[600px] w-full" /> : (
@@ -425,5 +436,4 @@ export default function TimetablePage() {
         </div>
     </div>
   );
-
-    
+}

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -22,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Edit, Trash2, ArrowLeft } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ArrowLeft, AlertCircle } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -41,6 +40,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type Result = {
   id?: string;
@@ -95,7 +95,7 @@ export default function CourseResultsPage() {
       if (!firestore || !courseId) return null;
       return query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
   }, [firestore, courseId]);
-  const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<any>(enrollmentsQuery);
+  const { data: enrollments, isLoading: areEnrollmentsLoading, error: enrollmentsError } = useCollection<any>(enrollmentsQuery);
 
   const studentIds = useMemo(() => {
       if (!enrollments) return [];
@@ -113,7 +113,7 @@ export default function CourseResultsPage() {
       if (!firestore || !courseId) return null;
       return query(collectionGroup(firestore, 'results'), where('courseId', '==', courseId));
   }, [firestore, courseId]);
-  const { data: rawResults, isLoading: areResultsLoading } = useCollection<Result>(resultsQuery);
+  const { data: rawResults, isLoading: areResultsLoading, error: resultsError } = useCollection<Result>(resultsQuery);
 
   const courseResults = useMemo(() => {
       if (!rawResults || !enrolledStudents) return null;
@@ -176,12 +176,26 @@ export default function CourseResultsPage() {
   }
 
   const isLoading = isCourseLoading || areEnrollmentsLoading || areStudentsLoading || areResultsLoading;
+  const isIndexError = 
+    (enrollmentsError as any)?.code === 'failed-precondition' || (enrollmentsError as any)?.message?.toLowerCase().includes('index') ||
+    (resultsError as any)?.code === 'failed-precondition' || (resultsError as any)?.message?.toLowerCase().includes('index');
 
   return (
     <div className="flex flex-col gap-6">
         <Button variant="outline" size="sm" className="w-fit" onClick={() => router.push('/results')}>
           <ArrowLeft className="mr-2 h-4 w-4" /> Back to Results
         </Button>
+
+        {isIndexError && (
+            <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
+                <AlertCircle className="h-4 w-4" />
+                <AlertTitle>Database Index Required</AlertTitle>
+                <AlertDescription>
+                    The results for this course cannot load because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link in the error message to create the required indexes for <code>enrollments</code> and <code>results</code> collection groups.
+                </AlertDescription>
+            </Alert>
+        )}
+
         <Card className="w-full">
             <CardHeader className="flex-row justify-between items-start">
               <div>
@@ -262,7 +276,7 @@ export default function CourseResultsPage() {
                                 </TableRow>
                             ))
                         ) : (
-                            <TableRow><TableCell colSpan={6} className="text-center h-24">No results found for this course. Make sure you have created the required COLLECTION_GROUP index.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={6} className="text-center h-24">No results found for this course.</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>

@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -194,7 +193,9 @@ export default function FacultyAttendanceDetailsPage() {
     };
     
     const isLoading = isCourseLoading || areEnrollmentsLoading || areStudentsLoading || areRecordsLoading;
-    const isIndexError = (enrollmentsError as any)?.code === 'failed-precondition' || (recordsError as any)?.code === 'failed-precondition';
+    const isIndexError = 
+        (enrollmentsError as any)?.code === 'failed-precondition' || (enrollmentsError as any)?.message?.toLowerCase().includes('index') ||
+        (recordsError as any)?.code === 'failed-precondition' || (recordsError as any)?.message?.toLowerCase().includes('index');
 
     return (
         <div className="flex flex-col gap-6">
@@ -228,11 +229,11 @@ export default function FacultyAttendanceDetailsPage() {
             </div>
 
             {isIndexError && (
-                <Alert variant="destructive">
+                <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
                     <AlertCircle className="h-4 w-4" />
                     <AlertTitle>Database Index Required</AlertTitle>
                     <AlertDescription>
-                        This view requires a Firestore index that is currently missing. Please <strong>click the link in your browser console</strong> to create the necessary index for the <code>enrollments</code> and <code>attendance</code> collections.
+                        This view requires Firestore indexes that are currently missing. Please <strong>check the browser console (F12)</strong> and click the links in the error messages to create the necessary indexes for the <code>enrollments</code> and <code>attendance</code> collection groups.
                     </AlertDescription>
                 </Alert>
             )}
