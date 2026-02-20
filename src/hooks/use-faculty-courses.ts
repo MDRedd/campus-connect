@@ -6,6 +6,10 @@ import { collection, query, where, getDocs, collectionGroup } from 'firebase/fir
 import type { Course } from '@/lib/data';
 import { useToast } from './use-toast';
 
+/**
+ * Custom hook to fetch all courses assigned to a faculty member.
+ * It uses a collection group query on 'timetables' to find associated course IDs.
+ */
 export function useFacultyCourses() {
     const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
     const firestore = useFirestore();
@@ -15,6 +19,7 @@ export function useFacultyCourses() {
     const [isLoading, setIsLoading] = useState(true);
 
     useEffect(() => {
+        // Wait for auth to initialize
         if (isAuthUserLoading || !firestore || !authUser) {
              if (!isAuthUserLoading) {
                 setIsLoading(false);
@@ -26,7 +31,7 @@ export function useFacultyCourses() {
         const fetchCourses = async () => {
             setIsLoading(true);
             try {
-                // Step 1: Efficiently find all timetable entries for the current faculty.
+                // Step 1: Find all timetable slots for this faculty across all courses
                 const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
                 const timetableSnapshot = await getDocs(timetablesQuery);
 
@@ -36,13 +41,13 @@ export function useFacultyCourses() {
                     return;
                 }
 
-                // Step 2: Get unique course IDs from the timetable entries.
+                // Step 2: Get unique course IDs
                 const facultyCourseIds = [...new Set(timetableSnapshot.docs.map(doc => doc.data().courseId as string))];
 
-                // Step 3: Fetch the full course documents for those IDs.
+                // Step 3: Fetch the course details
                 if (facultyCourseIds.length > 0) {
                     const coursesData: Course[] = [];
-                    // Firestore 'in' query is limited to 30 items per query. Chunking handles this.
+                    // Chunk because 'in' query limit is 30
                     for (let i = 0; i < facultyCourseIds.length; i += 30) {
                         const chunk = facultyCourseIds.slice(i, i + 30);
                         const coursesQuery = query(collection(firestore, 'courses'), where('id', 'in', chunk));
@@ -75,7 +80,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, isUserLoading, toast]);
+    }, [firestore, authUser, isAuthUserLoading, toast]); // Corrected isAuthUserLoading name
 
     return { facultyCourses, isLoading };
 }
