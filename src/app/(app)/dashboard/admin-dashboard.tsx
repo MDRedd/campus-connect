@@ -1,9 +1,9 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
-import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { User, Users, Activity, BarChart3, Database } from 'lucide-react';
+import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
+import { collection, query, orderBy, limit, doc, where } from 'firebase/firestore';
+import { User, Users, Activity, BarChart3, Database, ShieldAlert, CheckCircle, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 
@@ -13,11 +13,14 @@ import RecentAnnouncements from './components/recent-announcements';
 import RoleDistributionChart from '././components/role-distribution-chart';
 import CourseDepartmentChart from './components/course-department-chart';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent, CardFooter } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import Link from 'next/link';
 import PlatformGuide from './components/platform-guide';
-
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { PlaceHolderImages } from '@/lib/placeholder-images';
+import { useToast } from '@/hooks/use-toast';
 
 type QuickStat = {
   title: string;
@@ -26,13 +29,15 @@ type QuickStat = {
 };
 type UserProfileData = { name: string; role: string; id: string; };
 type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
-type FullUserProfile = { name: string; role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; id: string; department?: string };
+type FullUserProfile = { name: string; role: 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin'; id: string; department?: string; auditStatus?: string; email: string };
 type RoleData = { name: string; value: number; fill: string; };
 type DepartmentChartData = { name: string; count: number };
 
 
 export default function AdminDashboard({ userProfile }: { userProfile: UserProfileData }) {
     const firestore = useFirestore();
+    const { toast } = useToast();
+    const userAvatar = PlaceHolderImages.find((img) => img.id === 'user-avatar-1');
 
     const [quickStats, setQuickStats] = useState<QuickStat[] | null>(null);
     const [areStatsLoading, setAreStatsLoading] = useState(true);
@@ -44,6 +49,11 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
         return collection(firestore, 'users');
     }, [firestore]);
     const { data: allUsers, isLoading: areAllUsersLoading } = useCollection<FullUserProfile>(allUsersQuery);
+
+    const pendingAudits = useMemo(() => {
+        if (!allUsers) return [];
+        return allUsers.filter(u => u.auditStatus === 'pending').slice(0, 5);
+    }, [allUsers]);
 
     const allCoursesQuery = useMemoFirebase(() => {
         if (!firestore) return null;
@@ -108,63 +118,126 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
         }));
     }, [announcements]);
 
+    const handleVerifyUser = (userId: string) => {
+        if (!firestore) return;
+        updateDocumentNonBlocking(doc(firestore, 'users', userId), { auditStatus: 'verified' });
+        toast({ title: 'Persona Verified', description: 'Institutional identity has been authorized.' });
+    };
+
     return (
         <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-1000">
             <WelcomeBanner user={userProfile} />
             <PlatformGuide role={userProfile.role as any} />
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
-                <Card className="glass-card border-none">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <BarChart3 className="h-5 w-5 text-primary" />
-                            User Demographics
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {areAllUsersLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
-                    </CardContent>
-                </Card>
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                {/* Identity Audit Terminal */}
+                <div className="lg:col-span-8 space-y-8">
+                    <Card className="glass-card border-none overflow-hidden">
+                        <CardHeader className="bg-primary/5 border-b border-white/10 p-8">
+                            <div className="flex items-center justify-between">
+                                <div className="space-y-1">
+                                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
+                                        <ShieldAlert className="h-3 w-3" /> Identity Audit HUD
+                                    </div>
+                                    <CardTitle className="text-2xl font-black uppercase tracking-tight">Pending Persona Provisioning</CardTitle>
+                                    <CardDescription className="text-xs font-medium">Verify new registrations and align departmental roles.</CardDescription>
+                                </div>
+                                <Badge variant="destructive" className="animate-pulse">{pendingAudits.length} Pending</Badge>
+                            </div>
+                        </CardHeader>
+                        <CardContent className="p-0">
+                            {areAllUsersLoading ? <Skeleton className="h-64 w-full" /> : (
+                                pendingAudits.length > 0 ? (
+                                    <div className="divide-y divide-indigo-50/50">
+                                        {pendingAudits.map(user => (
+                                            <div key={user.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-all group">
+                                                <div className="flex items-center gap-4">
+                                                    <Avatar className="h-12 w-12 border-2 border-white shadow-sm group-hover:scale-105 transition-transform">
+                                                        {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={user.name} />}
+                                                        <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">{user.name.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
+                                                    </Avatar>
+                                                    <div>
+                                                        <p className="font-black text-slate-800 uppercase tracking-tight leading-none">{user.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{user.email}</p>
+                                                    </div>
+                                                </div>
+                                                <div className="flex items-center gap-3">
+                                                    <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-2 py-1">{user.role}</Badge>
+                                                    <Button size="sm" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-9 font-black uppercase tracking-widest text-[9px] bg-green-600 hover:bg-green-700">
+                                                        <CheckCircle className="mr-1.5 h-3.5 w-3.5" /> Authorize Persona
+                                                    </Button>
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                ) : (
+                                    <div className="p-20 text-center flex flex-col items-center gap-4 opacity-20">
+                                        <CheckCircle className="h-16 w-16" />
+                                        <p className="font-black uppercase tracking-widest text-xs">All Identities Synchronized</p>
+                                    </div>
+                                )
+                            )}
+                        </CardContent>
+                        <CardFooter className="bg-slate-50/50 p-4 justify-center border-t border-indigo-50/50">
+                            <Button asChild variant="ghost" className="text-[10px] font-black uppercase tracking-[0.2em] w-full">
+                                <Link href="/users">Launch Identity Directory <ArrowRight className="ml-2 h-3 w-3" /></Link>
+                            </Button>
+                        </CardFooter>
+                    </Card>
 
-                <Card className="glass-card border-none">
-                    <CardHeader>
-                        <CardTitle className="flex items-center gap-2">
-                            <Database className="h-5 w-5 text-accent" />
-                            Academic Distribution
-                        </CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        {areAllCoursesLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
-                    </CardContent>
-                </Card>
-            </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                         <Card className="glass-card border-none">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <BarChart3 className="h-5 w-5 text-primary" />
+                                    User Demographics
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {areAllUsersLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
+                            </CardContent>
+                        </Card>
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                <div className="lg:col-span-2">
+                        <Card className="glass-card border-none">
+                            <CardHeader>
+                                <CardTitle className="flex items-center gap-2">
+                                    <Database className="h-5 w-5 text-accent" />
+                                    Academic Distribution
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                                {areAllCoursesLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-8">
+                     <Card className="glass-card border-none self-start">
+                        <CardHeader>
+                            <CardTitle>System Administration</CardTitle>
+                            <CardDescription>Direct access to master controls.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3">
+                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
+                                <Link href="/users">Manage All Users</Link>
+                            </Button>
+                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
+                                <Link href="/courses">Master Course Catalog</Link>
+                            </Button>
+                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
+                                <Link href="/fees">System-wide Fees</Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
+
                     {areAnnouncementsLoading ? (
                         <Skeleton className="h-64 w-full rounded-3xl" />
                     ) : (
                         displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
                     )}
                 </div>
-                <Card className="glass-card border-none self-start">
-                    <CardHeader>
-                        <CardTitle>System Administration</CardTitle>
-                        <CardDescription>Direct access to master controls.</CardDescription>
-                    </CardHeader>
-                    <CardContent className="grid gap-3">
-                        <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
-                            <Link href="/users">Manage All Users</Link>
-                        </Button>
-                        <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
-                            <Link href="/courses">Master Course Catalog</Link>
-                        </Button>
-                        <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
-                            <Link href="/fees">System-wide Fees</Link>
-                        </Button>
-                    </CardContent>
-                </Card>
             </div>
         </div>
     );
