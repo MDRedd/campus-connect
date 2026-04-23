@@ -4,7 +4,7 @@
 
 @layer base {
   :root {
-    /* Modern Indigo & Slate Palette */
+    /* Sophisticated Indigo & Slate Palette */
     --background: 226 100% 98%;
     --foreground: 224 71.4% 4.1%;
     --card: 0 0% 100%;
@@ -35,7 +35,7 @@
     --sidebar-border: 217 33% 17%;
     --sidebar-ring: 243 75% 59%;
 
-    /* Chart Colors */
+    /* Unique Academic Chart Colors */
     --chart-1: 243 75% 59%;
     --chart-2: 199 89% 48%;
     --chart-3: 162 59% 41%;
@@ -89,9 +89,33 @@
 }
 
 .glass-card {
-  @apply bg-white/70 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-xl;
+  @apply bg-white/70 dark:bg-black/40 backdrop-blur-md border border-white/20 dark:border-white/10 shadow-xl rounded-2xl transition-all duration-300;
 }
 
 .unique-gradient-text {
-  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary to-accent font-extrabold;
+  @apply bg-clip-text text-transparent bg-gradient-to-r from-primary via-indigo-500 to-accent font-black tracking-tight;
+}
+
+.academic-hero {
+  @apply relative overflow-hidden rounded-[2rem] p-8 md:p-12 text-white shadow-2xl;
+  background: linear-gradient(135deg, hsl(var(--primary)) 0%, #4f46e5 100%);
+}
+
+.academic-hero::before {
+  content: "";
+  @apply absolute top-0 right-0 h-full w-1/2 opacity-10;
+  background-image: radial-gradient(circle at center, white 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Custom Scrollbar for a sleek look */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-muted-foreground/20 rounded-full hover:bg-muted-foreground/40 transition-colors;
 }

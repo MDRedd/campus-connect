@@ -3,16 +3,19 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useCollection, useFirestore, useMemoFirebase } from '@/firebase';
 import { collection, query, orderBy, limit } from 'firebase/firestore';
-import { User, Users, Activity } from 'lucide-react';
+import { User, Users, Activity, BarChart3, Database } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
 import RecentAnnouncements from './components/recent-announcements';
-import RoleDistributionChart from './components/role-distribution-chart';
+import RoleDistributionChart from '././components/role-distribution-chart';
 import CourseDepartmentChart from './components/course-department-chart';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 
 type QuickStat = {
@@ -84,7 +87,7 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
 
         // Course Department Chart Data
         const departmentCounts = allCourses.reduce((acc, course) => {
-            const dept = course.department || 'N/A';
+            const dept = (course as any).department || 'N/A';
             acc[dept] = (acc[dept] || 0) + 1;
             return acc;
         }, {} as Record<string, number>);
@@ -105,20 +108,62 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
     }, [announcements]);
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-1000">
             <WelcomeBanner user={userProfile} />
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                {areAllUsersLoading ? <Skeleton className="h-80" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
-                {areAllCoursesLoading ? <Skeleton className="h-80" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                <Card className="glass-card border-none">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <BarChart3 className="h-5 w-5 text-primary" />
+                            User Demographics
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {areAllUsersLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
+                    </CardContent>
+                </Card>
+
+                <Card className="glass-card border-none">
+                    <CardHeader>
+                        <CardTitle className="flex items-center gap-2">
+                            <Database className="h-5 w-5 text-accent" />
+                            Academic Distribution
+                        </CardTitle>
+                    </CardHeader>
+                    <CardContent>
+                        {areAllCoursesLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
+                    </CardContent>
+                </Card>
             </div>
 
-            {areAnnouncementsLoading ? (
-                <Skeleton className="h-64" />
-            ) : (
-                displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
-            )}
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                <div className="lg:col-span-2">
+                    {areAnnouncementsLoading ? (
+                        <Skeleton className="h-64 w-full rounded-3xl" />
+                    ) : (
+                        displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
+                    )}
+                </div>
+                <Card className="glass-card border-none self-start">
+                    <CardHeader>
+                        <CardTitle>System Administration</CardTitle>
+                        <CardDescription>Direct access to master controls.</CardDescription>
+                    </CardHeader>
+                    <CardContent className="grid gap-3">
+                        <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
+                            <Link href="/users">Manage All Users</Link>
+                        </Button>
+                        <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
+                            <Link href="/courses">Master Course Catalog</Link>
+                        </Button>
+                        <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
+                            <Link href="/fees">System-wide Fees</Link>
+                        </Button>
+                    </CardContent>
+                </Card>
+            </div>
         </div>
     );
 }

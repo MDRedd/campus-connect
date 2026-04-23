@@ -3,9 +3,10 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup, doc } from 'firebase/firestore';
-import { BookOpen, Users, CheckCircle, AlertCircle } from 'lucide-react';
+import { BookOpen, Users, CheckCircle, AlertCircle, PlusCircle, Megaphone } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
+import Link from 'next/link';
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
@@ -18,6 +19,8 @@ import AcademicallyAtRisk, { AcademicallyAtRiskStudent } from './components/acad
 import { useToast } from '@/hooks/use-toast';
 import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 type QuickStat = {
   title: string;
@@ -332,43 +335,86 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     }, [announcements]);
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <WelcomeBanner user={userProfile} />
 
             {isIndexError && (
-                <Alert variant="destructive">
-                    <AlertCircle className="h-4 w-4" />
-                    <AlertTitle>Database Index Required</AlertTitle>
-                    <AlertDescription>
-                        This dashboard requires a Firestore index. Please <strong>check the browser console</strong> and click the link to create the required index for the <code>timetables</code> collection group.
+                <Alert variant="destructive" className="glass-card bg-destructive/10 border-destructive/20 text-destructive">
+                    <AlertCircle className="h-5 w-5" />
+                    <AlertTitle className="font-black tracking-tight">Database Index Required</AlertTitle>
+                    <AlertDescription className="text-sm">
+                        This dashboard requires a custom Firestore index. Please <strong>check your browser console (F12)</strong> and click the link to create the index for the <code>timetables</code> collection group.
                     </AlertDescription>
                 </Alert>
             )}
 
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
-            <div className="grid grid-cols-1 gap-6">
-                {areTodaysClassesLoading ? (
-                    <Skeleton className="h-80" />
-                ) : (
-                    todaysClasses && <UpcomingClasses timetable={todaysClasses} />
-                )}
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 space-y-8">
+                    {areTodaysClassesLoading ? (
+                        <Skeleton className="h-[300px] w-full rounded-3xl" />
+                    ) : (
+                        todaysClasses && <UpcomingClasses timetable={todaysClasses} />
+                    )}
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                        <Card className="glass-card border-none">
+                            <CardHeader>
+                                <CardTitle className="text-xl flex items-center gap-2">
+                                    <PlusCircle className="h-5 w-5 text-primary" />
+                                    Management Shortcuts
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid gap-3">
+                                <Button className="w-full justify-start h-12 rounded-xl" variant="secondary" asChild>
+                                    <Link href="/attendance/mark">Mark Today's Attendance</Link>
+                                </Button>
+                                <Button className="w-full justify-start h-12 rounded-xl" variant="secondary" asChild>
+                                    <Link href="/academics">Upload Study Materials</Link>
+                                </Button>
+                                <Button className="w-full justify-start h-12 rounded-xl" variant="secondary" asChild>
+                                    <Link href="/announcements">Post New Announcement</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+
+                        <Card className="glass-card border-none">
+                            <CardHeader>
+                                <CardTitle className="text-xl flex items-center gap-2">
+                                    <Megaphone className="h-5 w-5 text-accent" />
+                                    Communications
+                                </CardTitle>
+                            </CardHeader>
+                            <CardContent className="grid gap-3">
+                                <Button className="w-full justify-start h-12 rounded-xl" variant="outline" asChild>
+                                    <Link href="/engagement">Browse Discussion Forums</Link>
+                                </Button>
+                                <Button className="w-full justify-start h-12 rounded-xl" variant="outline" asChild>
+                                    <Link href="/helpdesk">Review Support Tickets</Link>
+                                </Button>
+                            </CardContent>
+                        </Card>
+                    </div>
+                </div>
+
+                <div className="lg:col-span-4 space-y-8">
+                    {areAtRiskStudentsLoading ? (
+                        <Skeleton className="h-64 w-full rounded-3xl" />
+                    ) : (
+                        atRiskStudents && <StudentsAtRisk students={atRiskStudents} onNudge={handleNudgeAttendance} />
+                    )}
+
+                    {areAcademicallyAtRiskLoading ? (
+                        <Skeleton className="h-64 w-full rounded-3xl" />
+                    ) : (
+                        academicallyAtRisk && <AcademicallyAtRisk students={academicallyAtRisk} onNudge={handleNudgeAcademic} />
+                    )}
+                </div>
             </div>
-
-            {areAtRiskStudentsLoading ? (
-                <Skeleton className="h-64" />
-            ) : (
-                atRiskStudents && <StudentsAtRisk students={atRiskStudents} onNudge={handleNudgeAttendance} />
-            )}
-
-            {areAcademicallyAtRiskLoading ? (
-                <Skeleton className="h-64" />
-            ) : (
-                academicallyAtRisk && <AcademicallyAtRisk students={academicallyAtRisk} onNudge={handleNudgeAcademic} />
-            )}
             
             {areAnnouncementsLoading ? (
-                <Skeleton className="h-64" />
+                <Skeleton className="h-64 w-full rounded-3xl" />
             ) : (
                 displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
             )}

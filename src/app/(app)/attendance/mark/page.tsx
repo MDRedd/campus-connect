@@ -84,8 +84,8 @@ export default function MarkAttendancePage() {
         return;
     }
 
-    const sessionRef = doc(collection(firestore, 'attendanceSessions'));
-    const sessionId = sessionRef.id;
+    const sessionId = `session-${courseId}-${Date.now()}`;
+    const sessionRef = doc(firestore, 'attendanceSessions', sessionId);
 
     const sessionData = {
       id: sessionId,
@@ -151,13 +151,13 @@ export default function MarkAttendancePage() {
   }, [areCoursesLoading, displayCourses, isAdmin]);
 
   return (
-    <div className="flex flex-col gap-6">
+    <div className="flex flex-col gap-6 animate-in fade-in duration-700">
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-            <h1 className="text-3xl font-bold tracking-tight">Mark Attendance</h1>
+            <h1 className="text-3xl font-black tracking-tight unique-gradient-text">MARK ATTENDANCE</h1>
             <p className="text-muted-foreground italic">Generate unique dynamic QR codes for secure check-ins.</p>
         </div>
-        {isAdmin && <Badge variant="outline" className="bg-primary/5 text-primary border-primary/20"><Sparkles className="mr-1 h-3 w-3" /> System Admin Overlook</Badge>}
+        {isAdmin && <span className="px-3 py-1 rounded-full bg-primary/5 text-primary border border-primary/20 text-xs font-black uppercase tracking-widest backdrop-blur-sm"><Sparkles className="inline-block mr-1 h-3 w-3" /> System Admin Mode</span>}
       </div>
 
       {isIndexError && (
@@ -170,21 +170,21 @@ export default function MarkAttendancePage() {
           </Alert>
       )}
 
-      <div className="grid gap-6 lg:grid-cols-3">
-          <Card className="lg:col-span-2 shadow-2xl border-0 bg-white/50 backdrop-blur-sm">
-            <CardHeader>
-              <CardTitle>Attendance Configuration</CardTitle>
+      <div className="grid gap-8 lg:grid-cols-3">
+          <Card className="lg:col-span-2 glass-card border-none overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/20">
+              <CardTitle>Session Configuration</CardTitle>
               <CardDescription>The QR code refreshes every 60 seconds to prevent unauthorized sharing.</CardDescription>
             </CardHeader>
-            <CardContent className="grid gap-8 md:grid-cols-2">
-              <div className="space-y-4">
+            <CardContent className="grid gap-12 md:grid-cols-2 p-8">
+              <div className="space-y-6">
                 <div className="space-y-3">
-                  <Label htmlFor="course-select" className="text-base font-semibold">Step 1: Choose Course</Label>
+                  <Label htmlFor="course-select" className="text-sm font-black uppercase tracking-widest text-muted-foreground">Step 1: Choose Course</Label>
                   {areCoursesLoading ? (
-                    <Skeleton className="h-12 w-full rounded-xl" />
+                    <Skeleton className="h-14 w-full rounded-2xl" />
                   ) : (
                     <Select onValueChange={handleCourseSelect} disabled={!displayCourses || displayCourses.length === 0 || isGenerating}>
-                      <SelectTrigger id="course-select" className="h-12 rounded-xl bg-white">
+                      <SelectTrigger id="course-select" className="h-14 rounded-2xl bg-white/50 border-white/40 shadow-inner">
                         <SelectValue placeholder={placeholderText} />
                       </SelectTrigger>
                       <SelectContent>
@@ -197,89 +197,89 @@ export default function MarkAttendancePage() {
                     </Select>
                   )}
                   {!areCoursesLoading && (!displayCourses || displayCourses.length === 0) && (
-                      <div className="p-4 rounded-xl bg-primary/5 border border-primary/10 space-y-2">
-                          <p className="text-sm font-medium text-primary">No Courses Available</p>
-                          <p className="text-xs text-muted-foreground">
+                      <div className="p-4 rounded-2xl bg-primary/5 border border-primary/10 space-y-2">
+                          <p className="text-sm font-bold text-primary">No Courses Available</p>
+                          <p className="text-xs text-muted-foreground leading-relaxed">
                               {isAdmin ? "You need to add courses in the Course Catalog first." : "You haven't been assigned to any classes in the weekly timetable yet. Ask an admin or go to the Timetable page to assign yourself."}
                           </p>
                       </div>
                   )}
                 </div>
               </div>
-              <div className="flex flex-col items-center justify-center rounded-2xl border-2 border-dashed bg-slate-50 p-8 min-h-[350px]">
+              <div className="flex flex-col items-center justify-center rounded-[2.5rem] border-2 border-dashed border-white/60 bg-slate-50/50 p-8 min-h-[380px] shadow-inner">
                 {isGenerating && !activeSession ? (
                    <div className="text-center flex flex-col items-center gap-4">
                         <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-primary"></div>
-                        <p className="text-sm font-medium animate-pulse">Initializing Session...</p>
+                        <p className="text-xs font-black uppercase tracking-tighter animate-pulse">Initializing Secure Session...</p>
                     </div>
                 ) : qrImageUrl ? (
-                    <div className="text-center flex flex-col items-center gap-6 w-full">
-                        <div className="bg-white p-6 rounded-3xl shadow-2xl ring-1 ring-slate-200">
+                    <div className="text-center flex flex-col items-center gap-8 w-full">
+                        <div className="bg-white p-6 rounded-[2rem] shadow-2xl ring-4 ring-slate-100/50 animate-in zoom-in duration-500">
                             <Image
                                 src={qrImageUrl}
                                 alt="Attendance QR Code"
                                 width={250}
                                 height={250}
                                 key={qrImageUrl}
-                                className="rounded-lg"
+                                className="rounded-xl"
                             />
                         </div>
                          <div className="w-full max-w-[250px] space-y-3">
                             <div className="flex justify-between text-[10px] font-black uppercase tracking-widest text-slate-400">
-                                <span>Session Security</span>
-                                <span>{countdown}s</span>
+                                <span>Dynamic Security Token</span>
+                                <span className="text-primary">{countdown}s</span>
                             </div>
-                            <Progress value={(countdown / 60) * 100} className="h-1.5" />
-                            <p className="text-[10px] text-muted-foreground italic">Students must scan this code using their Campus Connect app.</p>
+                            <Progress value={(countdown / 60) * 100} className="h-1.5 bg-slate-200" />
+                            <p className="text-[10px] text-muted-foreground italic font-medium leading-tight">Students must scan this code using their Campus Connect app to mark presence.</p>
                         </div>
                     </div>
                 ) : (
-                    <div className="text-center flex flex-col items-center gap-4 text-slate-300">
-                        <div className="bg-slate-100 p-8 rounded-full">
-                            <QrCode className="h-16 w-16" />
+                    <div className="text-center flex flex-col items-center gap-6 text-slate-300">
+                        <div className="bg-slate-100/50 p-10 rounded-full shadow-inner">
+                            <QrCode className="h-20 w-20 opacity-20" />
                         </div>
-                        <p className="max-w-[200px] text-sm font-bold text-slate-400 uppercase tracking-tighter">Waiting for course selection</p>
+                        <p className="max-w-[200px] text-xs font-black text-slate-400 uppercase tracking-widest leading-loose">Waiting for course selection</p>
                     </div>
                 )}
               </div>
             </CardContent>
           </Card>
           
-          <Card className="shadow-2xl border-0 bg-white/50 backdrop-blur-sm">
-              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                <CardTitle className="text-sm font-bold uppercase tracking-wider text-muted-foreground">Live Roster</CardTitle>
+          <Card className="glass-card border-none bg-white/40">
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 border-b border-white/20">
+                <CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">Real-time Roster</CardTitle>
                 <div className="h-2 w-2 rounded-full bg-green-500 animate-pulse" />
               </CardHeader>
-              <CardContent>
-                <div className="text-4xl font-black tracking-tighter">
-                    {isSessionLoading ? <Skeleton className="h-10 w-16" /> : attendeeIds?.length ?? 0}
+              <CardContent className="pt-6">
+                <div className="text-5xl font-black tracking-tighter">
+                    {isSessionLoading ? <Skeleton className="h-12 w-20" /> : attendeeIds?.length ?? 0}
                 </div>
-                <p className="text-xs font-semibold text-muted-foreground mt-1">Checked-in students</p>
+                <p className="text-[10px] font-black uppercase tracking-widest text-muted-foreground/60 mt-1">Confirmed attendees</p>
               </CardContent>
-              <CardFooter className="flex flex-col items-start gap-4 h-[380px] overflow-y-auto p-4 border-t border-slate-100">
+              <CardFooter className="flex flex-col items-start gap-4 h-[420px] overflow-y-auto p-4 border-t border-white/20 bg-white/10 backdrop-blur-sm">
                  {isSessionLoading || areAttendeesLoading ? (
                     <div className="w-full space-y-4">
-                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-14 w-full rounded-xl" />)}
+                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-16 w-full rounded-2xl" />)}
                     </div>
                 ) : attendees && attendees.length > 0 ? (
                     <div className="w-full space-y-3">
                     {attendees.map(attendee => (
-                        <div key={attendee.id} className="flex items-center gap-3 w-full p-3 bg-white rounded-xl shadow-sm border border-slate-100 animate-in slide-in-from-bottom-2">
+                        <div key={attendee.id} className="flex items-center gap-4 w-full p-4 bg-white/80 rounded-2xl shadow-sm border border-white/40 animate-in slide-in-from-bottom-4">
                             <Avatar className="h-10 w-10 border-2 border-primary/10">
                                 {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={attendee.name} />}
-                                <AvatarFallback className="bg-primary/5 text-primary text-xs font-bold">{attendee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                                <AvatarFallback className="bg-primary/5 text-primary text-xs font-black uppercase">{attendee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-bold truncate">{attendee.name}</p>
-                                <p className="text-[10px] text-muted-foreground truncate uppercase font-black">{attendee.email.split('@')[0]}</p>
+                                <p className="text-sm font-black truncate text-slate-800">{attendee.name}</p>
+                                <p className="text-[10px] text-muted-foreground truncate uppercase font-black tracking-wider opacity-60">{attendee.email.split('@')[0]}</p>
                             </div>
                         </div>
                     ))}
                     </div>
                 ) : (
                     <div className="flex-1 flex w-full flex-col items-center justify-center text-sm text-center text-slate-300 gap-4">
-                        <Users className="h-12 w-12 opacity-10" />
-                        <p className="font-bold uppercase tracking-tighter text-slate-300">No attendees yet</p>
+                        <Users className="h-16 w-16 opacity-10" />
+                        <p className="font-black uppercase tracking-widest text-slate-300 text-[10px]">Awaiting check-ins...</p>
                     </div>
                 )}
               </CardFooter>

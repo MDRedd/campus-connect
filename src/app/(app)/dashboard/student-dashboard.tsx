@@ -2,10 +2,11 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { doc, collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
-import { BookOpen, Percent, FileWarning } from 'lucide-react';
+import { collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
+import { BookOpen, Percent, FileWarning, ArrowRight } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
+import Link from 'next/link';
 
 import WelcomeBanner from './components/welcome-banner';
 import QuickStats from './components/quick-stats';
@@ -14,6 +15,8 @@ import AttendanceChart from './components/attendance-chart';
 import RecentAnnouncements from './components/recent-announcements';
 import { Skeleton } from '@/components/ui/skeleton';
 import UpcomingDeadlines, { UpcomingAssignment } from './components/upcoming-deadlines';
+import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 
 type QuickStat = {
   title: string;
@@ -211,7 +214,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     const displayAnnouncements = useMemo(() => {
         if (!announcements) return [];
         return announcements
-            .filter(a => a.targetAudience === 'all' || a.targetAudience === 'student')
+            .filter(a => a.targetAudience === 'all' || a.targetAudience === 'students')
             .map(a => ({
                 ...a, 
                 content: a.description, 
@@ -220,34 +223,63 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     }, [announcements]);
 
     return (
-        <div className="flex flex-col gap-6">
+        <div className="flex flex-col gap-8 pb-12 animate-in fade-in zoom-in-95 duration-700">
             <WelcomeBanner user={userProfile} />
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-                <div className="lg:col-span-2 space-y-6">
+            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
+                <div className="lg:col-span-8 space-y-8">
                     {areTodaysClassesLoading ? (
-                        <Skeleton className="h-80" />
+                        <Skeleton className="h-[400px] w-full rounded-3xl" />
                     ) : (
                         todaysClasses && <UpcomingClasses timetable={todaysClasses} />
                     )}
                      {areAssignmentsLoading ? (
-                        <Skeleton className="h-80" />
+                        <Skeleton className="h-[400px] w-full rounded-3xl" />
                     ) : (
                         upcomingAssignments && <UpcomingDeadlines assignments={upcomingAssignments} />
                     )}
                 </div>
-                <div className="lg:col-span-1">
-                    {isStudentAttendanceLoading || areAllCoursesLoading ? (
-                        <Skeleton className="h-80" />
-                    ) : (
-                        attendanceData && <AttendanceChart data={attendanceData} />
-                    )}
+                <div className="lg:col-span-4 space-y-8">
+                    <div className="glass-card p-1">
+                        {isStudentAttendanceLoading || areAllCoursesLoading ? (
+                            <Skeleton className="h-80 w-full" />
+                        ) : (
+                            attendanceData && <AttendanceChart data={attendanceData} />
+                        )}
+                    </div>
+                    
+                    <Card className="glass-card border-none shadow-indigo-500/10">
+                        <CardHeader>
+                            <CardTitle className="text-xl">Quick Links</CardTitle>
+                            <CardDescription>Common academic actions.</CardDescription>
+                        </CardHeader>
+                        <CardContent className="grid gap-3">
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group" asChild>
+                                <Link href="/attendance/scan">
+                                    Mark Presence (Scan QR)
+                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                </Link>
+                            </Button>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group" asChild>
+                                <Link href="/results">
+                                    Semester Results
+                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                </Link>
+                            </Button>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group" asChild>
+                                <Link href="/helpdesk">
+                                    Support Helpdesk
+                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                </Link>
+                            </Button>
+                        </CardContent>
+                    </Card>
                 </div>
             </div>
 
             {areAnnouncementsLoading ? (
-                <Skeleton className="h-64" />
+                <Skeleton className="h-64 w-full rounded-3xl" />
             ) : (
                 displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
             )}
