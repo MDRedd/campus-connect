@@ -10,7 +10,7 @@ import type { Course } from '@/lib/data';
  * It uses a collection group query on 'timetables' to find associated course IDs.
  */
 export function useFacultyCourses() {
-    const { user: authUser, profile: userProfile, isUserLoading: isAuthUserLoading } = useUser();
+    const { user: authUser, profile: userProfile, isUserLoading } = useUser();
     const firestore = useFirestore();
 
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
@@ -18,8 +18,8 @@ export function useFacultyCourses() {
     const [error, setError] = useState<any>(null);
 
     useEffect(() => {
-        if (isAuthUserLoading || !firestore || !authUser) {
-             if (!isAuthUserLoading) {
+        if (isUserLoading || !firestore || !authUser) {
+             if (!isUserLoading) {
                 setIsLoading(false);
                 setFacultyCourses([]);
              }
@@ -31,8 +31,21 @@ export function useFacultyCourses() {
         const isAdmin = role.includes('admin');
         
         if (isAdmin) {
-            setIsLoading(false);
-            setFacultyCourses(null); // Signal that caller should fetch/use all courses
+            const fetchAllCourses = async () => {
+                setIsLoading(true);
+                try {
+                    const coursesQuery = collection(firestore, 'courses');
+                    const snapshot = await getDocs(coursesQuery);
+                    const courses = snapshot.docs.map(doc => ({ id: doc.id, ...(doc.data() as Omit<Course, 'id'>) }));
+                    setFacultyCourses(courses);
+                } catch (err) {
+                    console.error("Admin fetch courses error:", err);
+                    setFacultyCourses([]);
+                } finally {
+                    setIsLoading(false);
+                }
+            };
+            fetchAllCourses();
             return;
         }
 
@@ -78,7 +91,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser?.uid, isAuthUserLoading, userProfile?.role]);
+    }, [firestore, authUser?.uid, isUserLoading, userProfile?.role]);
 
     return { facultyCourses, isLoading, error };
 }

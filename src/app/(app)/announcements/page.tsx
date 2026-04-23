@@ -177,14 +177,14 @@ export default function AnnouncementsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Announcements</h1>
-            <p className="text-muted-foreground">Manage platform-wide communications and alerts.</p>
+            <p className="text-muted-foreground text-lg">Manage institutional communications.</p>
         </div>
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-            <DialogTrigger asChild><Button onClick={handleAddNewClick}><PlusCircle className="mr-2 h-4 w-4" /> New Announcement</Button></DialogTrigger>
+            <DialogTrigger asChild><Button onClick={handleAddNewClick} className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Announcement</Button></DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}</DialogTitle>
-                    <DialogDescription>Draft and publish an announcement to the selected audience.</DialogDescription>
+                    <DialogDescription>Draft and publish a new campus-wide alert.</DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -199,16 +199,16 @@ export default function AnnouncementsPage() {
                         <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="description" render={({ field }) => (
                             <FormItem>
-                                <div className="flex justify-between items-center"><FormLabel>Description</FormLabel><Button type="button" variant="outline" size="sm" onClick={handleAIDraft} disabled={isDrafting}><Sparkles className="mr-2 h-4 w-4" />AI Draft</Button></div>
-                                <FormControl><Textarea rows={8} {...field} /></FormControl><FormMessage /></FormItem>
+                                <div className="flex justify-between items-center"><FormLabel>Description</FormLabel><Button type="button" variant="outline" size="sm" onClick={handleAIDraft} disabled={isDrafting} className="border-primary/20 bg-primary/5 text-primary"><Sparkles className="mr-2 h-4 w-4" />AI Smart Draft</Button></div>
+                                <FormControl><Textarea rows={8} {...field} placeholder="Enter key points and let AI help you draft..." /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Post Announcement</Button></DialogFooter>
+                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Publish Now</Button></DialogFooter>
                     </form>
                 </Form>
             </DialogContent>
         </Dialog>
       </div>
-      <Card>
+      <Card className="shadow-2xl border-0">
         <CardContent className="pt-6">
           <Table>
             <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Audience</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
@@ -216,9 +216,9 @@ export default function AnnouncementsPage() {
               {isLoading ? ( [...Array(3)].map((_, i) => <TableRow key={i}><TableCell colSpan={4}><Skeleton className="h-10 w-full" /></TableCell></TableRow>) ) : announcements && announcements.length > 0 ? (
                 announcements.map(announcement => (
                   <TableRow key={announcement.id}>
-                    <TableCell className="font-medium">{announcement.title}</TableCell>
-                    <TableCell className="capitalize">{announcement.targetAudience}</TableCell>
-                    <TableCell>{announcement.date ? format(announcement.date.toDate(), 'PPP') : '...'}</TableCell>
+                    <TableCell className="font-semibold">{announcement.title}</TableCell>
+                    <TableCell><Badge variant="secondary" className="capitalize">{announcement.targetAudience}</Badge></TableCell>
+                    <TableCell className="text-muted-foreground">{announcement.date ? format(announcement.date.toDate(), 'PPP') : '...'}</TableCell>
                     <TableCell className="text-right">
                         <Button variant="ghost" size="icon" onClick={() => handleEditClick(announcement)}><Edit className="h-4 w-4" /></Button>
                         <Button variant="ghost" size="icon" onClick={() => handleDelete(announcement.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>

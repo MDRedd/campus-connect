@@ -101,20 +101,26 @@ const NewTicketForm = () => {
 
     return (
         <Dialog open={open} onOpenChange={setOpen}>
-            <DialogTrigger asChild><Button><PlusCircle className="mr-2 h-4 w-4" /> New Ticket</Button></DialogTrigger>
+            <DialogTrigger asChild><Button className="shadow-lg"><PlusCircle className="mr-2 h-4 w-4" /> New Ticket</Button></DialogTrigger>
             <DialogContent>
                 <DialogHeader>
-                    <DialogTitle>New Support Ticket</DialogTitle>
-                    <DialogDescription>Describe your issue and we'll get back to you as soon as possible.</DialogDescription>
+                    <DialogTitle>Raise Support Ticket</DialogTitle>
+                    <DialogDescription>Our team usually responds within 24 hours.</DialogDescription>
                 </DialogHeader>
                 <Form {...form}><form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                     <FormField control={form.control} name="category" render={({ field }) => (
-                        <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Category" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Academics">Academics</SelectItem><SelectItem value="Technical">Technical</SelectItem><SelectItem value="Fees">Fees</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></FormItem>
+                        <FormItem><FormLabel>Category</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger><SelectValue placeholder="Select category" /></SelectTrigger></FormControl><SelectContent><SelectItem value="Academics">Academics</SelectItem><SelectItem value="Technical">Technical</SelectItem><SelectItem value="Fees">Fees</SelectItem><SelectItem value="Other">Other</SelectItem></SelectContent></Select></FormItem>
                     )} />
                     <FormField control={form.control} name="subject" render={({ field }) => ( <FormItem><FormLabel>Subject</FormLabel><FormControl><Input {...field} placeholder="Brief subject of the issue" /></FormControl></FormItem> )} />
-                    <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={5} {...field} placeholder="Please provide as much detail as possible..." /></FormControl></FormItem> )} />
-                    {suggestion && <Alert className="bg-primary/5 border-primary/20"><Sparkles className="h-4 w-4 text-primary" /><AlertTitle className="text-primary font-bold">AI Hint</AlertTitle><AlertDescription className="text-sm">{suggestion}</AlertDescription></Alert>}
-                    <DialogFooter><Button type="submit">Submit Ticket</Button></DialogFooter>
+                    <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea rows={5} {...field} placeholder="Provide a detailed explanation..." /></FormControl></FormItem> )} />
+                    {suggestion && (
+                        <Alert className="bg-primary/5 border-primary/20 animate-in fade-in zoom-in duration-300">
+                            <Sparkles className="h-4 w-4 text-primary" />
+                            <AlertTitle className="text-primary font-bold">Instant AI Suggestion</AlertTitle>
+                            <AlertDescription className="text-sm italic">{suggestion}</AlertDescription>
+                        </Alert>
+                    )}
+                    <DialogFooter><Button type="submit" className="w-full">Submit Support Request</Button></DialogFooter>
                 </form></Form>
             </DialogContent>
         </Dialog>
@@ -149,11 +155,11 @@ export default function HelpdeskPage() {
       <div className="flex justify-between items-center">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Helpdesk</h1>
-            <p className="text-muted-foreground">Support requests and technical assistance.</p>
+            <p className="text-muted-foreground text-lg">Centralized support for campus issues.</p>
         </div>
         {!isFacultyOrAdmin && <NewTicketForm />}
       </div>
-      <Card>
+      <Card className="shadow-2xl border-0">
         <CardContent className="pt-6">
           <Table>
             <TableHeader><TableRow><TableHead>Subject</TableHead><TableHead>Category</TableHead><TableHead>Status</TableHead><TableHead className="text-right">Action</TableHead></TableRow></TableHeader>
@@ -162,10 +168,10 @@ export default function HelpdeskPage() {
                 tickets && tickets.length > 0 ? (
                   tickets.map(ticket => (
                     <TableRow key={ticket.id}>
-                      <TableCell className="font-medium">{ticket.subject}</TableCell>
+                      <TableCell className="font-semibold">{ticket.subject}</TableCell>
                       <TableCell>{ticket.category}</TableCell>
                       <TableCell><Badge variant={ticket.status === 'open' ? 'destructive' : 'default'} className="capitalize">{ticket.status}</Badge></TableCell>
-                      <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => setViewingTicket(ticket)}>View Details</Button></TableCell>
+                      <TableCell className="text-right"><Button variant="outline" size="sm" onClick={() => setViewingTicket(ticket)}>Manage</Button></TableCell>
                     </TableRow>
                   ))
                 ) : (
@@ -177,33 +183,33 @@ export default function HelpdeskPage() {
         </CardContent>
       </Card>
       <Dialog open={!!viewingTicket} onOpenChange={o => !o && setViewingTicket(null)}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
             <DialogHeader>
-                <DialogTitle>Ticket Details</DialogTitle>
-                <DialogDescription>Viewing full context for the support request.</DialogDescription>
+                <DialogTitle>Ticket Context</DialogTitle>
+                <DialogDescription>Raised by {viewingTicket?.studentName} ({viewingTicket?.studentEmail})</DialogDescription>
             </DialogHeader>
-            {viewingTicket && <div className="space-y-4">
+            {viewingTicket && <div className="space-y-6">
                 <div className="space-y-1">
-                    <Label className="text-muted-foreground">Subject</Label>
-                    <p className="font-semibold">{viewingTicket.subject}</p>
+                    <Label className="text-muted-foreground uppercase text-[10px] font-black tracking-widest">Issue Subject</Label>
+                    <p className="text-lg font-bold">{viewingTicket.subject}</p>
                 </div>
                 <div className="space-y-1">
-                    <Label className="text-muted-foreground">Description</Label>
-                    <p className="bg-muted/50 p-3 rounded-lg text-sm">{viewingTicket.description}</p>
+                    <Label className="text-muted-foreground uppercase text-[10px] font-black tracking-widest">Problem Description</Label>
+                    <p className="bg-slate-50 dark:bg-slate-900 p-4 rounded-xl text-sm leading-relaxed border border-slate-100">{viewingTicket.description}</p>
                 </div>
                 {viewingTicket.status === 'open' && isFacultyOrAdmin && (
-                    <div className="space-y-4 border-t pt-4">
+                    <div className="space-y-4 border-t pt-6">
                         <div className="space-y-2">
-                            <Label>Resolution Comments</Label>
-                            <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Explain the resolution or next steps..." />
+                            <Label className="font-bold">Resolution Resolution</Label>
+                            <Textarea value={comment} onChange={e => setComment(e.target.value)} placeholder="Explain the resolution or next steps clearly..." className="min-h-[120px]" />
                         </div>
-                        <Button className="w-full" onClick={handleResolve}>Resolve & Close Ticket</Button>
+                        <Button className="w-full h-12 shadow-lg" onClick={handleResolve}>Finalize & Close Ticket</Button>
                     </div>
                 )}
                 {viewingTicket.status === 'closed' && viewingTicket.resolverComments && (
-                     <div className="space-y-1 border-t pt-4">
-                        <Label className="text-muted-foreground">Resolution</Label>
-                        <p className="text-sm font-medium">{viewingTicket.resolverComments}</p>
+                     <div className="space-y-1 border-t pt-6">
+                        <Label className="text-primary uppercase text-[10px] font-black tracking-widest">Staff Resolution</Label>
+                        <p className="text-sm font-medium bg-primary/5 p-4 rounded-xl border border-primary/10 italic">"{viewingTicket.resolverComments}"</p>
                     </div>
                 )}
             </div>}
