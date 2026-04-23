@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
-import { BookOpen, Percent, FileWarning, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
+import { BookOpen, Percent, FileWarning, ArrowRight, ShieldAlert, Sparkles, GraduationCap } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 import Link from 'next/link';
@@ -229,11 +229,11 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             <WelcomeBanner user={userProfile} />
             
             {userProfile?.auditStatus === 'pending' && (
-                <Alert className="glass-card bg-primary/5 border-primary/20 shadow-2xl overflow-hidden animate-pulse">
+                <Alert className="glass-card bg-primary/5 border-primary/20 shadow-2xl overflow-hidden animate-pulse border-neon">
                     <ShieldAlert className="h-5 w-5 text-primary" />
                     <AlertTitle className="font-black uppercase tracking-tight text-primary">Identity Audit Underway</AlertTitle>
                     <AlertDescription className="text-sm font-medium text-slate-600 flex items-center gap-2">
-                        Your persona is currently in the verification queue. Some academic ledgers may be read-only until the Registrar completes your audit.
+                        Your digital persona is currently in the institutional verification queue. Full academic access will be granted upon Registrar audit.
                         <Sparkles className="h-3 w-3 text-amber-500" />
                     </AlertDescription>
                 </Alert>
@@ -244,60 +244,32 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8 space-y-8">
-                    {areTodaysClassesLoading ? (
-                        <Skeleton className="h-[400px] w-full rounded-3xl" />
-                    ) : (
-                        todaysClasses && <UpcomingClasses timetable={todaysClasses} />
-                    )}
-                     {areAssignmentsLoading ? (
-                        <Skeleton className="h-[400px] w-full rounded-3xl" />
-                    ) : (
-                        upcomingAssignments && <UpcomingDeadlines assignments={upcomingAssignments} />
-                    )}
+                    {areTodaysClassesLoading ? <Skeleton className="h-80 w-full rounded-[2.5rem]" /> : todaysClasses && <UpcomingClasses timetable={todaysClasses} />}
+                    {areAssignmentsLoading ? <Skeleton className="h-80 w-full rounded-[2.5rem]" /> : upcomingAssignments && <UpcomingDeadlines assignments={upcomingAssignments} />}
                 </div>
                 <div className="lg:col-span-4 space-y-8">
                     <div className="glass-card p-1">
-                        {isStudentAttendanceLoading || areAllCoursesLoading ? (
-                            <Skeleton className="h-80 w-full" />
-                        ) : (
-                            attendanceData && <AttendanceChart data={attendanceData} />
-                        )}
+                        {isStudentAttendanceLoading || areAllCoursesLoading ? <Skeleton className="h-80 w-full rounded-[2.5rem]" /> : attendanceData && <AttendanceChart data={attendanceData} />}
                     </div>
                     
                     <Card className="glass-card border-none shadow-indigo-50/10">
-                        <CardHeader>
-                            <CardTitle className="text-xl">Quick Links</CardTitle>
-                            <CardDescription>Common academic actions.</CardDescription>
-                        </CardHeader>
+                        <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Quick Links</CardTitle><CardDescription className="text-xs font-medium">Common academic actions.</CardDescription></CardHeader>
                         <CardContent className="grid gap-3">
-                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group" asChild>
-                                <Link href="/attendance/scan">
-                                    Mark Presence (Scan QR)
-                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                                </Link>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all" asChild>
+                                <Link href="/attendance/scan">Mark Presence (Scan HUD) <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" /></Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group" asChild>
-                                <Link href="/results">
-                                    Semester Results
-                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                                </Link>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all" asChild>
+                                <Link href="/results">Official Results <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" /></Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group" asChild>
-                                <Link href="/helpdesk">
-                                    Support Helpdesk
-                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
-                                </Link>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all" asChild>
+                                <Link href="/helpdesk">Support Node <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" /></Link>
                             </Button>
                         </CardContent>
                     </Card>
                 </div>
             </div>
 
-            {areAnnouncementsLoading ? (
-                <Skeleton className="h-64 w-full rounded-3xl" />
-            ) : (
-                displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
-            )}
+            {areAnnouncementsLoading ? <Skeleton className="h-64 w-full rounded-[2.5rem]" /> : displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />}
         </div>
     );
 }

@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs, query, where, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, collectionGroup } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
   Card,
@@ -150,14 +150,14 @@ export default function TimetablePage() {
     
     const handleAddNew = () => { setEditingSlot(null); form.reset({ courseId: '', facultyId: '', dayOfWeek: '', startTime: '09:00', endTime: '10:30', room: '', year: new Date().getFullYear(), semester: 'Fall', meetingUrl: '' }); setOpenDialog(true); };
     const handleEdit = (slot: Timetable) => { setEditingSlot(slot); form.reset({ ...slot, meetingUrl: slot.meetingUrl || '' }); setOpenDialog(true); };
-    const handleDelete = (slot: Timetable) => { if (!firestore || !confirm('Delete slot?')) return; deleteDocumentNonBlocking(doc(firestore, 'courses', slot.courseId, 'timetables', slot.id)); toast({ title: 'Success', description: 'Deleted.' }); };
+    const handleDelete = (slot: Timetable) => { if (!firestore || !confirm('Delete slot?')) return; deleteDocumentNonBlocking(doc(firestore, 'courses', slot.courseId, 'timetables', slot.id)); toast({ title: 'Success', description: 'Schedule updated.' }); };
 
     function onTimetableSubmit(values: z.infer<typeof timetableSchema>) {
         if (!firestore || !authUser) return;
         let finalValues = { ...values, facultyId: isAdmin ? values.facultyId : authUser.uid };
         if (editingSlot) updateDocumentNonBlocking(doc(firestore, 'courses', editingSlot.courseId, 'timetables', editingSlot.id), finalValues);
         else addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'timetables'), finalValues);
-        setOpenDialog(false); setEditingSlot(null); toast({ title: 'Success', description: 'Schedule updated.' });
+        setOpenDialog(false); setEditingSlot(null); toast({ title: 'Success', description: 'Identity ledger updated.' });
     }
 
     const isLoading = isUserLoading || isTimetableLoading;
@@ -215,32 +215,31 @@ export default function TimetablePage() {
         </Card>
 
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-            <DialogContent className="rounded-3xl">
-                <DialogHeader><DialogTitle>{editingSlot ? 'Edit Session' : 'Allocate New Session'}</DialogTitle><DialogDescription>Define temporal and physical allocation for class sessions.</DialogDescription></DialogHeader>
+            <DialogContent className="rounded-3xl max-w-xl">
+                <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">{editingSlot ? 'Edit Session' : 'Allocate New Session'}</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Define temporal and physical allocation for class sessions.</DialogDescription></DialogHeader>
                 {(areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96" /> : (
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4">
+                    <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4 pt-4">
                         <FormField control={form.control} name="courseId" render={({ field }) => ( 
                             <FormItem>
-                                <FormLabel>Target Module</FormLabel>
+                                <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Module</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}>
-                                    <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
                                     <SelectContent className="rounded-xl">
                                         {coursesForForm?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
-                                <FormMessage />
                             </FormItem> 
                         )} />
-                        {isAdmin && ( <FormField control={form.control} name="facultyId" render={({ field }) => ( <FormItem><FormLabel>Assigned Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{allFaculty?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} /> )}
-                        <FormField control={form.control} name="dayOfWeek" render={({ field }) => ( <FormItem><FormLabel>Operational Day</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select day" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
+                        {isAdmin && ( <FormField control={form.control} name="facultyId" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{allFaculty?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent></Select></FormItem> )} /> )}
+                        <FormField control={form.control} name="dayOfWeek" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Operational Day</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select day" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></FormItem> )} />
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="startTime" render={({ field }) => ( <FormItem><FormLabel>Start (HH:MM)</FormLabel><FormControl><Input placeholder="09:00" {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
-                            <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel>End (HH:MM)</FormLabel><FormControl><Input placeholder="10:30" {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
+                            <FormField control={form.control} name="startTime" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start (HH:MM)</FormLabel><FormControl><Input placeholder="09:00" {...field} className="glass-input" /></FormControl></FormItem> )} />
+                            <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">End (HH:MM)</FormLabel><FormControl><Input placeholder="10:30" {...field} className="glass-input" /></FormControl></FormItem> )} />
                         </div>
-                        <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel>Physical Venue</FormLabel><FormControl><Input placeholder="A-101" {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
-                        <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel>Online Gateway (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
-                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Update Schedule</Button></DialogFooter>
+                        <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Physical Venue</FormLabel><FormControl><Input placeholder="A-101" {...field} className="glass-input" /></FormControl></FormItem> )} />
+                        <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Online Gateway (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="glass-input" /></FormControl></FormItem> )} />
+                        <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose><Button type="submit" className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Finalize Allocation</Button></DialogFooter>
                     </form>
                 </Form>
                 )}
