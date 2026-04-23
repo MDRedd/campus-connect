@@ -7,6 +7,7 @@ import AppSidebar from '@/components/layout/app-sidebar';
 import { SidebarProvider } from '@/components/ui/sidebar';
 import { useUser } from '@/firebase';
 import { Skeleton } from '@/components/ui/skeleton';
+import { GraduationCap, Sparkles } from 'lucide-react';
 
 export default function DashboardLayout({
   children,
@@ -23,38 +24,28 @@ export default function DashboardLayout({
   }, [isUserLoading, user, router]);
 
   if (isUserLoading || !user) {
-    // Show a full-page loading skeleton while we're verifying auth,
-    // or if the user is null and we're about to redirect.
     return (
-      <div className="flex min-h-screen w-full bg-muted/40">
-        <div className="flex flex-col flex-1 sm:gap-4 sm:py-4 sm:pl-14">
-            <header className="sticky top-0 z-30 flex h-14 items-center gap-4 border-b bg-background px-4 sm:static sm:h-auto sm:border-0 sm:bg-transparent sm:px-6">
-                 {/* Skeleton for header */}
-            </header>
-            <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
-                <div className="flex flex-col gap-6">
-                    <Skeleton className="h-12 w-1/2" />
-                    <Skeleton className="h-24" />
-                    <div className="grid gap-6 lg:grid-cols-3">
-                        <div className="lg:col-span-2">
-                            <Skeleton className="h-80" />
-                        </div>
-                        <Skeleton className="h-80" />
-                    </div>
-                </div>
-            </main>
-        </div>
+      <div className="flex min-h-screen w-full bg-[#0a0c10] items-center justify-center">
+         <div className="flex flex-col items-center gap-6 animate-pulse">
+            <div className="bg-primary p-6 rounded-[2.5rem] shadow-[0_0_50px_-10px_rgba(79,70,229,0.5)]">
+                <GraduationCap className="h-12 w-12 text-white" />
+            </div>
+            <div className="flex items-center gap-3">
+                <Sparkles className="h-4 w-4 text-primary" />
+                <span className="text-[10px] font-black uppercase tracking-[0.4em] text-slate-500">Synchronizing Identity Ledger</span>
+            </div>
+         </div>
       </div>
     );
   }
 
   return (
     <SidebarProvider>
-      <div className="flex min-h-screen w-full bg-muted/40">
+      <div className="flex min-h-screen w-full bg-background transition-colors duration-500">
         <AppSidebar />
-        <div className="flex flex-col flex-1 sm:gap-4 sm:py-4 sm:pl-14">
+        <div className="flex flex-col flex-1 sm:pl-14">
             <AppHeader />
-            <main className="grid flex-1 items-start gap-4 p-4 sm:px-6 sm:py-0 md:gap-8">
+            <main className="flex-1 p-4 md:p-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
                 {children}
             </main>
         </div>
