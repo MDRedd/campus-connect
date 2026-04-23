@@ -49,6 +49,16 @@ To run the platform locally, follow these steps:
 - **Fee Management**: Individual and bulk fee assignment with status tracking.
 - **AI Practice Quizzes**: Instantly generate interactive quizzes from study materials.
 
+## 🗝️ Demo Access
+
+To test role-based features without creating your own accounts, use these patterns during **Sign Up**:
+
+- **Student**: `2024001@student.college.edu`
+- **Faculty**: `FAC1001@faculty.college.edu`
+- **Admin**: `super.admin@college.edu`
+
+**Default Password for Demos**: `password123`
+
 ## 🔧 Troubleshooting
 
 ### Missing Firestore Indexes (Critical)
@@ -65,9 +75,3 @@ Common collections requiring manual indexes:
 - `attendance` (field `courseId`)
 - `results` (field `courseId`)
 - `submissions` (field `courseId`)
-
-### Sample Credentials
-To use roll numbers like `2024001` or faculty IDs like `FAC1001`, you **must** use the **Sign Up** page first and register an account using an email in the format:
-- Student: `[roll_number]@student.college.edu`
-- Faculty: `[faculty_id]@faculty.college.edu`
-- Admin: `super.admin@college.edu`

@@ -59,7 +59,7 @@ export default function LoginPage() {
     } catch (error: any) {
         let errorMessage = 'Invalid credentials. Please check your credentials and try again.';
         if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
-            errorMessage = 'Account not found or password incorrect. Please ensure you have signed up first.';
+            errorMessage = 'Account not found. If this is a demo account, please SIGN UP first using the email format listed below.';
         }
         toast({
             variant: 'destructive',
@@ -198,13 +198,13 @@ export default function LoginPage() {
                                 <p>Student: <code className="text-white bg-white/5 px-1.5 rounded">2024001</code></p>
                                 <p>Faculty: <code className="text-white bg-white/5 px-1.5 rounded">FAC1001</code></p>
                                 <p className="col-span-2">Admin: <code className="text-white bg-white/5 px-1.5 rounded">super.admin@college.edu</code></p>
+                                <p className="col-span-2 text-primary">Demo Password: <code className="text-white bg-white/5 px-1.5 rounded">password123</code></p>
                             </div>
                         </div>
                     </div>
                   </div>
-                  <p className="text-center text-xs font-bold text-slate-500 uppercase tracking-[0.2em]">
-                    Unregistered User?{' '}
-                    <Link href="/signup" className="text-primary hover:text-indigo-400 transition-colors">Enroll Here</Link>
+                  <p className="text-center text-[10px] font-black text-slate-500 uppercase tracking-[0.2em] px-4 leading-relaxed">
+                    Note: You must <Link href="/signup" className="text-primary hover:underline">Sign Up</Link> with the email format above to initialize these roles.
                   </p>
               </div>
             </CardContent>
