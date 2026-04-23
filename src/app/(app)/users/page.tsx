@@ -26,7 +26,7 @@ import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Button } from '@/components/ui/button';
-import { Edit, Trash2, PlusCircle, Search, FilterX } from 'lucide-react';
+import { Edit, Trash2, PlusCircle, Search, FilterX, UsersRound, ShieldCheck, UserCog } from 'lucide-react';
 import {
     AlertDialog,
     AlertDialogAction,
@@ -54,6 +54,7 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type UserProfile = {
   id: string;
@@ -92,7 +93,6 @@ export default function UsersPage() {
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false);
   const [deletingUser, setDeletingUser] = useState<UserProfile | null>(null);
 
-  // Filter States
   const [searchQuery, setSearchQuery] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
 
@@ -150,10 +150,8 @@ export default function UsersPage() {
   
   const confirmDelete = () => {
     if (!firestore || !deletingUser) return;
-    
     const userToDeleteRef = doc(firestore, 'users', deletingUser.id);
     deleteDocumentNonBlocking(userToDeleteRef);
-    
     toast({ title: 'Success', description: `User ${deletingUser.name} has been deleted.` });
     setIsDeleteDialogOpen(false);
     setDeletingUser(null);
@@ -161,21 +159,17 @@ export default function UsersPage() {
 
   const onEditSubmit = (values: z.infer<typeof userEditSchema>) => {
     if (!firestore || !editingUser) return;
-    
     const userToUpdateRef = doc(firestore, 'users', editingUser.id);
     updateDocumentNonBlocking(userToUpdateRef, {
       role: values.role,
       department: values.department,
     });
-    
     toast({ title: 'Success', description: `User ${editingUser.name} has been updated.` });
     setIsEditDialogOpen(false);
   };
 
   const onUserCreate = async (values: z.infer<typeof userCreationSchema>) => {
     if (!firestore) return;
-    
-    // We create a temporary app instance to create a user without signing the admin out
     const tempAppName = `user-creation-${Date.now()}`;
     const tempApp = initializeApp(firebaseConfig, tempAppName);
     const tempAuth = getAuth(tempApp);
@@ -183,9 +177,7 @@ export default function UsersPage() {
     try {
         const userCredential = await createUserWithEmailAndPassword(tempAuth, values.email, values.password);
         const newUser = userCredential.user;
-
         await updateProfile(newUser, { displayName: values.name });
-        
         const userDocRef = doc(firestore, 'users', newUser.uid);
         const userData: any = {
             id: newUser.uid,
@@ -196,271 +188,140 @@ export default function UsersPage() {
             ...(values.rollNumber && { rollNumber: values.rollNumber }),
             ...(values.facultyCode && { facultyCode: values.facultyCode }),
         };
-        
         setDocumentNonBlocking(userDocRef, userData, {});
-        
         toast({ title: 'User Created', description: `${values.name} has been added.` });
         setIsCreateDialogOpen(false);
         createForm.reset();
     } catch (error: any) {
-        console.error("Error creating user:", error);
-        toast({
-            variant: 'destructive',
-            title: 'Creation Failed',
-            description: error.code === 'auth/email-already-in-use' ? 'This email is already in use.' : 'An unknown error occurred.',
-        });
+        toast({ variant: 'destructive', title: 'Creation Failed', description: error.code === 'auth/email-already-in-use' ? 'This email is already in use.' : 'An unknown error occurred.' });
     } finally {
         await deleteApp(tempApp);
     }
   }
 
-
   const isLoading = isUserLoading || areUsersLoading;
 
-  if (isUserLoading) {
-      return <Skeleton className="h-96 w-full" />;
-  }
-
-  if (currentUserProfile && !['super-admin', 'user-admin'].includes(currentUserProfile.role)) {
-    return (
-        <Card>
-            <CardHeader>
-                <CardTitle>Access Denied</CardTitle>
-                <CardDescription>You do not have permission to view this page.</CardDescription>
-            </CardHeader>
-        </Card>
-    )
+  if (!isUserLoading && currentUserProfile && !['super-admin', 'user-admin'].includes(currentUserProfile.role)) {
+    return <div className="p-8"><Card className="glass-card border-none"><CardHeader><CardTitle>Access Restricted</CardTitle><CardDescription>Only administrative personnel may access the User Directory.</CardDescription></CardHeader></Card></div>
   }
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">User Management</h1>
-            <p className="text-muted-foreground">
-            View and manage all users on the platform.
-            </p>
-        </div>
-        <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-                <Button><PlusCircle className="mr-2 h-4 w-4" /> Create User</Button>
-            </DialogTrigger>
-            <DialogContent>
-                <DialogHeader><DialogTitle>Create New User</DialogTitle></DialogHeader>
-                 <Form {...createForm}>
-                    <form onSubmit={createForm.handleSubmit(onUserCreate)} className="space-y-4">
-                        <FormField control={createForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Full Name</FormLabel><FormControl><Input {...field} placeholder="John Doe" /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={createForm.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email</FormLabel><FormControl><Input {...field} type="email" placeholder="user@example.com" /></FormControl><FormMessage /></FormItem>)} />
-                        <FormField control={createForm.control} name="password" render={({ field }) => (<FormItem><FormLabel>Password</FormLabel><FormControl><Input {...field} type="password" /></FormControl><FormMessage /></FormItem>)} />
+    <div className="flex flex-col gap-8 animate-in fade-in duration-700 pb-12">
+      <div className="academic-hero">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                      <ShieldCheck className="h-3 w-3" /> Identity Master
+                  </div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">USER DIRECTORY</h1>
+                  <p className="text-indigo-100/70 font-medium max-w-lg">Manage institutional personas, synchronize departmental roles, and authorize system access.</p>
+              </div>
+              <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+                <DialogTrigger asChild><Button onClick={() => createForm.reset()} className="bg-white text-primary hover:bg-indigo-50 font-black rounded-xl h-12 px-8 shadow-xl shadow-black/20 uppercase tracking-widest text-[10px]"><PlusCircle className="mr-2 h-4 w-4" /> Provision New User</Button></DialogTrigger>
+                <DialogContent className="rounded-3xl">
+                    <DialogHeader><DialogTitle>New Identity Enrollment</DialogTitle><DialogDescription>Provision a new institutional account.</DialogDescription></DialogHeader>
+                    <Form {...createForm}><form onSubmit={createForm.handleSubmit(onUserCreate)} className="space-y-4">
+                        <FormField control={createForm.control} name="name" render={({ field }) => (<FormItem><FormLabel>Legal Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem>)} />
+                        <FormField control={createForm.control} name="email" render={({ field }) => (<FormItem><FormLabel>Email Address</FormLabel><FormControl><Input {...field} type="email" className="h-12 rounded-xl" /></FormControl></FormItem>)} />
+                        <FormField control={createForm.control} name="password" render={({ field }) => (<FormItem><FormLabel>Initial Keyphrase</FormLabel><FormControl><Input {...field} type="password" className="h-12 rounded-xl" /></FormControl></FormItem>)} />
                         <FormField control={createForm.control} name="role" render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Role</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
-                                <SelectContent>
-                                    <SelectItem value="student">Student</SelectItem>
-                                    <SelectItem value="faculty">Faculty</SelectItem>
-                                    <SelectItem value="user-admin">User Admin</SelectItem>
-                                    <SelectItem value="course-admin">Course Admin</SelectItem>
-                                    <SelectItem value="attendance-admin">Attendance Admin</SelectItem>
-                                    <SelectItem value="super-admin">Super Admin</SelectItem>
-                                </SelectContent>
-                            </Select><FormMessage /></FormItem>
+                            <FormItem><FormLabel>Institutional Role</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl><SelectContent className="rounded-xl"><SelectItem value="student">Student</SelectItem><SelectItem value="faculty">Faculty</SelectItem><SelectItem value="user-admin">User Admin</SelectItem><SelectItem value="course-admin">Course Admin</SelectItem><SelectItem value="attendance-admin">Attendance Admin</SelectItem><SelectItem value="super-admin">Super Admin</SelectItem></SelectContent></Select></FormItem>
                         )} />
-
-                        {watchedRole === 'student' && (
-                            <FormField control={createForm.control} name="rollNumber" render={({ field }) => (<FormItem><FormLabel>Roll Number</FormLabel><FormControl><Input {...field} placeholder="e.g., 2024001" /></FormControl><FormMessage /></FormItem>)} />
-                        )}
-                        {watchedRole === 'faculty' && (
-                            <FormField control={createForm.control} name="facultyCode" render={({ field }) => (<FormItem><FormLabel>Faculty Code</FormLabel><FormControl><Input {...field} placeholder="e.g., FAC1001" /></FormControl><FormMessage /></FormItem>)} />
-                        )}
-
-                        <FormField control={createForm.control} name="department" render={({ field }) => (<FormItem><FormLabel>Department (Optional)</FormLabel><FormControl><Input {...field} placeholder="e.g., Computer Science" /></FormControl><FormMessage /></FormItem>)} />
-                        <DialogFooter>
-                            <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                            <Button type="submit" disabled={createForm.formState.isSubmitting}>
-                                {createForm.formState.isSubmitting ? 'Creating...' : 'Create User'}
-                            </Button>
-                        </DialogFooter>
-                    </form>
-                </Form>
-            </DialogContent>
-          </Dialog>
+                        {watchedRole === 'student' && <FormField control={createForm.control} name="rollNumber" render={({ field }) => (<FormItem><FormLabel>Enrollment Index</FormLabel><FormControl><Input {...field} placeholder="e.g., 2024001" className="h-12 rounded-xl" /></FormControl></FormItem>)} />}
+                        {watchedRole === 'faculty' && <FormField control={createForm.control} name="facultyCode" render={({ field }) => (<FormItem><FormLabel>Staff Index</FormLabel><FormControl><Input {...field} placeholder="e.g., FAC1001" className="h-12 rounded-xl" /></FormControl></FormItem>)} />}
+                        <FormField control={createForm.control} name="department" render={({ field }) => (<FormItem><FormLabel>Academic Department</FormLabel><FormControl><Input {...field} placeholder="e.g., Computer Science" className="h-12 rounded-xl" /></FormControl></FormItem>)} />
+                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose><Button type="submit" disabled={createForm.formState.isSubmitting} className="rounded-xl h-12 px-8">Confirm Provisioning</Button></DialogFooter>
+                    </form></Form>
+                </DialogContent>
+              </Dialog>
+          </div>
       </div>
 
-      <Card>
-        <CardHeader>
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div>
-                    <CardTitle>All Users</CardTitle>
-                    <CardDescription>A list of all registered users. Use filters to narrow down the list.</CardDescription>
+      <Card className="glass-card border-none overflow-hidden">
+        <CardHeader className="bg-white/40 border-b border-white/20 flex flex-col md:flex-row md:items-center justify-between gap-4">
+            <div>
+                <CardTitle>Active Identities</CardTitle>
+                <CardDescription>Verified system participants and their assigned authorizations.</CardDescription>
+            </div>
+            <div className="flex flex-wrap items-center gap-2">
+                <div className="relative">
+                    <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search directory..." className="pl-8 h-10 rounded-xl bg-white/50 border-none shadow-inner w-[200px]" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
-                <div className="flex flex-wrap items-center gap-2">
-                    <div className="relative">
-                        <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
-                        <Input 
-                            placeholder="Search by name or email..." 
-                            className="pl-8 w-[250px]" 
-                            value={searchQuery}
-                            onChange={(e) => setSearchQuery(e.target.value)}
-                        />
-                    </div>
-                    <Select value={roleFilter} onValueChange={setRoleFilter}>
-                        <SelectTrigger className="w-[180px]">
-                            <SelectValue placeholder="Filter by role" />
-                        </SelectTrigger>
-                        <SelectContent>
-                            <SelectItem value="all">All Roles</SelectItem>
-                            <SelectItem value="student">Student</SelectItem>
-                            <SelectItem value="faculty">Faculty</SelectItem>
-                            <SelectItem value="user-admin">User Admin</SelectItem>
-                            <SelectItem value="course-admin">Course Admin</SelectItem>
-                            <SelectItem value="attendance-admin">Attendance Admin</SelectItem>
-                            <SelectItem value="super-admin">Super Admin</SelectItem>
-                        </SelectContent>
-                    </Select>
-                    {(searchQuery || roleFilter !== 'all') && (
-                        <Button variant="ghost" size="icon" onClick={() => { setSearchQuery(''); setRoleFilter('all'); }} title="Clear Filters">
-                            <FilterX className="h-4 w-4" />
-                        </Button>
-                    )}
-                </div>
+                <Select value={roleFilter} onValueChange={setRoleFilter}>
+                    <SelectTrigger className="w-[150px] h-10 rounded-xl border-none bg-white/50"><SelectValue placeholder="Role Filter" /></SelectTrigger>
+                    <SelectContent className="rounded-xl">
+                        <SelectItem value="all">All Roles</SelectItem>
+                        <SelectItem value="student">Students</SelectItem>
+                        <SelectItem value="faculty">Faculty</SelectItem>
+                        <SelectItem value="super-admin">Admins</SelectItem>
+                    </SelectContent>
+                </Select>
+                {(searchQuery || roleFilter !== 'all') && <Button variant="ghost" size="icon" onClick={() => { setSearchQuery(''); setRoleFilter('all'); }} className="h-10 w-10"><FilterX className="h-4 w-4" /></Button>}
             </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-0">
           <Table>
-            <TableHeader>
+            <TableHeader className="bg-slate-50/50">
               <TableRow>
-                <TableHead>User</TableHead>
-                <TableHead>Email</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Department</TableHead>
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="pl-6 uppercase text-[10px] font-black tracking-widest">Persona</TableHead>
+                <TableHead className="uppercase text-[10px] font-black tracking-widest">Institutional Email</TableHead>
+                <TableHead className="uppercase text-[10px] font-black tracking-widest">Authorization</TableHead>
+                <TableHead className="uppercase text-[10px] font-black tracking-widest">Department</TableHead>
+                <TableHead className="text-right pr-6 uppercase text-[10px] font-black tracking-widest">Ops</TableHead>
               </TableRow>
             </TableHeader>
             <TableBody>
-              {isLoading ? (
-                [...Array(5)].map((_, i) => (
-                  <TableRow key={i}>
-                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                    <TableCell><Skeleton className="h-10 w-full" /></TableCell>
-                  </TableRow>
-                ))
-              ) : filteredUsers && filteredUsers.length > 0 ? (
+              {isLoading ? ( [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={5} className="pl-6 pr-6"><Skeleton className="h-12 w-full rounded-xl" /></TableCell></TableRow>) ) : filteredUsers && filteredUsers.length > 0 ? (
                 filteredUsers.map(user => (
-                  <TableRow key={user.id}>
-                    <TableCell>
+                  <TableRow key={user.id} className="hover:bg-indigo-50/30 group transition-colors">
+                    <TableCell className="pl-6">
                       <div className="flex items-center gap-3">
-                        <Avatar className="h-9 w-9">
-                          {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={user.name} data-ai-hint={userAvatar.imageHint} />}
-                          <AvatarFallback>{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                        <Avatar className="h-10 w-10 border-2 border-white shadow-sm">
+                          {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={user.name} />}
+                          <AvatarFallback className="font-black text-xs uppercase bg-primary/5 text-primary">{user.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                         </Avatar>
-                        <div className="font-medium">{user.name}</div>
+                        <div className="font-bold text-slate-700 truncate max-w-[120px]">{user.name}</div>
                       </div>
                     </TableCell>
-                    <TableCell>{user.email}</TableCell>
+                    <TableCell className="font-medium text-xs text-muted-foreground">{user.email}</TableCell>
                     <TableCell>
-                      <Badge variant={user.role.includes('admin') ? 'destructive' : user.role === 'faculty' ? 'default' : 'secondary'} className="capitalize">
+                      <Badge variant="secondary" className={cn("rounded-lg font-black uppercase text-[9px] tracking-widest px-2 py-0.5", user.role.includes('admin') ? 'bg-indigo-500 text-white hover:bg-indigo-600' : 'bg-slate-100 text-slate-500 hover:bg-slate-200')}>
                         {user.role.replace('-', ' ')}
                       </Badge>
                     </TableCell>
-                    <TableCell>{user.department || 'N/A'}</TableCell>
-                    <TableCell className="text-right">
-                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(user)} disabled={user.id === authUser?.uid}>
-                            <Edit className="h-4 w-4" />
-                            <span className="sr-only">Edit User</span>
-                        </Button>
-                        <Button variant="ghost" size="icon" onClick={() => handleDeleteClick(user)} disabled={user.id === authUser?.uid}>
-                            <Trash2 className="h-4 w-4 text-destructive" />
-                            <span className="sr-only">Delete User</span>
-                        </Button>
+                    <TableCell className="text-xs font-bold text-slate-500">{user.department || 'N/A'}</TableCell>
+                    <TableCell className="text-right pr-6">
+                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-white hover:shadow-sm" onClick={() => handleEditClick(user)} disabled={user.id === authUser?.uid}><UserCog className="h-4 w-4" /></Button>
+                            <Button variant="ghost" size="icon" className="h-8 w-8 rounded-lg hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDeleteClick(user)} disabled={user.id === authUser?.uid}><Trash2 className="h-4 w-4" /></Button>
+                        </div>
                     </TableCell>
                   </TableRow>
                 ))
-              ) : (
-                <TableRow>
-                  <TableCell colSpan={5} className="h-24 text-center">
-                    {allUsers && allUsers.length > 0 ? 'No users match your filters.' : 'No users found.'}
-                  </TableCell>
-                </TableRow>
-              )}
+              ) : ( <TableRow><TableCell colSpan={5} className="h-32 text-center font-bold text-muted-foreground uppercase tracking-tighter text-sm opacity-40">No matching identities found</TableCell></TableRow> )}
             </TableBody>
           </Table>
         </CardContent>
       </Card>
       
       <Dialog open={isEditDialogOpen} onOpenChange={setIsEditDialogOpen}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>Edit User: {editingUser?.name}</DialogTitle>
-                <DialogDescription>{editingUser?.email}</DialogDescription>
-            </DialogHeader>
-            <Form {...editForm}>
-                <form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
-                    <FormField
-                        control={editForm.control}
-                        name="role"
-                        render={({ field }) => (
-                            <FormItem>
-                            <FormLabel>Role</FormLabel>
-                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl>
-                                <SelectTrigger>
-                                    <SelectValue placeholder="Select a role" />
-                                </SelectTrigger>
-                                </FormControl>
-                                <SelectContent>
-                                    <SelectItem value="student">Student</SelectItem>
-                                    <SelectItem value="faculty">Faculty</SelectItem>
-                                    <SelectItem value="user-admin">User Admin</SelectItem>
-                                    <SelectItem value="course-admin">Course Admin</SelectItem>
-                                    <SelectItem value="attendance-admin">Attendance Admin</SelectItem>
-                                    <SelectItem value="super-admin">Super Admin</SelectItem>
-                                </SelectContent>
-                            </Select>
-                            <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <FormField
-                        control={editForm.control}
-                        name="department"
-                        render={({ field }) => (
-                            <FormItem>
-                                <FormLabel>Department</FormLabel>
-                                <FormControl>
-                                    <Input {...field} placeholder="e.g., Computer Science" />
-                                </FormControl>
-                                <FormMessage />
-                            </FormItem>
-                        )}
-                    />
-                    <DialogFooter>
-                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                        <Button type="submit" disabled={editForm.formState.isSubmitting}>
-                            {editForm.formState.isSubmitting ? 'Saving...' : 'Save Changes'}
-                        </Button>
-                    </DialogFooter>
-                </form>
-            </Form>
+        <DialogContent className="rounded-3xl">
+            <DialogHeader><DialogTitle>Alter Authorization: {editingUser?.name}</DialogTitle><DialogDescription>Update institutional standing for {editingUser?.email}</DialogDescription></DialogHeader>
+            <Form {...editForm}><form onSubmit={editForm.handleSubmit(onEditSubmit)} className="space-y-4">
+                <FormField control={editForm.control} name="role" render={({ field }) => (
+                    <FormItem><FormLabel>Level of Access</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl><SelectContent className="rounded-xl"><SelectItem value="student">Student</SelectItem><SelectItem value="faculty">Faculty</SelectItem><SelectItem value="user-admin">User Admin</SelectItem><SelectItem value="course-admin">Course Admin</SelectItem><SelectItem value="attendance-admin">Attendance Admin</SelectItem><SelectItem value="super-admin">Super Admin</SelectItem></SelectContent></Select></FormItem>
+                )} />
+                <FormField control={editForm.control} name="department" render={({ field }) => ( <FormItem><FormLabel>Departmental Alignment</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
+                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose><Button type="submit" disabled={editForm.formState.isSubmitting} className="rounded-xl px-8">Save Ledger Changes</Button></DialogFooter>
+            </form></Form>
         </DialogContent>
       </Dialog>
 
       <AlertDialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <AlertDialogContent>
-            <AlertDialogHeader>
-                <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                <AlertDialogDescription>
-                    This will delete the user data for <span className="font-semibold">{deletingUser?.name}</span>. This action cannot be undone and does not remove their login credentials.
-                </AlertDialogDescription>
-            </AlertDialogHeader>
-            <AlertDialogFooter>
-                <AlertDialogCancel onClick={() => setDeletingUser(null)}>Cancel</AlertDialogCancel>
-                <AlertDialogAction onClick={confirmDelete}>Delete User Data</AlertDialogAction>
-            </AlertDialogFooter>
+        <AlertDialogContent className="rounded-3xl">
+            <AlertDialogHeader><AlertDialogTitle>Confirm Excision?</AlertDialogTitle><AlertDialogDescription>This will remove the identity document for <span className="font-black text-slate-900">{deletingUser?.name}</span> from the active directory. Authentication remains valid unless revoked manually in the security console.</AlertDialogDescription></AlertDialogHeader>
+            <AlertDialogFooter><AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel><AlertDialogAction onClick={confirmDelete} className="rounded-xl bg-destructive hover:bg-destructive/90">Excise Identity</AlertDialogAction></AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </div>
