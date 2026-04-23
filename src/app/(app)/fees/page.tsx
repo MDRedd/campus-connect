@@ -458,7 +458,7 @@ export default function FeesPage() {
                 <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-                    <AlertDialogDescription>You are about to pay ${totalDue.toFixed(2)}. This will clear all outstanding dues.</AlertDialogDescription>
+                    <AlertDialogDescription>You are about to pay ${totalDue.toFixed(2)}. This will clear all outstanding dues from your account.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -502,6 +502,16 @@ export default function FeesPage() {
   }
 
   return (
-    <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader></Card>
+    <div className="flex items-center justify-center p-8">
+        <Card className="max-w-md w-full">
+            <CardHeader>
+                <CardTitle>Access Denied</CardTitle>
+                <CardDescription>You do not have permission to access the fee management system.</CardDescription>
+            </CardHeader>
+            <CardFooter>
+                <Button variant="outline" className="w-full" asChild><Link href="/dashboard">Go to Dashboard</Link></Button>
+            </CardFooter>
+        </Card>
+    </div>
   )
 }

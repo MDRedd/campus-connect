@@ -40,7 +40,6 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
-import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 import { generateAnnouncementDraft } from '@/ai/flows/generate-announcement-draft';
 
 type Announcement = {
@@ -50,12 +49,6 @@ type Announcement = {
   targetAudience: 'all' | 'students' | 'faculty';
   date: any;
   postedBy: string;
-};
-
-type UserForNotification = {
-  id: string;
-  name: string;
-  role: string;
 };
 
 const announcementSchema = z.object({
@@ -78,15 +71,6 @@ export default function AnnouncementsPage() {
     return query(collection(firestore, 'announcements'), orderBy('date', 'desc'));
   }, [firestore]);
   const { data: announcements, isLoading: areAnnouncementsLoading } = useCollection<Announcement>(announcementsQuery);
-  
-  const allUsersQuery = useMemoFirebase(() => {
-    if (!firestore || !currentUserProfile) return null;
-    if (currentUserProfile.role.includes('admin') || currentUserProfile.role === 'faculty') {
-        return collection(firestore, 'users');
-    }
-    return null;
-  }, [firestore, currentUserProfile]);
-  const { data: allUsers } = useCollection<UserForNotification>(allUsersQuery);
 
   const form = useForm<z.infer<typeof announcementSchema>>({
     resolver: zodResolver(announcementSchema),
@@ -125,7 +109,7 @@ export default function AnnouncementsPage() {
       const audience = form.getValues('targetAudience');
       
       if (!currentDesc || currentDesc.length < 10) {
-          toast({ variant: 'destructive', title: 'Input required', description: 'Please provide key points first.' });
+          toast({ variant: 'destructive', title: 'Input required', description: 'Please provide key points in the description first.' });
           return;
       }
 
@@ -154,7 +138,7 @@ export default function AnnouncementsPage() {
         toast({ title: 'Success', description: 'Announcement updated.' });
     } else {
         const announcementsRef = collection(firestore, 'announcements');
-        await addDocumentNonBlocking(announcementsRef, {
+        addDocumentNonBlocking(announcementsRef, {
             ...values,
             date: serverTimestamp(),
             postedBy: authUser.uid,
@@ -172,7 +156,19 @@ export default function AnnouncementsPage() {
   if (isUserLoading) return <Skeleton className="h-96 w-full" />;
 
   if (!canManageAnnouncements) {
-    return <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader></Card>
+    return (
+        <div className="flex items-center justify-center p-8">
+            <Card className="max-w-md w-full">
+                <CardHeader>
+                    <CardTitle>Access Denied</CardTitle>
+                    <CardDescription>You do not have the required permissions to manage platform-wide announcements.</CardDescription>
+                </CardHeader>
+                <CardFooter>
+                    <Button variant="outline" className="w-full" asChild><Link href="/dashboard">Return to Dashboard</Link></Button>
+                </CardFooter>
+            </Card>
+        </div>
+    )
   }
 
   return (
@@ -180,14 +176,14 @@ export default function AnnouncementsPage() {
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Announcements</h1>
-            <p className="text-muted-foreground">Manage platform-wide announcements.</p>
+            <p className="text-muted-foreground">Manage platform-wide communications and alerts.</p>
         </div>
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
             <DialogTrigger asChild><Button onClick={handleAddNewClick}><PlusCircle className="mr-2 h-4 w-4" /> New Announcement</Button></DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
                 <DialogHeader>
                     <DialogTitle>{editingAnnouncement ? 'Edit Announcement' : 'New Announcement'}</DialogTitle>
-                    <DialogDescription>Fill in the details to publish an announcement.</DialogDescription>
+                    <DialogDescription>Draft and publish an announcement to the selected audience.</DialogDescription>
                 </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
@@ -205,14 +201,14 @@ export default function AnnouncementsPage() {
                                 <div className="flex justify-between items-center"><FormLabel>Description</FormLabel><Button type="button" variant="outline" size="sm" onClick={handleAIDraft} disabled={isDrafting}><Sparkles className="mr-2 h-4 w-4" />AI Draft</Button></div>
                                 <FormControl><Textarea rows={8} {...field} /></FormControl><FormMessage /></FormItem>
                         )} />
-                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Post</Button></DialogFooter>
+                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Post Announcement</Button></DialogFooter>
                     </form>
                 </Form>
             </DialogContent>
         </Dialog>
       </div>
       <Card>
-        <CardContent>
+        <CardContent className="pt-6">
           <Table>
             <TableHeader><TableRow><TableHead>Title</TableHead><TableHead>Audience</TableHead><TableHead>Date</TableHead><TableHead className="text-right">Actions</TableHead></TableRow></TableHeader>
             <TableBody>

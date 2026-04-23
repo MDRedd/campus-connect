@@ -126,6 +126,7 @@ export default function MarkAttendancePage() {
 
   const attendeesQuery = useMemoFirebase(() => {
     if (!firestore || attendeeIds.length === 0) return null;
+    // Limit to 30 for 'in' query safety
     return query(collection(firestore, 'users'), where('id', 'in', attendeeIds.slice(0, 30)));
   }, [firestore, attendeeIds]);
   const { data: attendees, isLoading: areAttendeesLoading } = useCollection<UserProfile>(attendeesQuery);

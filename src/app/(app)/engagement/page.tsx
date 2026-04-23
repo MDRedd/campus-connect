@@ -370,7 +370,7 @@ export default function EngagementPage() {
                     <div>
                         <CardTitle>Discussion Forums</CardTitle>
                         <CardDescription>
-                            Engage in conversations, ask questions, and share knowledge.
+                            Engage in conversations, ask questions, and share knowledge within your courses.
                         </CardDescription>
                     </div>
                     {isFacultyOrAdmin && (
@@ -379,8 +379,10 @@ export default function EngagementPage() {
                                 <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button>
                             </DialogTrigger>
                             <DialogContent>
-                                <DialogHeader><DialogTitle>Create New Forum</DialogTitle></DialogHeader>
-                                <DialogDescription>Start a new discussion board for a specific course.</DialogDescription>
+                                <DialogHeader>
+                                    <DialogTitle>Create New Forum</DialogTitle>
+                                    <DialogDescription>Start a new discussion board for a specific course.</DialogDescription>
+                                </DialogHeader>
                                 {isForumCreationLoading ? <Skeleton className="h-64" /> : (
                                 <Form {...forumForm}>
                                     <form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4">
@@ -394,8 +396,8 @@ export default function EngagementPage() {
                                             <FormMessage />
                                             </FormItem>
                                         )} />
-                                        <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Forum Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Forum Title</FormLabel><FormControl><Input {...field} placeholder="e.g., General Q&A" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="What is this forum for?" /></FormControl><FormMessage /></FormItem> )} />
                                         <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Forum</Button></DialogFooter>
                                     </form>
                                 </Form>
@@ -431,6 +433,8 @@ export default function EngagementPage() {
                       <div className="flex justify-between items-center text-sm text-muted-foreground">
                           <div className="flex items-center gap-2">
                               <span className="font-semibold text-foreground">{forum.courseCode}</span>
+                              <span>•</span>
+                              <span>{forum.courseName}</span>
                           </div>
                       </div>
                     </CardContent>
@@ -463,7 +467,7 @@ export default function EngagementPage() {
                         <div>
                             <CardTitle>Community Board</CardTitle>
                             <CardDescription>
-                                A place for all campus members to post and connect.
+                                A public place for all campus members to post updates, requests, and announcements.
                             </CardDescription>
                         </div>
                         <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
@@ -471,13 +475,15 @@ export default function EngagementPage() {
                                 <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Post</Button>
                             </DialogTrigger>
                             <DialogContent>
-                                <DialogHeader><DialogTitle>Create New Community Post</DialogTitle></DialogHeader>
-                                <DialogDescription>Share something with the campus community.</DialogDescription>
+                                <DialogHeader>
+                                    <DialogTitle>Create New Community Post</DialogTitle>
+                                    <DialogDescription>Share your thoughts with the campus community.</DialogDescription>
+                                </DialogHeader>
                                 <Form {...communityPostForm}>
                                     <form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4">
-                                        <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Post</Button></DialogFooter>
+                                        <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Post Title</FormLabel><FormControl><Input {...field} placeholder="Catchy title" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="Tell the community what's on your mind..." /></FormControl><FormMessage /></FormItem> )} />
+                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Publish Post</Button></DialogFooter>
                                     </form>
                                 </Form>
                             </DialogContent>
@@ -531,7 +537,7 @@ export default function EngagementPage() {
                 <CardHeader className="flex-row justify-between items-start">
                     <div>
                         <CardTitle>Student Clubs</CardTitle>
-                        <CardDescription>Find your community and explore your interests.</CardDescription>
+                        <CardDescription>Explore student-run organizations and find your niche.</CardDescription>
                     </div>
                     {isSuperAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
@@ -539,8 +545,10 @@ export default function EngagementPage() {
                                 <Button size="sm" onClick={handleAddNewClub}><PlusCircle className="mr-2 h-4 w-4" /> Create Club</Button>
                             </DialogTrigger>
                             <DialogContent>
-                                <DialogHeader><DialogTitle>{editingClub ? 'Edit Club' : 'Create New Club'}</DialogTitle></DialogHeader>
-                                <DialogDescription>Set up a new student organization and assign a faculty in-charge.</DialogDescription>
+                                <DialogHeader>
+                                    <DialogTitle>{editingClub ? 'Edit Club' : 'Create New Club'}</DialogTitle>
+                                    <DialogDescription>Define a new student club and assign oversight to a faculty member.</DialogDescription>
+                                </DialogHeader>
                                 {areFacultyLoading ? <Skeleton className="h-64"/> : (
                                 <Form {...clubForm}>
                                     <form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
@@ -612,7 +620,7 @@ export default function EngagementPage() {
                                 <CardFooter>
                                     <Button asChild className="w-full">
                                         <Link href={`/engagement/club/${club.id}`}>
-                                            View Details <ArrowRight className="ml-2 h-4 w-4" />
+                                            View Club Details <ArrowRight className="ml-2 h-4 w-4" />
                                         </Link>
                                     </Button>
                                 </CardFooter>
@@ -623,7 +631,7 @@ export default function EngagementPage() {
                             <CardContent className="p-8 text-center">
                                 <Users className="h-12 w-12 text-muted-foreground mx-auto" />
                                 <h3 className="mt-4 text-lg font-semibold">No Clubs Available</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">Student clubs will be listed here.</p>
+                                <p className="mt-1 text-sm text-muted-foreground">Student clubs will appear here once they are registered.</p>
                             </CardContent>
                         </Card>
                     )}
@@ -636,7 +644,7 @@ export default function EngagementPage() {
                 <CardHeader className="flex-row justify-between items-start">
                     <div>
                         <CardTitle>Upcoming Events</CardTitle>
-                        <CardDescription>Don't miss out on what's happening on campus.</CardDescription>
+                        <CardDescription>Stay updated with workshops, seminars, and fests.</CardDescription>
                     </div>
                      {isFacultyOrAdmin && (
                         <Dialog open={openEventDialog} onOpenChange={setOpenEventDialog}>
@@ -644,18 +652,20 @@ export default function EngagementPage() {
                                 <Button size="sm" onClick={handleAddNewEvent}><PlusCircle className="mr-2 h-4 w-4" /> Create Event</Button>
                             </DialogTrigger>
                             <DialogContent>
-                                <DialogHeader><DialogTitle>{editingEvent ? 'Edit Event' : 'Create New Event'}</DialogTitle></DialogHeader>
-                                <DialogDescription>Publicize a campus event or workshop.</DialogDescription>
+                                <DialogHeader>
+                                    <DialogTitle>{editingEvent ? 'Edit Event' : 'Create New Event'}</DialogTitle>
+                                    <DialogDescription>Publicize an upcoming campus event or workshop.</DialogDescription>
+                                </DialogHeader>
                                 <Form {...eventForm}>
                                     <form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
-                                        <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Title</FormLabel><FormControl><Input {...field} placeholder="e.g., AI Ethics Seminar" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="What's the event about?" /></FormControl><FormMessage /></FormItem> )} />
                                         <div className="grid grid-cols-2 gap-4">
                                             <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                             <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                         </div>
-                                        <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel>Organizer</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} placeholder="e.g., Auditorium B" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel>Organizer</FormLabel><FormControl><Input {...field} placeholder="e.g., CSE Society" /></FormControl><FormMessage /></FormItem> )} />
                                         <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingEvent ? 'Save Changes' : 'Create Event'}</Button></DialogFooter>
                                     </form>
                                 </Form>
@@ -695,7 +705,7 @@ export default function EngagementPage() {
                                     <span>{format(new Date(event.date), 'PPP')} at {event.time}</span>
                                 </div>
                                     <div className="flex items-center gap-2 text-muted-foreground">
-                                    <Users className="h-4 w-4" />
+                                    <MapPin className="h-4 w-4" />
                                     <span>{event.location}</span>
                                 </div>
                                 </CardContent>
@@ -716,7 +726,7 @@ export default function EngagementPage() {
                             <CardContent className="p-8 text-center">
                                 <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto" />
                                 <h3 className="mt-4 text-lg font-semibold">No Upcoming Events</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">Check back later for new events.</p>
+                                <p className="mt-1 text-sm text-muted-foreground">New campus events will appear here.</p>
                             </CardContent>
                         </Card>
                      )}
@@ -729,7 +739,7 @@ export default function EngagementPage() {
             <DialogHeader>
                 <DialogTitle>{selectedEvent?.title}</DialogTitle>
                 <DialogDescription>
-                    Organized by {selectedEvent?.organizer}
+                    Organized by <span className="font-semibold">{selectedEvent?.organizer}</span>
                 </DialogDescription>
             </DialogHeader>
             <div className="py-4 space-y-4">

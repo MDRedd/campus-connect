@@ -75,7 +75,7 @@ const resultSchema = z.object({
 });
 
 export default function CourseResultsPage() {
-  const { user: authUser } = useUser();
+  const { profile: userProfile } = useUser();
   const firestore = useFirestore();
   const { toast } = useToast();
   const params = useParams();
@@ -84,6 +84,8 @@ export default function CourseResultsPage() {
   
   const [openResultDialog, setOpenResultDialog] = useState(false);
   const [editingResult, setEditingResult] = useState<(Result & { studentName?: string }) | null>(null);
+
+  const isFacultyOrAdmin = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
 
   const courseDocRef = useMemoFirebase(() => {
     if (!firestore || !courseId) return null;
@@ -181,6 +183,10 @@ export default function CourseResultsPage() {
     (enrollmentsError as any)?.code === 'failed-precondition' || (enrollmentsError as any)?.message?.toLowerCase().includes('index') ||
     (resultsError as any)?.code === 'failed-precondition' || (resultsError as any)?.message?.toLowerCase().includes('index');
 
+  if (!isFacultyOrAdmin && userProfile) {
+     return <div className="p-8 text-center"><Card><CardHeader><CardTitle>Unauthorized</CardTitle><CardDescription>Only faculty and administrators can manage academic results.</CardDescription></CardHeader></Card></div>
+  }
+
   return (
     <div className="flex flex-col gap-6">
         <Button variant="outline" size="sm" className="w-fit" onClick={() => router.push('/results')}>
@@ -204,38 +210,48 @@ export default function CourseResultsPage() {
                     {isCourseLoading ? <Skeleton className="h-9 w-64" /> : `Results for ${course?.name}`}
                 </CardTitle>
                 <CardDescription>
-                    {isCourseLoading ? <Skeleton className="h-5 w-48 mt-1" /> : `Add, edit, and publish results for ${course?.code}.`}
+                    {isCourseLoading ? <Skeleton className="h-5 w-48 mt-1" /> : `Add, edit, and publish grades for ${course?.code}.`}
                 </CardDescription>
               </div>
               <Dialog open={openResultDialog} onOpenChange={setOpenResultDialog}>
                 <DialogTrigger asChild>
-                    <Button onClick={handleAddNewClick} disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> {editingResult ? 'Edit Result' : 'Add Result'}</Button>
+                    <Button onClick={handleAddNewClick} disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> Add Result</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-md">
                     <DialogHeader>
-                        <DialogTitle>{editingResult ? 'Edit Result' : 'Add New Result'}</DialogTitle>
-                        <DialogDescription>Assign a grade and marks to the selected student.</DialogDescription>
+                        <DialogTitle>{editingResult ? 'Edit Grade Record' : 'Add Student Grade'}</DialogTitle>
+                        <DialogDescription>Assign marks and a letter grade to an enrolled student.</DialogDescription>
                     </DialogHeader>
                     {areStudentsLoading ? <Skeleton className="h-96"/> : (
                     <Form {...resultForm}>
                         <form onSubmit={resultForm.handleSubmit(onResultSubmit)} className="space-y-4">
                            <FormField control={resultForm.control} name="studentId" render={({ field }) => (
                                 <FormItem>
-                                <FormLabel>Student</FormLabel>
+                                <FormLabel>Enrolled Student</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
                                     <FormControl><SelectTrigger><SelectValue placeholder="Select a student" /></SelectTrigger></FormControl>
-                                    <SelectContent>{enrolledStudents?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
+                                    <SelectContent>
+                                        {enrolledStudents && enrolledStudents.length > 0 ? (
+                                            enrolledStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
+                                        ) : (
+                                            <SelectItem value="none" disabled>No students enrolled</SelectItem>
+                                        )}
+                                    </SelectContent>
                                 </Select>
                                 <FormMessage />
                                 </FormItem>
                             )} />
-                            <FormField control={resultForm.control} name="semester" render={({ field }) => ( <FormItem><FormLabel>Semester</FormLabel><FormControl><Input placeholder="e.g., Fall" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={resultForm.control} name="year" render={({ field }) => ( <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={resultForm.control} name="marks" render={({ field }) => ( <FormItem><FormLabel>Marks</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel>Grade</FormLabel><FormControl><Input placeholder="e.g., A+" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={resultForm.control} name="semester" render={({ field }) => ( <FormItem><FormLabel>Semester</FormLabel><FormControl><Input placeholder="e.g., Fall" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={resultForm.control} name="year" render={({ field }) => ( <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
+                            <div className="grid grid-cols-2 gap-4">
+                                <FormField control={resultForm.control} name="marks" render={({ field }) => ( <FormItem><FormLabel>Marks (0-100)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel>Letter Grade</FormLabel><FormControl><Input placeholder="e.g., A+" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                            </div>
                              <FormField control={resultForm.control} name="published" render={({ field }) => (
                                 <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                    <div className="space-y-0.5"><FormLabel>Publish Result</FormLabel></div>
+                                    <div className="space-y-0.5"><FormLabel className="text-sm">Publish Immediately</FormLabel><p className="text-xs text-muted-foreground">If enabled, students can see this result now.</p></div>
                                     <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
                                 </FormItem>
                             )} />
@@ -274,7 +290,7 @@ export default function CourseResultsPage() {
                                         </Badge>
                                     </TableCell>
                                     <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(result)}><Edit className="h-4 w-4" /></Button>
+                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(result as any)}><Edit className="h-4 w-4" /></Button>
                                         <Button variant="ghost" size="icon" onClick={() => handleDelete(result)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
                                     </TableCell>
                                 </TableRow>

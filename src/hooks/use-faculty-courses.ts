@@ -10,7 +10,7 @@ import type { Course } from '@/lib/data';
  * It uses a collection group query on 'timetables' to find associated course IDs.
  */
 export function useFacultyCourses() {
-    const { user: authUser, profile: userProfile, isUserLoading } = useUser();
+    const { user: authUser, profile: userProfile, isUserLoading: isAuthUserLoading } = useUser();
     const firestore = useFirestore();
 
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
@@ -18,8 +18,8 @@ export function useFacultyCourses() {
     const [error, setError] = useState<any>(null);
 
     useEffect(() => {
-        if (isUserLoading || !firestore || !authUser) {
-             if (!isUserLoading) {
+        if (isAuthUserLoading || !firestore || !authUser) {
+             if (!isAuthUserLoading) {
                 setIsLoading(false);
                 setFacultyCourses([]);
              }
@@ -32,7 +32,7 @@ export function useFacultyCourses() {
         const role = userProfile?.role?.toLowerCase() || '';
         if (role.includes('admin')) {
             setIsLoading(false);
-            setFacultyCourses(null);
+            setFacultyCourses(null); // Signal that caller should use 'allCourses'
             return;
         }
 
@@ -53,6 +53,7 @@ export function useFacultyCourses() {
 
                 if (facultyCourseIds.length > 0) {
                     const coursesData: Course[] = [];
+                    // Process in chunks of 30 due to Firestore 'in' query limit
                     for (let i = 0; i < facultyCourseIds.length; i += 30) {
                         const chunk = facultyCourseIds.slice(i, i + 30);
                         const coursesQuery = query(collection(firestore, 'courses'), where('id', 'in', chunk));
@@ -76,7 +77,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser?.uid, isUserLoading, userProfile?.role]);
+    }, [firestore, authUser?.uid, isAuthUserLoading, userProfile?.role]);
 
     return { facultyCourses, isLoading, error };
 }
