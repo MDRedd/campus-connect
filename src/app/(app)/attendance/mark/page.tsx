@@ -44,7 +44,7 @@ export default function MarkAttendancePage() {
   const [countdown, setCountdown] = useState(60);
 
   // Allow admins to see all courses, otherwise show only assigned faculty courses
-  const isAdmin = useMemo(() => !!userProfile?.role?.includes('admin'), [userProfile]);
+  const isAdmin = useMemo(() => !!userProfile?.role?.toLowerCase().includes('admin'), [userProfile]);
 
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null;
@@ -151,7 +151,7 @@ export default function MarkAttendancePage() {
         <p className="text-muted-foreground">Generate a QR code for students to scan and monitor live attendance.</p>
       </div>
 
-      {isIndexError && !isAdmin && (
+      {(isIndexError && !isAdmin) && (
           <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Database Index Required</AlertTitle>
@@ -189,7 +189,7 @@ export default function MarkAttendancePage() {
                   )}
                   {!isLoading && (!displayCourses || displayCourses.length === 0) && (
                       <p className="text-xs text-muted-foreground mt-2">
-                          {isAdmin ? "You need to add courses in the Course Management tab first." : "You haven't been assigned to any classes in the weekly timetable yet."}
+                          {isAdmin ? "You need to add courses in the Course Catalog first." : "You haven't been assigned to any classes in the weekly timetable yet."}
                       </p>
                   )}
                 </div>

@@ -108,7 +108,7 @@ export default function FeesPage() {
   const { data: fees, isLoading: areFeesLoading } = useCollection<Fee>(studentFeesQuery);
 
   // --- Admin Data ---
-  const isFeeAdmin = userProfile?.role === 'super-admin';
+  const isFeeAdmin = userProfile?.role === 'super-admin' || userProfile?.role === 'user-admin';
 
   const studentsQuery = useMemoFirebase(() => {
       if (!firestore || !isFeeAdmin) return null;
