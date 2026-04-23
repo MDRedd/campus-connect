@@ -30,7 +30,6 @@ export function useFacultyCourses() {
             setIsLoading(true);
             setError(null);
             try {
-                // This query requires a COLLECTION_GROUP index on 'timetables' for 'facultyId'
                 const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
                 const timetableSnapshot = await getDocs(timetablesQuery);
 
@@ -44,7 +43,6 @@ export function useFacultyCourses() {
 
                 if (facultyCourseIds.length > 0) {
                     const coursesData: Course[] = [];
-                    // Fetch in chunks of 30 to stay within Firestore 'in' query limits
                     for (let i = 0; i < facultyCourseIds.length; i += 30) {
                         const chunk = facultyCourseIds.slice(i, i + 30);
                         const coursesQuery = query(collection(firestore, 'courses'), where('id', 'in', chunk));

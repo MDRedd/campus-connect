@@ -32,7 +32,6 @@ type Course = { id: string; name: string; code: string; };
 type AttendanceSession = { courseId: string; facultyId: string; createdAt: any; attendees: string[]; id: string };
 type UserProfile = { id: string; name: string; email: string; };
 
-
 export default function MarkAttendancePage() {
   const { user: authUser, profile: userProfile, isUserLoading: isAuthUserLoading } = useUser();
   const firestore = useFirestore();
@@ -43,8 +42,11 @@ export default function MarkAttendancePage() {
   const [isGenerating, setIsGenerating] = useState(false);
   const [countdown, setCountdown] = useState(60);
 
-  // Allow admins to see all courses, otherwise show only assigned faculty courses
-  const isAdmin = useMemo(() => !!userProfile?.role?.toLowerCase().includes('admin'), [userProfile]);
+  const isAdmin = useMemo(() => {
+    if (!userProfile?.role) return false;
+    const role = userProfile.role.toLowerCase();
+    return role.includes('admin');
+  }, [userProfile]);
 
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null;
@@ -59,8 +61,8 @@ export default function MarkAttendancePage() {
     return facultyCourses;
   }, [isAdmin, allCourses, facultyCourses]);
 
-  const areCoursesLoading = isAdmin ? areAllCoursesLoading : areFacultyCoursesLoading;
-  const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
+  const areCoursesLoading = isAuthUserLoading || (isAdmin ? areAllCoursesLoading : areFacultyCoursesLoading);
+  const isIndexError = !isAdmin && (facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index'));
 
   const handleCourseSelect = useCallback(async (courseId: string) => {
     setSelectedCourseId(courseId);
@@ -81,7 +83,7 @@ export default function MarkAttendancePage() {
     try {
         const sessionDocRef = await addDocumentNonBlocking(collection(firestore, 'attendanceSessions'), sessionData);
         if (sessionDocRef) {
-            setActiveSession({ ...sessionData, id: sessionDocRef.id, createdAt: new Date() });
+            setActiveSession({ ...sessionData, id: sessionDocRef.id, createdAt: new Date() } as AttendanceSession);
         }
     } catch(error) {
         console.error("Error creating attendance session:", error);
@@ -110,7 +112,6 @@ export default function MarkAttendancePage() {
     }
   }, [activeSession, selectedCourseId, handleCourseSelect]);
 
-
   const sessionDocRef = useMemoFirebase(() => {
     if (!firestore || !activeSession) return null;
     return doc(firestore, 'attendanceSessions', activeSession.id);
@@ -125,7 +126,6 @@ export default function MarkAttendancePage() {
   }, [firestore, attendeeIds]);
   const { data: attendees, isLoading: areAttendeesLoading } = useCollection<UserProfile>(attendeesQuery);
 
-
   const qrData = activeSession && selectedCourseId && authUser ? JSON.stringify({
     sessionId: activeSession.id,
     courseId: selectedCourseId,
@@ -135,14 +135,12 @@ export default function MarkAttendancePage() {
 
   const qrImageUrl = qrData ? `https://api.qrserver.com/v1/create-qr-code/?size=250x250&data=${encodeURIComponent(qrData)}` : null;
 
-  const isLoading = isAuthUserLoading || areCoursesLoading;
-
   const placeholderText = useMemo(() => {
-    if (isLoading) return "Loading courses...";
+    if (areCoursesLoading) return "Loading courses...";
     if (displayCourses && displayCourses.length > 0) return "Select a course...";
     if (isAdmin) return "No courses found in system";
     return "No courses assigned to you";
-  }, [isLoading, displayCourses, isAdmin]);
+  }, [areCoursesLoading, displayCourses, isAdmin]);
 
   return (
     <div className="flex flex-col gap-6">
@@ -151,7 +149,7 @@ export default function MarkAttendancePage() {
         <p className="text-muted-foreground">Generate a QR code for students to scan and monitor live attendance.</p>
       </div>
 
-      {(isIndexError && !isAdmin) && (
+      {isIndexError && (
           <Alert variant="destructive">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Database Index Required</AlertTitle>
@@ -171,7 +169,7 @@ export default function MarkAttendancePage() {
               <div className="space-y-4">
                 <div className="space-y-2">
                   <Label htmlFor="course-select">Select Course</Label>
-                  {isLoading ? (
+                  {areCoursesLoading ? (
                     <Skeleton className="h-10 w-full" />
                   ) : (
                     <Select onValueChange={handleCourseSelect} disabled={!displayCourses || displayCourses.length === 0 || isGenerating}>
@@ -187,7 +185,7 @@ export default function MarkAttendancePage() {
                       </SelectContent>
                     </Select>
                   )}
-                  {!isLoading && (!displayCourses || displayCourses.length === 0) && (
+                  {!areCoursesLoading && (!displayCourses || displayCourses.length === 0) && (
                       <p className="text-xs text-muted-foreground mt-2">
                           {isAdmin ? "You need to add courses in the Course Catalog first." : "You haven't been assigned to any classes in the weekly timetable yet. Go to the Timetable page to add your classes."}
                       </p>
@@ -233,7 +231,7 @@ export default function MarkAttendancePage() {
               </CardHeader>
               <CardContent>
                 <div className="text-2xl font-bold">
-                    {isSessionLoading ? <Skeleton className="h-8 w-12" /> : attendees?.length ?? 0}
+                    {isSessionLoading ? <Skeleton className="h-8 w-12" /> : attendeeIds?.length ?? 0}
                 </div>
                 <p className="text-xs text-muted-foreground">
                   students have checked in for this session.

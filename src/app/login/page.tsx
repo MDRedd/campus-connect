@@ -45,13 +45,12 @@ export default function LoginPage() {
     setIsLoggingIn(true);
 
     let email = identifier;
-    // If identifier doesn't contain '@', append domain based on simple rules
     if (!identifier.includes('@')) {
-      if (/^\d+$/.test(identifier)) { // All digits -> student
+      if (/^\d+$/.test(identifier)) {
         email = `${identifier}@student.college.edu`;
-      } else if (/^[a-zA-Z]+\d*$/.test(identifier)) { // Starts with letters, might end with digits -> faculty
+      } else if (/^[a-zA-Z]+\d*$/.test(identifier)) {
         email = `${identifier}@faculty.college.edu`;
-      } else { // Fallback for other usernames, potentially admins
+      } else {
         email = `${identifier}@college.edu`;
       }
     }
@@ -88,7 +87,6 @@ export default function LoginPage() {
     });
   };
 
-  // Prevent hydration mismatch by only rendering logic-dependent attributes after mount
   const isDisabled = !mounted || isLoggingIn || isUserLoading;
 
   return (
@@ -128,7 +126,7 @@ export default function LoginPage() {
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin} className="grid gap-4" suppressHydrationWarning>
+              <form onSubmit={handleLogin} className="grid gap-4">
                 <div className="grid gap-2">
                   <Label htmlFor="identifier">Roll No. / Faculty ID / Email</Label>
                   <Input
@@ -139,7 +137,6 @@ export default function LoginPage() {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     disabled={isDisabled}
-                    suppressHydrationWarning
                   />
                 </div>
                 <div className="grid gap-2">
@@ -153,7 +150,6 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isDisabled}
-                    suppressHydrationWarning
                   />
                 </div>
                 <Button type="submit" className="w-full" disabled={isDisabled}>

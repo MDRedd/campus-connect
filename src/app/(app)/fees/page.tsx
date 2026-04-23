@@ -57,7 +57,6 @@ import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from '
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
-
 type Fee = {
   id: string;
   studentId: string;
@@ -73,6 +72,7 @@ type UserProfile = {
   name: string;
   email: string;
   rollNumber?: string;
+  role: string;
 }
 
 const newFeeSchema = z.object({
@@ -100,14 +100,12 @@ export default function FeesPage() {
   const [openNewFeeDialog, setOpenNewFeeDialog] = useState(false);
   const [openBulkDialog, setOpenBulkDialog] = useState(false);
 
-  // --- Student Data ---
   const studentFeesQuery = useMemoFirebase(() => {
     if (!firestore || !authUser || userProfile?.role !== 'student') return null;
     return query(collection(firestore, 'users', authUser.uid, 'fees'));
   }, [firestore, authUser, userProfile]);
   const { data: fees, isLoading: areFeesLoading } = useCollection<Fee>(studentFeesQuery);
 
-  // --- Admin Data ---
   const isFeeAdmin = userProfile?.role === 'super-admin' || userProfile?.role === 'user-admin';
 
   const studentsQuery = useMemoFirebase(() => {
@@ -154,7 +152,6 @@ export default function FeesPage() {
       resolver: zodResolver(bulkFeeSchema),
   });
 
-  // --- Student View Calculations ---
   const totalDue = useMemo(() => {
     if (!fees) return 0;
     return fees.reduce((acc, fee) => {
@@ -165,7 +162,6 @@ export default function FeesPage() {
     }, 0);
   }, [fees]);
   
-  // --- Admin View Calculations ---
   const adminStats = useMemo(() => {
     if (!allFees) return { totalOutstanding: 0, totalPaid: 0, overdueCount: 0 };
     const now = new Date();
@@ -215,34 +211,20 @@ export default function FeesPage() {
 
   const handlePayDues = async () => {
     if (!firestore || !authUser || !fees) return;
-
     const unpaidFees = fees.filter(fee => fee.status !== 'Paid');
     if (unpaidFees.length === 0) return;
-
     setIsPaying(true);
     const batch = writeBatch(firestore);
-
     unpaidFees.forEach(fee => {
       const feeRef = doc(firestore, 'users', authUser.uid, 'fees', fee.id);
-      batch.update(feeRef, {
-        status: 'Paid',
-        amountPaid: fee.totalAmount
-      });
+      batch.update(feeRef, { status: 'Paid', amountPaid: fee.totalAmount });
     });
-
     try {
       await batch.commit();
-      toast({
-        title: 'Payment Successful',
-        description: 'Your outstanding dues have been marked as paid.',
-      });
+      toast({ title: 'Payment Successful', description: 'Your outstanding dues have been marked as paid.' });
     } catch (error) {
       console.error("Error paying dues:", error);
-      toast({
-        variant: 'destructive',
-        title: 'Payment Failed',
-        description: 'There was an error processing your payment. Please try again.',
-      });
+      toast({ variant: 'destructive', title: 'Payment Failed', description: 'There was an error processing your payment.' });
     } finally {
       setIsPaying(false);
     }
@@ -251,13 +233,11 @@ export default function FeesPage() {
   function onNewFeeSubmit(values: z.infer<typeof newFeeSchema>) {
     if (!firestore) return;
     const { studentId, ...feeData } = values;
-    
     addDocumentNonBlocking(collection(firestore, 'users', studentId, 'fees'), {
         ...feeData,
         dueDate: new Date(values.dueDate),
         amountPaid: 0,
     });
-    
     toast({ title: 'Fee Created', description: 'The new fee record has been added.'});
     setOpenNewFeeDialog(false);
     newFeeForm.reset();
@@ -266,7 +246,6 @@ export default function FeesPage() {
   async function onBulkFeeSubmit(values: z.infer<typeof bulkFeeSchema>) {
       if (!firestore || !allStudents) return;
       setIsBulkCreating(true);
-      
       const batch = writeBatch(firestore);
       allStudents.forEach(student => {
           const feeRef = doc(collection(firestore, 'users', student.id, 'fees'));
@@ -278,7 +257,6 @@ export default function FeesPage() {
               status: 'Unpaid',
           });
       });
-
       try {
           await batch.commit();
           toast({ title: 'Success', description: `Assigned fee to ${allStudents.length} students.` });
@@ -296,15 +274,11 @@ export default function FeesPage() {
     return (
       <div className="flex flex-col gap-6">
         <Skeleton className="h-10 w-1/3" />
-        <Card>
-          <CardHeader><Skeleton className="h-8 w-1/4" /></CardHeader>
-          <CardContent><Skeleton className="h-48 w-full" /></CardContent>
-        </Card>
+        <Card><CardHeader><Skeleton className="h-8 w-1/4" /></CardHeader><CardContent><Skeleton className="h-48 w-full" /></CardContent></Card>
       </div>
     );
   }
 
-  // --- Admin View ---
   if (isFeeAdmin) {
     return (
         <div className="flex flex-col gap-6">
@@ -458,21 +432,15 @@ export default function FeesPage() {
     )
   }
   
-  // --- Student View ---
   if (userProfile?.role === 'student') {
     return (
         <div className="flex flex-col gap-6">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Fee Status</h1>
-            <p className="text-muted-foreground">
-            View your fee details, payment history, and pay outstanding dues.
-            </p>
+            <p className="text-muted-foreground">View your fee details and pay outstanding dues.</p>
         </div>
-
         <Card>
-            <CardHeader>
-            <CardTitle>Summary</CardTitle>
-            </CardHeader>
+            <CardHeader><CardTitle>Summary</CardTitle></CardHeader>
             <CardContent>
             <div className="flex items-center justify-between text-2xl font-bold">
                 <span>Total Amount Due</span>
@@ -490,9 +458,7 @@ export default function FeesPage() {
                 <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-                    <AlertDialogDescription>
-                    You are about to pay a total of ${totalDue.toFixed(2)}. This will clear all your outstanding dues. This action is for demonstration purposes.
-                    </AlertDialogDescription>
+                    <AlertDialogDescription>You are about to pay ${totalDue.toFixed(2)}. This will clear all outstanding dues.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
@@ -502,12 +468,8 @@ export default function FeesPage() {
             </AlertDialog>
             </CardFooter>
         </Card>
-        
         <Card>
-            <CardHeader>
-                <CardTitle>Fee Details</CardTitle>
-                <CardDescription>A breakdown of your fees for the current academic session.</CardDescription>
-            </CardHeader>
+            <CardHeader><CardTitle>Fee Details</CardTitle></CardHeader>
             <CardContent className="space-y-4">
             {fees && fees.length > 0 ? (
                 fees.map((fee) => (
@@ -515,26 +477,15 @@ export default function FeesPage() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h3 className="font-semibold">{fee.description}</h3>
-                                <p className="text-sm text-muted-foreground">
-                                    Due by: {fee.dueDate ? format(fee.dueDate.toDate(), 'PPP') : 'N/A'}
-                                </p>
+                                <p className="text-sm text-muted-foreground">Due by: {fee.dueDate ? format(fee.dueDate.toDate(), 'PPP') : 'N/A'}</p>
                             </div>
                             <Badge variant={getStatusVariant(fee.status)}>{fee.status}</Badge>
                         </div>
                         <Separator />
                         <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
-                            <div>
-                                <p className="text-muted-foreground">Total Amount</p>
-                                <p className="font-medium">${fee.totalAmount.toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground">Amount Paid</p>
-                                <p className="font-medium">${fee.amountPaid.toFixed(2)}</p>
-                            </div>
-                            <div>
-                                <p className="text-muted-foreground">Amount Due</p>
-                                <p className="font-medium text-destructive">${(fee.totalAmount - fee.amountPaid).toFixed(2)}</p>
-                            </div>
+                            <div><p className="text-muted-foreground">Total</p><p className="font-medium">${fee.totalAmount.toFixed(2)}</p></div>
+                            <div><p className="text-muted-foreground">Paid</p><p className="font-medium">${fee.amountPaid.toFixed(2)}</p></div>
+                            <div><p className="text-muted-foreground">Due</p><p className="font-medium text-destructive">${(fee.totalAmount - fee.amountPaid).toFixed(2)}</p></div>
                         </div>
                     </div>
                 ))
@@ -542,7 +493,6 @@ export default function FeesPage() {
                 <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
                     <DollarSign className="h-12 w-12 text-muted-foreground" />
                     <h3 className="mt-4 text-lg font-semibold">No Fees Found</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">Your fee details will appear here.</p>
                 </div>
             )}
             </CardContent>
@@ -551,13 +501,7 @@ export default function FeesPage() {
     );
   }
 
-  // Fallback
   return (
-    <Card>
-        <CardHeader>
-            <CardTitle>Access Denied</CardTitle>
-            <CardDescription>Only students or fee administrators can view this page.</CardDescription>
-        </CardHeader>
-    </Card>
+    <Card><CardHeader><CardTitle>Access Denied</CardTitle></CardHeader></Card>
   )
 }
