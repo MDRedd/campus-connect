@@ -1,8 +1,9 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import Link from 'link';
+import Link from 'next/link';
 import { useUser, useFirestore, useDoc, useCollection, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, doc, query, collectionGroup, where, getDocs, orderBy } from 'firebase/firestore';
 import {

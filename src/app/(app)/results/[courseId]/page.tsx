@@ -1,9 +1,10 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, doc, useDoc, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, query, where, collectionGroup } from 'firebase/firestore';
+import { useUser, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, useDoc, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
+import { collection, query, where, collectionGroup, doc } from 'firebase/firestore';
 import {
   Card,
   CardHeader,
@@ -129,12 +130,19 @@ export default function CourseResultsPage() {
 
   const resultForm = useForm<z.infer<typeof resultSchema>>({
     resolver: zodResolver(resultSchema),
-    defaultValues: { year: new Date().getFullYear(), published: false }
+    defaultValues: { 
+        studentId: '',
+        semester: 'Fall',
+        year: new Date().getFullYear(), 
+        marks: 0,
+        grade: '',
+        published: false 
+    }
   });
 
   const handleAddNewClick = () => {
     setEditingResult(null);
-    resultForm.reset({ year: new Date().getFullYear(), published: false });
+    resultForm.reset({ studentId: '', semester: 'Fall', year: new Date().getFullYear(), marks: 0, grade: '', published: false });
     setOpenResultDialog(true);
   };
   
