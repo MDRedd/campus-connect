@@ -2,7 +2,7 @@
 
 import { useMemo, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
-import { useUser, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, doc, useDoc, useCollection } from '@/firebase';
+import { useUser, useFirestore, useMemoFirebase, deleteDocumentNonBlocking, addDocumentNonBlocking, updateDocumentNonBlocking, doc, useDoc, useCollection, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, where, collectionGroup } from 'firebase/firestore';
 import {
   Card,
