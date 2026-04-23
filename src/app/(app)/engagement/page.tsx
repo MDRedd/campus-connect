@@ -74,7 +74,7 @@ const clubSchema = z.object({
 
 const eventSchema = z.object({
     title: z.string().min(3, 'Title is required.'),
-    description: z.string().optional(),
+    description: z.string().optional().default(''),
     date: z.string().min(1, 'Date is required.'),
     time: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (e.g., 14:30).'),
     location: z.string().min(3, 'Location is required.'),
@@ -328,7 +328,7 @@ export default function EngagementPage() {
                             <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4 pt-4">
                                 <FormField control={forumForm.control} name="courseId" render={({ field }) => (
                                     <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
                                         <SelectContent className="rounded-xl">{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage /></FormItem>
                                 )} />
@@ -343,7 +343,7 @@ export default function EngagementPage() {
             <CardContent className="grid gap-4 mt-6">
                 <div className="relative mb-6 px-4">
                     <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                    <Input placeholder="Search forum directory..." className="pl-10 h-12 rounded-2xl bg-white/50 border-none shadow-inner text-sm font-medium" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Input placeholder="Search forum directory..." className="pl-10 glass-input" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 {areForumsLoading ? <Skeleton className="h-24 w-full rounded-2xl" /> : filteredForums && filteredForums.length > 0 ? (
                     filteredForums.map((forum) => (

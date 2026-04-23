@@ -56,7 +56,7 @@ type Timetable = {
 
 const timetableSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
-  facultyId: z.string().optional(),
+  facultyId: z.string().optional().default(''),
   dayOfWeek: z.string().min(1, 'Please select a day.'),
   startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time (HH:MM).'),
   endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time (HH:MM).'),
@@ -84,6 +84,7 @@ export default function TimetablePage() {
     const { toast } = useToast();
     const [openDialog, setOpenDialog] = useState(false);
     const [editingSlot, setEditingSlot] = useState<Timetable | null>(null);
+    
     const canManageTimetable = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
     const isAdmin = !!userProfile?.role.includes('admin');
 
@@ -97,6 +98,7 @@ export default function TimetablePage() {
     const [fullTimetable, setFullTimetable] = useState<Timetable[] | null>(null);
     const [isTimetableLoading, setIsTimetableLoading] = useState(true);
     const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
+    
     const allFacultyQuery = useMemoFirebase(() => { if (!firestore || !isAdmin) return null; return query(collection(firestore, 'users'), where('role', '==', 'faculty')); }, [firestore, isAdmin]);
     const { data: allFaculty, isLoading: areFacultyUsersLoading } = useCollection<UserProfile>(allFacultyQuery);
 

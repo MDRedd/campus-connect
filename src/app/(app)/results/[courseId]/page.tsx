@@ -300,7 +300,7 @@ export default function CourseResultsPage() {
                             <FormItem>
                                 <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Enrolled Persona</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
-                                    <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select student" /></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select student" /></SelectTrigger></FormControl>
                                     <SelectContent className="rounded-xl">
                                         {enrolledStudents?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                                     </SelectContent>

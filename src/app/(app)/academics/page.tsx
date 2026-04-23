@@ -45,14 +45,14 @@ type StudyMaterial = { id: string; courseId: string; title: string; description:
 const assignmentSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
   title: z.string().min(3, 'Title is required.'),
-  description: z.string().optional(),
+  description: z.string().optional().default(''),
   deadline: z.string().min(1, 'Deadline is required.'),
 });
 
 const materialSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
   title: z.string().min(3, 'Title is required.'),
-  description: z.string().optional(),
+  description: z.string().optional().default(''),
   fileUrl: z.string().url('Please enter a valid URL.'),
 });
 
@@ -298,18 +298,18 @@ export default function AcademicsPage() {
                     <Dialog open={openAssignmentDialog} onOpenChange={setOpenAssignmentDialog}>
                         <DialogTrigger asChild><Button onClick={() => assignmentForm.reset()} className="rounded-xl"><PlusCircle className="mr-2 h-4 w-4" /> New Assignment</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
-                            <DialogHeader><DialogTitle>Publish New Assignment</DialogTitle></DialogHeader>
-                            <Form {...assignmentForm}><form onSubmit={assignmentForm.handleSubmit(onAddAssignment)} className="space-y-4">
+                            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Publish New Assignment</DialogTitle></DialogHeader>
+                            <Form {...assignmentForm}><form onSubmit={assignmentForm.handleSubmit(onAddAssignment)} className="space-y-4 pt-4">
                                 <FormField control={assignmentForm.control} name="courseId" render={({ field }) => (
-                                    <FormItem><FormLabel>Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
-                                        <SelectContent>{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                     </Select></FormItem>
                                 )} />
-                                <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Headline</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />
-                                <FormField control={assignmentForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Scope</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl></FormItem> )} />
-                                <FormField control={assignmentForm.control} name="deadline" render={({ field }) => ( <FormItem><FormLabel>Deadline</FormLabel><FormControl><Input type="date" {...field} className="glass-input" /></FormControl></FormItem> )} />
-                                <DialogFooter><Button type="submit" className="rounded-xl px-8">Authorize & Publish</Button></DialogFooter>
+                                <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Headline</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />
+                                <FormField control={assignmentForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Scope</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl></FormItem> )} />
+                                <FormField control={assignmentForm.control} name="deadline" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Deadline</FormLabel><FormControl><Input type="date" {...field} className="glass-input" /></FormControl></FormItem> )} />
+                                <DialogFooter className="pt-6"><Button type="submit" className="rounded-xl px-10 h-12 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Authorize & Publish</Button></DialogFooter>
                             </form></Form>
                         </DialogContent>
                     </Dialog>
@@ -349,18 +349,18 @@ export default function AcademicsPage() {
                     <Dialog open={openMaterialDialog} onOpenChange={setOpenMaterialDialog}>
                         <DialogTrigger asChild><Button onClick={() => materialForm.reset()} className="rounded-xl"><PlusCircle className="mr-2 h-4 w-4" /> Add Resource</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
-                            <DialogHeader><DialogTitle>New Intellectual Asset</DialogTitle></DialogHeader>
-                            <Form {...materialForm}><form onSubmit={materialForm.handleSubmit(onAddMaterial)} className="space-y-4">
+                            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">New Intellectual Asset</DialogTitle></DialogHeader>
+                            <Form {...materialForm}><form onSubmit={materialForm.handleSubmit(onAddMaterial)} className="space-y-4 pt-4">
                                 <FormField control={materialForm.control} name="courseId" render={({ field }) => (
-                                    <FormItem><FormLabel>Target Module</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                    <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Module</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
-                                        <SelectContent>{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                     </Select></FormItem>
                                 )} />
-                                <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Asset Name</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />
-                                <FormField control={materialForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Overview</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl></FormItem> )} />
-                                <FormField control={materialForm.control} name="fileUrl" render={({ field }) => ( <FormItem><FormLabel>Asset Link</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="glass-input" /></FormControl></FormItem> )} />
-                                <DialogFooter><Button type="submit" className="rounded-xl px-8">Authorize & Upload</Button></DialogFooter>
+                                <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Asset Name</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />
+                                <FormField control={materialForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Overview</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl></FormItem> )} />
+                                <FormField control={materialForm.control} name="fileUrl" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Asset Link</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="glass-input" /></FormControl></FormItem> )} />
+                                <DialogFooter className="pt-6"><Button type="submit" className="rounded-xl px-10 h-12 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Authorize & Upload</Button></DialogFooter>
                             </form></Form>
                         </DialogContent>
                     </Dialog>
