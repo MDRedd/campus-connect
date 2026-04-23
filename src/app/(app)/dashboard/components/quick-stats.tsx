@@ -17,28 +17,32 @@ export default function QuickStats({ stats, isLoading }: QuickStatsProps) {
 
   if (isLoading) {
     return (
-        <div className="grid gap-4 md:grid-cols-3">
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
-            <Skeleton className="h-24" />
+        <div className="grid gap-6 md:grid-cols-3">
+            {[...Array(3)].map((_, i) => (
+                <Skeleton key={i} className="h-32 rounded-[2rem] opacity-20" />
+            ))}
         </div>
     )
   }
 
   if (!stats) {
-    return null; // or some placeholder/error state
+    return null;
   }
 
   return (
-    <div className="grid gap-4 md:grid-cols-3">
+    <div className="grid gap-6 md:grid-cols-3">
       {stats.map((stat) => (
-        <Card key={stat.title}>
-          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-            <CardTitle className="text-sm font-medium">{stat.title}</CardTitle>
-            <stat.icon className="h-4 w-4 text-muted-foreground" />
+        <Card key={stat.title} className="glass-card border-none overflow-hidden group shadow-xl">
+          <div className="absolute inset-0 bg-gradient-to-br from-primary/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500" />
+          <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-4 relative z-10">
+            <CardTitle className="text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60">{stat.title}</CardTitle>
+            <div className="p-2.5 bg-primary/5 rounded-xl text-primary group-hover:scale-110 group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
+                <stat.icon className="h-4 w-4" />
+            </div>
           </CardHeader>
-          <CardContent>
-            <div className="text-2xl font-bold">{stat.value}</div>
+          <CardContent className="relative z-10">
+            <div className="text-4xl font-black tracking-tighter text-slate-800 leading-none">{stat.value}</div>
+            <p className="text-[8px] font-black uppercase tracking-widest text-slate-400 mt-2 opacity-0 group-hover:opacity-100 transition-opacity">System Ledger Synchronized</p>
           </CardContent>
         </Card>
       ))}

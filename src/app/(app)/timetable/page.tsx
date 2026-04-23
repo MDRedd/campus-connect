@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs, query, where, doc, collectionGroup } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
   Card,
@@ -11,7 +11,7 @@ import {
   CardContent,
   CardDescription
 } from '@/components/ui/card';
-import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
+import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle, Calendar as CalendarIcon, ShieldCheck } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -102,9 +102,10 @@ export default function TimetablePage() {
     const allFacultyQuery = useMemoFirebase(() => { if (!firestore || !isAdmin) return null; return query(collection(firestore, 'users'), where('role', '==', 'faculty')); }, [firestore, isAdmin]);
     const { data: allFaculty, isLoading: areFacultyUsersLoading } = useCollection<UserProfile>(allFacultyQuery);
 
-    const coursesForForm = useMemo(() => {
-        if (isAdmin) return allCourses;
-        return facultyCourses;
+    // FIX: Explicitly scoped courses list for the form to resolve ReferenceErrors and shadowing
+    const coursesAvailableForAllocation = useMemo(() => {
+        if (isAdmin) return allCourses || [];
+        return facultyCourses || [];
     }, [isAdmin, allCourses, facultyCourses]);
 
     useEffect(() => {
@@ -217,30 +218,30 @@ export default function TimetablePage() {
         </Card>
 
         <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-            <DialogContent className="rounded-3xl max-w-xl">
+            <DialogContent className="rounded-[2.5rem] max-w-xl">
                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">{editingSlot ? 'Edit Session' : 'Allocate New Session'}</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Define temporal and physical allocation for class sessions.</DialogDescription></DialogHeader>
-                {(areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96" /> : (
+                {(areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96 w-full rounded-3xl" /> : (
                 <Form {...form}>
-                    <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4 pt-4">
+                    <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-6 pt-4">
                         <FormField control={form.control} name="courseId" render={({ field }) => ( 
                             <FormItem>
                                 <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Module</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}>
-                                    <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
                                     <SelectContent className="rounded-xl">
-                                        {coursesForForm?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}
+                                        {coursesAvailableForAllocation?.map(c => <SelectItem key={c.id} value={c.id} className="rounded-lg py-2 font-bold">{c.name}</SelectItem>)}
                                     </SelectContent>
                                 </Select>
                             </FormItem> 
                         )} />
-                        {isAdmin && ( <FormField control={form.control} name="facultyId" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{allFaculty?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent></Select></FormItem> )} /> )}
-                        <FormField control={form.control} name="dayOfWeek" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Operational Day</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select day" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select></FormItem> )} />
+                        {isAdmin && ( <FormField control={form.control} name="facultyId" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assigned Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{allFaculty?.map(f => <SelectItem key={f.id} value={f.id} className="rounded-lg py-2 font-bold">{f.name}</SelectItem>)}</SelectContent></Select></FormItem> )} /> )}
+                        <FormField control={form.control} name="dayOfWeek" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Operational Day</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select day" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{daysOfWeek.map(d => <SelectItem key={d} value={d} className="rounded-lg py-2 font-bold">{d}</SelectItem>)}</SelectContent></Select></FormItem> )} />
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={form.control} name="startTime" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start (HH:MM)</FormLabel><FormControl><Input placeholder="09:00" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
-                            <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">End (HH:MM)</FormLabel><FormControl><Input placeholder="10:30" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
+                            <FormField control={form.control} name="startTime" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start (HH:MM)</FormLabel><FormControl><Input placeholder="09:00" {...field} className="glass-input" /></FormControl></FormItem> )} />
+                            <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">End (HH:MM)</FormLabel><FormControl><Input placeholder="10:30" {...field} className="glass-input" /></FormControl></FormItem> )} />
                         </div>
-                        <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Physical Venue</FormLabel><FormControl><Input placeholder="A-101" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
-                        <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Online Gateway (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
+                        <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Physical Venue</FormLabel><FormControl><Input placeholder="A-101" {...field} className="glass-input" /></FormControl></FormItem> )} />
+                        <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Online Gateway (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="glass-input" /></FormControl></FormItem> )} />
                         <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose><Button type="submit" className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Finalize Allocation</Button></DialogFooter>
                     </form>
                 </Form>

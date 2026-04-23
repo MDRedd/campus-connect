@@ -79,9 +79,9 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
         const facultyCount = allUsers.filter(d => d.role === 'faculty').length;
         
         setQuickStats([
-            { title: 'Total Students', value: studentCount.toString(), icon: User },
-            { title: 'Total Faculty', value: facultyCount.toString(), icon: Users },
-            { title: 'Total Courses', value: (allCourses?.length ?? 0).toString(), icon: Activity },
+            { title: 'Registered Students', value: studentCount.toString(), icon: User },
+            { title: 'Academic Faculty', value: facultyCount.toString(), icon: Users },
+            { title: 'Active Curriculums', value: (allCourses?.length ?? 0).toString(), icon: Activity },
         ]);
 
         // Role Distribution Chart Data
@@ -121,7 +121,7 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
     const handleVerifyUser = (userId: string) => {
         if (!firestore) return;
         updateDocumentNonBlocking(doc(firestore, 'users', userId), { auditStatus: 'verified' });
-        toast({ title: 'Persona Verified', description: 'Institutional identity has been authorized.' });
+        toast({ title: 'Persona Authorized', description: 'Identity ledger synchronized successfully.' });
     };
 
     return (
@@ -133,116 +133,119 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 {/* Identity Audit Terminal */}
                 <div className="lg:col-span-8 space-y-8">
-                    <Card className="glass-card border-none overflow-hidden">
-                        <CardHeader className="bg-primary/5 border-b border-white/10 p-8">
+                    <Card className="glass-card border-none overflow-hidden shadow-2xl">
+                        <CardHeader className="bg-primary/5 border-b border-indigo-50/50 p-8">
                             <div className="flex items-center justify-between">
                                 <div className="space-y-1">
-                                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-primary">
-                                        <ShieldAlert className="h-3 w-3" /> Identity Audit HUD
+                                    <div className="inline-flex items-center gap-2 text-[10px] font-black uppercase tracking-[0.2em] text-primary">
+                                        <ShieldAlert className="h-3.5 w-3.5" /> Identity Audit HUD
                                     </div>
-                                    <CardTitle className="text-2xl font-black uppercase tracking-tight">Pending Persona Provisioning</CardTitle>
-                                    <CardDescription className="text-xs font-medium">Verify new registrations and align departmental roles.</CardDescription>
+                                    <CardTitle className="text-3xl font-black tracking-tight uppercase">Pending Persona Audits</CardTitle>
+                                    <CardDescription className="text-xs font-medium text-slate-500">Authorize new system participants and define departmental alignment.</CardDescription>
                                 </div>
-                                <Badge variant="destructive" className="animate-pulse">{pendingAudits.length} Pending</Badge>
+                                <Badge variant="destructive" className={cn("px-4 py-1.5 rounded-xl font-black text-[10px] tracking-widest uppercase", pendingAudits.length > 0 ? "animate-pulse" : "opacity-30")}>{pendingAudits.length} Action Required</Badge>
                             </div>
                         </CardHeader>
                         <CardContent className="p-0">
-                            {areAllUsersLoading ? <Skeleton className="h-64 w-full" /> : (
+                            {areAllUsersLoading ? <div className="p-8 space-y-4"><Skeleton className="h-20 w-full rounded-2xl" /><Skeleton className="h-20 w-full rounded-2xl" /></div> : (
                                 pendingAudits.length > 0 ? (
-                                    <div className="divide-y divide-indigo-50/50">
+                                    <div className="divide-y divide-indigo-50/30">
                                         {pendingAudits.map(user => (
-                                            <div key={user.id} className="p-6 flex items-center justify-between hover:bg-slate-50/50 transition-all group">
-                                                <div className="flex items-center gap-4">
-                                                    <Avatar className="h-12 w-12 border-2 border-white shadow-sm group-hover:scale-105 transition-transform">
+                                            <div key={user.id} className="p-8 flex items-center justify-between hover:bg-slate-50/50 transition-all group">
+                                                <div className="flex items-center gap-6">
+                                                    <Avatar className="h-14 w-14 border-2 border-white shadow-xl group-hover:scale-110 transition-all duration-500 ring-4 ring-primary/5">
                                                         {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={user.name} />}
                                                         <AvatarFallback className="bg-primary/5 text-primary text-xs font-black">{user.name.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
                                                     </Avatar>
-                                                    <div>
-                                                        <p className="font-black text-slate-800 uppercase tracking-tight leading-none">{user.name}</p>
-                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest mt-1">{user.email}</p>
+                                                    <div className="space-y-1">
+                                                        <p className="font-black text-slate-800 uppercase tracking-tight text-lg leading-none">{user.name}</p>
+                                                        <p className="text-[10px] text-slate-400 font-bold uppercase tracking-widest flex items-center gap-2">
+                                                            <span className="text-primary">{user.email}</span>
+                                                            <span className="opacity-20">•</span>
+                                                            <span>Requested: {user.role.replace('-', ' ')}</span>
+                                                        </p>
                                                     </div>
                                                 </div>
-                                                <div className="flex items-center gap-3">
-                                                    <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-2 py-1">{user.role}</Badge>
-                                                    <Button size="sm" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-9 font-black uppercase tracking-widest text-[9px] bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/20">
-                                                        <CheckCircle className="mr-1.5 h-3.5 w-3.5" /> Authorize Persona
+                                                <div className="flex items-center gap-4">
+                                                    <Button size="lg" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-11 px-8 font-black uppercase tracking-widest text-[10px] bg-green-600 hover:bg-green-700 shadow-xl shadow-green-500/20">
+                                                        <CheckCircle className="mr-2 h-4 w-4" /> Authorize Persona
                                                     </Button>
                                                 </div>
                                             </div>
                                         ))}
                                     </div>
                                 ) : (
-                                    <div className="p-20 text-center flex flex-col items-center gap-4 opacity-20">
-                                        <CheckCircle className="h-16 w-16" />
-                                        <p className="font-black uppercase tracking-widest text-xs">All Identities Synchronized</p>
+                                    <div className="p-24 text-center flex flex-col items-center gap-6 opacity-20">
+                                        <div className="bg-green-500/10 p-10 rounded-full"><CheckCircle className="h-16 w-16 text-green-600" /></div>
+                                        <p className="font-black uppercase tracking-[0.3em] text-xs">Identity Ledger Synchronized</p>
                                     </div>
                                 )
                             )}
                         </CardContent>
-                        <CardFooter className="bg-slate-50/50 p-4 justify-center border-t border-indigo-50/50">
-                            <Button asChild variant="ghost" className="text-[10px] font-black uppercase tracking-[0.2em] w-full">
-                                <Link href="/users">Launch Identity Directory <ArrowRight className="ml-2 h-3 w-3" /></Link>
+                        <CardFooter className="bg-slate-50/50 p-6 justify-center border-t border-indigo-50/50">
+                            <Button asChild variant="ghost" className="text-[10px] font-black uppercase tracking-[0.3em] w-full hover:bg-white transition-all">
+                                <Link href="/users">Launch Master Directory HUD <ArrowRight className="ml-2 h-4 w-4" /></Link>
                             </Button>
                         </CardFooter>
                     </Card>
 
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
-                         <Card className="glass-card border-none">
+                         <Card className="glass-card border-none shadow-xl">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-3 text-lg font-black uppercase tracking-tight">
                                     <BarChart3 className="h-5 w-5 text-primary" />
-                                    User Demographics
+                                    Identity Demographics
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {areAllUsersLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
+                                {areAllUsersLoading ? <Skeleton className="h-80 w-full rounded-[2rem]" /> : roleDistributionData && <RoleDistributionChart data={roleDistributionData} />}
                             </CardContent>
                         </Card>
 
-                        <Card className="glass-card border-none">
+                        <Card className="glass-card border-none shadow-xl">
                             <CardHeader>
-                                <CardTitle className="flex items-center gap-2">
+                                <CardTitle className="flex items-center gap-3 text-lg font-black uppercase tracking-tight">
                                     <Database className="h-5 w-5 text-accent" />
-                                    Academic Distribution
+                                    Departmental Node Distribution
                                 </CardTitle>
                             </CardHeader>
                             <CardContent>
-                                {areAllCoursesLoading ? <Skeleton className="h-80 w-full rounded-2xl" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
+                                {areAllCoursesLoading ? <Skeleton className="h-80 w-full rounded-[2rem]" /> : courseDepartmentData && <CourseDepartmentChart data={courseDepartmentData} />}
                             </CardContent>
                         </Card>
                     </div>
                 </div>
 
                 <div className="lg:col-span-4 space-y-8">
-                     <Card className="glass-card border-none self-start">
-                        <CardHeader>
-                            <CardTitle>System Administration</CardTitle>
-                            <CardDescription>Direct access to master controls.</CardDescription>
+                     <Card className="glass-card border-none shadow-2xl sticky top-28">
+                        <CardHeader className="bg-primary/5 p-8 border-b border-white/10">
+                            <CardTitle className="text-xl font-black uppercase tracking-tight">Governance HUD</CardTitle>
+                            <CardDescription className="text-xs font-medium">Direct access to institutional master controls.</CardDescription>
                         </CardHeader>
-                        <CardContent className="grid gap-3">
-                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl group transition-all" asChild>
-                                <Link href="/users" className="flex justify-between items-center w-full">
-                                    Manage All Users
-                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                        <CardContent className="grid gap-4 p-8">
+                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl" asChild>
+                                <Link href="/users" className="flex justify-between items-center w-full px-2">
+                                    <span className="font-black uppercase tracking-widest text-[10px]">Persona Directory</span>
+                                    <ArrowRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-primary" />
                                 </Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl group transition-all" asChild>
-                                <Link href="/courses" className="flex justify-between items-center w-full">
-                                    Master Course Catalog
-                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl" asChild>
+                                <Link href="/courses" className="flex justify-between items-center w-full px-2">
+                                    <span className="font-black uppercase tracking-widest text-[10px]">Master Course Catalog</span>
+                                    <ArrowRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-primary" />
                                 </Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl group transition-all" asChild>
-                                <Link href="/fees" className="flex justify-between items-center w-full">
-                                    System-wide Fees
-                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl" asChild>
+                                <Link href="/fees" className="flex justify-between items-center w-full px-2">
+                                    <span className="font-black uppercase tracking-widest text-[10px]">Financial Settlement Ledger</span>
+                                    <ArrowRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-primary" />
                                 </Link>
                             </Button>
                         </CardContent>
                     </Card>
 
                     {areAnnouncementsLoading ? (
-                        <Skeleton className="h-64 w-full rounded-3xl" />
+                        <Skeleton className="h-64 w-full rounded-[2rem]" />
                     ) : (
                         displayAnnouncements && displayAnnouncements.length > 0 && <RecentAnnouncements announcements={displayAnnouncements} />
                     )}

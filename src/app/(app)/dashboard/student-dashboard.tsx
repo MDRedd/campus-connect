@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
-import { BookOpen, Percent, FileWarning, ArrowRight, ShieldAlert, Sparkles, GraduationCap } from 'lucide-react';
+import { BookOpen, Percent, FileWarning, ArrowRight, ShieldAlert, Sparkles, GraduationCap, Clock, ClipboardList, Target } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 import Link from 'next/link';
@@ -27,7 +27,7 @@ type QuickStat = {
 };
 type UserProfileData = { name: string; role: 'student'; id: string; auditStatus?: string };
 type Enrollment = { courseId: string };
-type FullAssignment = { id: string; courseId: string; deadline: string; title: string; };
+type FullAssignment = { id: string; courseId: string; deadline: string; title: string; description: string; };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
 
@@ -40,6 +40,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     const [areStatsLoading, setAreStatsLoading] = useState(true);
     const [upcomingAssignments, setUpcomingAssignments] = useState<UpcomingAssignment[] | null>(null);
     const [areAssignmentsLoading, setAreAssignmentsLoading] = useState(true);
+    const [nextMilestone, setNextMilestone] = useState<FullAssignment | null>(null);
 
     // --- Data Hooks ---
     const studentEnrollmentsQuery = useMemoFirebase(() => {
@@ -111,16 +112,19 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                     const now = new Date();
                     const courseMap = new Map(allCourses.map(c => [c.id, c.code]));
 
-                    const allDueAssignments = assignmentsSnapshot.docs.filter(doc => {
-                        const assignment = doc.data() as FullAssignment;
-                        return new Date(assignment.deadline) > now && !submittedAssignmentIds.has(doc.id);
-                    });
+                    const allDueAssignments = assignmentsSnapshot.docs
+                        .map(doc => ({ id: doc.id, ...(doc.data() as Omit<FullAssignment, 'id'>) }))
+                        .filter(a => new Date(a.deadline) > now && !submittedAssignmentIds.has(a.id))
+                        .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
 
                     dueAssignmentsCount = allDueAssignments.length;
+                    
+                    if (allDueAssignments.length > 0) {
+                        setNextMilestone(allDueAssignments[0] as FullAssignment);
+                    }
 
-                    upcoming = allDueAssignments.map(doc => ({ id: doc.id, ...(doc.data() as Omit<FullAssignment, 'id'>) }))
-                        .sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime())
-                        .slice(0, 5) // Get top 5 upcoming
+                    upcoming = allDueAssignments
+                        .slice(0, 5) 
                         .map(assignment => ({
                             ...assignment,
                             courseCode: courseMap.get(assignment.courseId) || 'N/A'
@@ -244,6 +248,35 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
                 <div className="lg:col-span-8 space-y-8">
+                    {/* Next Academic Milestone AI Node */}
+                    {nextMilestone && (
+                         <Card className="glass-card border-none overflow-hidden bg-indigo-50/30 group">
+                            <CardHeader className="flex flex-row items-center gap-4 pb-6">
+                                <div className="bg-primary/10 text-primary p-3 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-500 shadow-inner">
+                                    <Target className="h-6 w-6" />
+                                </div>
+                                <div className="space-y-0.5">
+                                    <div className="inline-flex items-center gap-1.5 text-[8px] font-black uppercase tracking-widest text-primary bg-primary/10 px-2 py-0.5 rounded-full mb-1">
+                                        <Sparkles className="h-2 w-2" /> Next Academic Milestone
+                                    </div>
+                                    <CardTitle className="text-2xl font-black tracking-tight uppercase leading-none">{nextMilestone.title}</CardTitle>
+                                </div>
+                            </CardHeader>
+                            <CardContent className="space-y-6">
+                                <p className="text-sm text-slate-600 font-medium leading-relaxed line-clamp-2">"{nextMilestone.description}"</p>
+                                <div className="flex items-center gap-6 pt-4 border-t border-indigo-100/50">
+                                    <div className="flex items-center gap-2 text-[10px] font-black uppercase tracking-widest text-muted-foreground">
+                                        <Clock className="h-3.5 w-3.5 text-primary" />
+                                        Due: {format(new Date(nextMilestone.deadline), 'PPP')}
+                                    </div>
+                                    <Button asChild variant="link" className="text-primary font-black uppercase tracking-widest text-[9px] h-auto p-0">
+                                        <Link href={`/academics/assignment/${nextMilestone.id}?courseId=${nextMilestone.courseId}`}>Access Module HUD <ArrowRight className="ml-1 h-3 w-3" /></Link>
+                                    </Button>
+                                </div>
+                            </CardContent>
+                         </Card>
+                    )}
+
                     {areTodaysClassesLoading ? <Skeleton className="h-80 w-full rounded-[2.5rem]" /> : todaysClasses && <UpcomingClasses timetable={todaysClasses} />}
                     {areAssignmentsLoading ? <Skeleton className="h-80 w-full rounded-[2.5rem]" /> : upcomingAssignments && <UpcomingDeadlines assignments={upcomingAssignments} />}
                 </div>

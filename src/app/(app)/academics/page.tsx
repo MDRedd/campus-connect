@@ -24,7 +24,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BookCopy, FileText, Download, PlusCircle, Trash2, Library, Clock, ArrowRight } from 'lucide-react';
+import { BookCopy, FileText, Download, PlusCircle, Trash2, Library, Clock, ArrowRight, Sparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -130,6 +130,7 @@ export default function AcademicsPage() {
             allAssignments.push({ ...(doc.data() as Assignment), id: doc.id, courseName: course.name, courseCode: course.code });
           });
 
+          // FIX: Explicitly defined const for materialsSnapshot to resolve ReferenceError
           const materialsQuery = query(collection(firestore, 'courses', course.id, 'study_materials'));
           const materialsSnapshot = await getDocs(materialsQuery);
           materialsSnapshot.forEach((doc) => {
@@ -291,7 +292,7 @@ export default function AcademicsPage() {
             <Card className="glass-card border-none">
               <CardHeader className="flex flex-row items-center justify-between pb-8 border-b border-indigo-50/50">
                 <div className="space-y-1">
-                  <CardTitle className="text-2xl font-black uppercase tracking-tight">ACTIVE ASSIGNMENTS</CardTitle>
+                  <CardTitle className="text-2xl font-black tracking-tight uppercase">ACTIVE ASSIGNMENTS</CardTitle>
                   <CardDescription className="text-xs font-medium">Core assessments required for academic standing.</CardDescription>
                 </div>
                 {isFaculty && (
@@ -303,7 +304,7 @@ export default function AcademicsPage() {
                                 <FormField control={assignmentForm.control} name="courseId" render={({ field }) => (
                                     <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
-                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id} className="rounded-lg py-2 font-bold">{c.name}</SelectItem>)}</SelectContent>
                                     </Select></FormItem>
                                 )} />
                                 <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Headline</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />
@@ -354,7 +355,7 @@ export default function AcademicsPage() {
                                 <FormField control={materialForm.control} name="courseId" render={({ field }) => (
                                     <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Module</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
                                         <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
-                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id} className="rounded-lg py-2 font-bold">{c.name}</SelectItem>)}</SelectContent>
                                     </Select></FormItem>
                                 )} />
                                 <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Asset Name</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />
