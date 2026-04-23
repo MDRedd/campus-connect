@@ -2,7 +2,7 @@
 
 import { useState, useMemo, useEffect, useCallback } from 'react';
 import Image from 'next/image';
-import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
+import { useUser, useFirestore, useCollection, useDoc, useMemoFirebase, setDocumentNonBlocking } from '@/firebase';
 import { collection, serverTimestamp, doc, query, where } from 'firebase/firestore';
 import {
   Card,
@@ -68,28 +68,30 @@ export default function MarkAttendancePage() {
     setSelectedCourseId(courseId);
     setActiveSession(null);
     setIsGenerating(true);
+    
     if (!firestore || !authUser) {
         setIsGenerating(false);
         return;
     }
 
+    // Generate reference and ID first for non-blocking QR code generation
+    const sessionRef = doc(collection(firestore, 'attendanceSessions'));
+    const sessionId = sessionRef.id;
+
     const sessionData = {
+      id: sessionId,
       courseId: courseId,
       facultyId: authUser.uid,
       createdAt: serverTimestamp(),
       attendees: [],
     };
     
-    try {
-        const sessionDocRef = await addDocumentNonBlocking(collection(firestore, 'attendanceSessions'), sessionData);
-        if (sessionDocRef) {
-            setActiveSession({ ...sessionData, id: sessionDocRef.id, createdAt: new Date() } as AttendanceSession);
-        }
-    } catch(error) {
-        console.error("Error creating attendance session:", error);
-    } finally {
-        setIsGenerating(false);
-    }
+    // Non-blocking write
+    setDocumentNonBlocking(sessionRef, sessionData, {});
+    
+    // Instantly set active session for QR generation
+    setActiveSession({ ...sessionData, createdAt: new Date() } as AttendanceSession);
+    setIsGenerating(false);
   }, [firestore, authUser]);
 
   useEffect(() => {
@@ -150,7 +152,7 @@ export default function MarkAttendancePage() {
       </div>
 
       {isIndexError && (
-          <Alert variant="destructive">
+          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
               <AlertCircle className="h-4 w-4" />
               <AlertTitle>Database Index Required</AlertTitle>
               <AlertDescription>
@@ -200,13 +202,15 @@ export default function MarkAttendancePage() {
                     </div>
                 ) : qrImageUrl ? (
                     <div className="text-center flex flex-col items-center gap-4">
-                        <Image
-                            src={qrImageUrl}
-                            alt="Attendance QR Code"
-                            width={250}
-                            height={250}
-                            key={qrImageUrl}
-                        />
+                        <div className="bg-white p-2 rounded-lg shadow-sm border">
+                            <Image
+                                src={qrImageUrl}
+                                alt="Attendance QR Code"
+                                width={250}
+                                height={250}
+                                key={qrImageUrl}
+                            />
+                        </div>
                          <div className="w-full max-w-[250px] space-y-2">
                             <Progress value={(countdown / 60) * 100} className="h-2" />
                             <p className="text-sm font-medium text-muted-foreground">

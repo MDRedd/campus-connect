@@ -57,10 +57,6 @@ export default function LoginPage() {
 
     try {
         await signInWithEmailAndPassword(auth, email, password);
-        toast({
-          title: 'Logged In!',
-          description: 'Redirecting to your dashboard...',
-        });
     } catch (error: any) {
         let errorMessage = 'Invalid credentials. Please check your Roll No./ID and password.';
         
@@ -118,9 +114,9 @@ export default function LoginPage() {
       </div>
       <div className="flex items-center justify-center py-12">
         <div className="mx-auto grid w-[350px] gap-6">
-          <Card className="w-full">
+          <Card className="w-full shadow-lg">
             <CardHeader>
-              <CardTitle className="text-2xl">Login</CardTitle>
+              <CardTitle className="text-2xl font-bold">Login</CardTitle>
               <CardDescription>
                 Enter your Roll Number, Faculty ID, or Email to login.
               </CardDescription>
@@ -155,18 +151,27 @@ export default function LoginPage() {
                 <Button type="submit" className="w-full" disabled={isDisabled}>
                   {isLoggingIn ? 'Logging in...' : 'Login'}
                 </Button>
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t"></span>
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                    </div>
+                </div>
                 <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin} disabled={isDisabled}>
                   Login with Google
                 </Button>
               </form>
-               <div className="mt-4 text-center text-sm">
+               <div className="mt-6 text-center text-sm">
                 Don&apos;t have an account?{' '}
-                <Link href="/signup" className="underline font-medium">
-                  Sign up
+                <Link href="/signup" className="underline font-bold text-primary">
+                  Sign up now
                 </Link>
               </div>
             </CardContent>
           </Card>
+          
           <Card className="border-primary/20 bg-primary/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2 text-primary">

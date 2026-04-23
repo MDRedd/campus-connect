@@ -300,7 +300,7 @@ export default function FeesPage() {
                             <Form {...bulkFeeForm}>
                                 <form onSubmit={bulkFeeForm.handleSubmit(onBulkFeeSubmit)} className="space-y-4">
                                     <FormField control={bulkFeeForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} placeholder="e.g., Tuition Fee - Spring 2025" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={bulkFeeForm.control} name="totalAmount" render={({ field }) => ( <FormItem><FormLabel>Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={bulkFeeForm.control} name="totalAmount" render={({ field }) => ( <FormItem><FormLabel>Total Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={bulkFeeForm.control} name="dueDate" render={({ field }) => ( <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>

@@ -10,7 +10,7 @@ import type { Course } from '@/lib/data';
  * It uses a collection group query on 'timetables' to find associated course IDs.
  */
 export function useFacultyCourses() {
-    const { user: authUser, isUserLoading: isAuthUserLoading } = useUser();
+    const { user: authUser, isUserLoading } = useUser();
     const firestore = useFirestore();
 
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
@@ -18,8 +18,8 @@ export function useFacultyCourses() {
     const [error, setError] = useState<any>(null);
 
     useEffect(() => {
-        if (isAuthUserLoading || !firestore || !authUser) {
-             if (!isAuthUserLoading) {
+        if (isUserLoading || !firestore || !authUser) {
+             if (!isUserLoading) {
                 setIsLoading(false);
                 setFacultyCourses([]);
              }
@@ -66,7 +66,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, isAuthUserLoading]);
+    }, [firestore, authUser, isUserLoading]);
 
     return { facultyCourses, isLoading, error };
 }
