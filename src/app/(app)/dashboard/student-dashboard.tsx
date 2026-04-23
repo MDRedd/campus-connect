@@ -17,6 +17,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import UpcomingDeadlines, { UpcomingAssignment } from './components/upcoming-deadlines';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import PlatformGuide from './components/platform-guide';
 
 type QuickStat = {
   title: string;
@@ -225,6 +226,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     return (
         <div className="flex flex-col gap-8 pb-12 animate-in fade-in zoom-in-95 duration-700">
             <WelcomeBanner user={userProfile} />
+            <PlatformGuide role={userProfile.role} />
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
             <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
@@ -249,7 +251,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                         )}
                     </div>
                     
-                    <Card className="glass-card border-none shadow-indigo-500/10">
+                    <Card className="glass-card border-none shadow-indigo-50/10">
                         <CardHeader>
                             <CardTitle className="text-xl">Quick Links</CardTitle>
                             <CardDescription>Common academic actions.</CardDescription>

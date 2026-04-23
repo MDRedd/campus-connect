@@ -21,6 +21,7 @@ import { generatePersonalizedNotification } from '@/ai/flows/personalized-notifi
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import PlatformGuide from './components/platform-guide';
 
 type QuickStat = {
   title: string;
@@ -337,6 +338,7 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     return (
         <div className="flex flex-col gap-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <WelcomeBanner user={userProfile} />
+            <PlatformGuide role={userProfile.role} />
 
             {isIndexError && (
                 <Alert variant="destructive" className="glass-card bg-destructive/10 border-destructive/20 text-destructive">

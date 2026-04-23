@@ -16,6 +16,7 @@ import { Skeleton } from '@/components/ui/skeleton';
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
+import PlatformGuide from './components/platform-guide';
 
 
 type QuickStat = {
@@ -110,6 +111,7 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
     return (
         <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-1000">
             <WelcomeBanner user={userProfile} />
+            <PlatformGuide role={userProfile.role as any} />
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
