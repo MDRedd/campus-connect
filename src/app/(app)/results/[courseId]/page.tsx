@@ -21,7 +21,7 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { PlusCircle, Edit, Trash2, ArrowLeft, AlertCircle } from 'lucide-react';
+import { PlusCircle, Edit, Trash2, ArrowLeft, AlertCircle, Award, Sparkles, ShieldCheck } from 'lucide-react';
 import {
     Dialog,
     DialogContent,
@@ -42,6 +42,8 @@ import { Switch } from '@/components/ui/switch';
 import { useToast } from '@/hooks/use-toast';
 import { Badge } from '@/components/ui/badge';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
+import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 type Result = {
   id?: string;
@@ -93,7 +95,6 @@ export default function CourseResultsPage() {
   }, [firestore, courseId]);
   const { data: course, isLoading: isCourseLoading } = useDoc<Course>(courseDocRef);
 
-  // 1. Fetch enrolled students via collection group
   const enrollmentsQuery = useMemoFirebase(() => {
       if (!firestore || !courseId) return null;
       return query(collectionGroup(firestore, 'enrollments'), where('courseId', '==', courseId));
@@ -111,7 +112,6 @@ export default function CourseResultsPage() {
   }, [firestore, studentIds]);
   const { data: enrolledStudents, isLoading: areStudentsLoading } = useCollection<UserProfile>(studentsQuery);
   
-  // 2. Fetch results for this course via collection group
   const resultsQuery = useMemoFirebase(() => {
       if (!firestore || !courseId) return null;
       return query(collectionGroup(firestore, 'results'), where('courseId', '==', courseId));
@@ -184,124 +184,147 @@ export default function CourseResultsPage() {
     (resultsError as any)?.code === 'failed-precondition' || (resultsError as any)?.message?.toLowerCase().includes('index');
 
   if (!isFacultyOrAdmin && userProfile) {
-     return <div className="p-8 text-center"><Card><CardHeader><CardTitle>Unauthorized</CardTitle><CardDescription>Only faculty and administrators can manage academic results.</CardDescription></CardHeader></Card></div>
+     return <div className="p-8 text-center"><Card className="glass-card border-none"><CardHeader><CardTitle>Unauthorized</CardTitle><CardDescription>Only faculty and administrators can manage academic results.</CardDescription></CardHeader></Card></div>
   }
 
   return (
-    <div className="flex flex-col gap-6">
-        <Button variant="outline" size="sm" className="w-fit" onClick={() => router.push('/results')}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Results
-        </Button>
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+         <div className="academic-hero">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-4">
+                    <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl" onClick={() => router.push('/results')}>
+                        <ArrowLeft className="mr-2 h-4 w-4" /> Registrar Hub
+                    </Button>
+                    <div className="space-y-1">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                            <Award className="h-3 w-3" /> Grade Ledger
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">
+                            {isCourseLoading ? <Skeleton className="h-12 w-64" /> : course?.name}
+                        </h1>
+                        <p className="text-indigo-100/70 font-medium">Managing academic transcripts for {course?.code}.</p>
+                    </div>
+                </div>
+                <div className="flex gap-2">
+                    <Button onClick={handleAddNewClick} disabled={isLoading} className="bg-white text-primary hover:bg-indigo-50 font-black rounded-xl h-12 px-8 shadow-xl shadow-black/20 uppercase tracking-widest text-[10px]">
+                        <PlusCircle className="mr-2 h-4 w-4" /> Assign Grade
+                    </Button>
+                </div>
+            </div>
+        </div>
 
         {isIndexError && (
-            <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Index Required</AlertTitle>
-                <AlertDescription>
-                    The results for this course cannot load because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link in the error message to create the required indexes for <code>enrollments</code> and <code>results</code> collection groups.
+            <Alert variant="destructive" className="glass-card bg-destructive/10 border-destructive/20 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                <AlertTitle className="font-black uppercase tracking-tight">Database Index Required</AlertTitle>
+                <AlertDescription className="text-sm font-medium">
+                    Please <strong>check your browser console (F12)</strong> and click the link to authorize search indexes for <code>enrollments</code> and <code>results</code>.
                 </AlertDescription>
             </Alert>
         )}
 
-        <Card className="w-full">
-            <CardHeader className="flex-row justify-between items-start">
-              <div>
-                <CardTitle className="text-3xl font-bold">
-                    {isCourseLoading ? <Skeleton className="h-9 w-64" /> : `Results for ${course?.name}`}
-                </CardTitle>
-                <CardDescription>
-                    {isCourseLoading ? <Skeleton className="h-5 w-48 mt-1" /> : `Add, edit, and publish grades for ${course?.code}.`}
-                </CardDescription>
-              </div>
-              <Dialog open={openResultDialog} onOpenChange={setOpenResultDialog}>
-                <DialogTrigger asChild>
-                    <Button onClick={handleAddNewClick} disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> Add Result</Button>
-                </DialogTrigger>
-                <DialogContent className="sm:max-md">
-                    <DialogHeader>
-                        <DialogTitle>{editingResult ? 'Edit Grade Record' : 'Add Student Grade'}</DialogTitle>
-                        <DialogDescription>Assign marks and a letter grade to an enrolled student.</DialogDescription>
-                    </DialogHeader>
-                    {areStudentsLoading ? <Skeleton className="h-96"/> : (
-                    <Form {...resultForm}>
-                        <form onSubmit={resultForm.handleSubmit(onResultSubmit)} className="space-y-4">
-                           <FormField control={resultForm.control} name="studentId" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Enrolled Student</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a student" /></SelectTrigger></FormControl>
-                                    <SelectContent>
-                                        {enrolledStudents && enrolledStudents.length > 0 ? (
-                                            enrolledStudents.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)
-                                        ) : (
-                                            <SelectItem value="none" disabled>No students enrolled</SelectItem>
-                                        )}
-                                    </SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={resultForm.control} name="semester" render={({ field }) => ( <FormItem><FormLabel>Semester</FormLabel><FormControl><Input placeholder="e.g., Fall" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={resultForm.control} name="year" render={({ field }) => ( <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            </div>
-                            <div className="grid grid-cols-2 gap-4">
-                                <FormField control={resultForm.control} name="marks" render={({ field }) => ( <FormItem><FormLabel>Marks (0-100)</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel>Letter Grade</FormLabel><FormControl><Input placeholder="e.g., A+" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            </div>
-                             <FormField control={resultForm.control} name="published" render={({ field }) => (
-                                <FormItem className="flex flex-row items-center justify-between rounded-lg border p-3 shadow-sm">
-                                    <div className="space-y-0.5"><FormLabel className="text-sm">Publish Immediately</FormLabel><p className="text-xs text-muted-foreground">If enabled, students can see this result now.</p></div>
-                                    <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
-                                </FormItem>
-                            )} />
-                           <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" disabled={resultForm.formState.isSubmitting}>{resultForm.formState.isSubmitting ? 'Saving...' : 'Save Result'}</Button></DialogFooter>
-                        </form>
-                    </Form>
-                    )}
-                </DialogContent>
-              </Dialog>
+        <Card className="glass-card border-none overflow-hidden shadow-2xl">
+            <CardHeader className="bg-white/40 border-b border-white/20 p-8">
+              <CardTitle className="text-xl font-black uppercase tracking-tight">Institutional Transcripts</CardTitle>
+              <CardDescription className="text-xs font-medium">Official grade distribution and student performance ledger.</CardDescription>
             </CardHeader>
-            <CardContent>
+            <CardContent className="p-0">
                 <Table>
-                    <TableHeader>
+                    <TableHeader className="bg-slate-50/50">
                         <TableRow>
-                            <TableHead>Student</TableHead>
-                            <TableHead>Semester</TableHead>
-                            <TableHead>Marks</TableHead>
-                            <TableHead>Grade</TableHead>
-                            <TableHead>Status</TableHead>
-                            <TableHead className="text-right">Actions</TableHead>
+                            <TableHead className="pl-8 uppercase text-[10px] font-black tracking-widest">Student Persona</TableHead>
+                            <TableHead className="uppercase text-[10px] font-black tracking-widest">Term Period</TableHead>
+                            <TableHead className="uppercase text-[10px] font-black tracking-widest">Points index</TableHead>
+                            <TableHead className="uppercase text-[10px] font-black tracking-widest">Letter Grade</TableHead>
+                            <TableHead className="uppercase text-[10px] font-black tracking-widest">Visibility</TableHead>
+                            <TableHead className="text-right pr-8 uppercase text-[10px] font-black tracking-widest">Action</TableHead>
                         </TableRow>
                     </TableHeader>
                     <TableBody>
                         {isLoading ? (
-                            [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={6}><Skeleton className="h-8" /></TableCell></TableRow>)
+                            [...Array(5)].map((_, i) => <TableRow key={i}><TableCell colSpan={6} className="pl-8 pr-8"><Skeleton className="h-10 w-full rounded-xl" /></TableCell></TableRow>)
                         ) : courseResults && courseResults.length > 0 ? (
                             courseResults.map(result => (
-                                <TableRow key={result.id}>
-                                    <TableCell>{result.studentName}</TableCell>
-                                    <TableCell>{result.semester} {result.year}</TableCell>
-                                    <TableCell>{result.marks}</TableCell>
-                                    <TableCell className="font-bold">{result.grade}</TableCell>
+                                <TableRow key={result.id} className="hover:bg-indigo-50/30 group transition-colors">
+                                    <TableCell className="pl-8 font-black text-slate-800 uppercase tracking-tight">{result.studentName}</TableCell>
+                                    <TableCell className="text-xs font-bold text-slate-500">{result.semester} {result.year}</TableCell>
+                                    <TableCell className="font-black text-primary">{result.marks}%</TableCell>
                                     <TableCell>
-                                        <Badge variant={result.published ? 'default' : 'secondary'}>
+                                        <Badge className={cn("rounded-lg font-black text-xs min-w-8 justify-center uppercase", result.marks >= 80 ? "bg-green-500" : result.marks < 50 ? "bg-destructive" : "bg-primary")}>
+                                            {result.grade}
+                                        </Badge>
+                                    </TableCell>
+                                    <TableCell>
+                                        <Badge variant={result.published ? 'default' : 'secondary'} className="rounded-lg text-[9px] font-black uppercase tracking-widest">
                                             {result.published ? 'Published' : 'Draft'}
                                         </Badge>
                                     </TableCell>
-                                    <TableCell className="text-right">
-                                        <Button variant="ghost" size="icon" onClick={() => handleEditClick(result as any)}><Edit className="h-4 w-4" /></Button>
-                                        <Button variant="ghost" size="icon" onClick={() => handleDelete(result)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
+                                    <TableCell className="text-right pr-8">
+                                        <div className="flex justify-end gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-white hover:shadow-sm" onClick={() => handleEditClick(result as any)}>
+                                                <Edit className="h-4 w-4 text-indigo-500" />
+                                            </Button>
+                                            <Button variant="ghost" size="icon" className="h-9 w-9 rounded-xl hover:bg-destructive/10 hover:text-destructive" onClick={() => handleDelete(result)}>
+                                                <Trash2 className="h-4 w-4" />
+                                            </Button>
+                                        </div>
                                     </TableCell>
                                 </TableRow>
                             ))
                         ) : (
-                            <TableRow><TableCell colSpan={6} className="text-center h-24">No results found for this course.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={6} className="text-center h-40 font-bold text-muted-foreground uppercase text-xs opacity-40">Awaiting grade assignments</TableCell></TableRow>
                         )}
                     </TableBody>
                 </Table>
             </CardContent>
         </Card>
+
+        {/* Create/Edit Dialog */}
+        <Dialog open={openResultDialog} onOpenChange={setOpenResultDialog}>
+            <DialogContent className="rounded-3xl max-w-xl">
+                <DialogHeader>
+                    <DialogTitle className="text-2xl font-black uppercase tracking-tight">{editingResult ? 'Alter Grade Protocol' : 'New Grade Assignment'}</DialogTitle>
+                    <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Module Assessment Entry</DialogDescription>
+                </DialogHeader>
+                {areStudentsLoading ? <Skeleton className="h-64 w-full rounded-2xl" /> : (
+                <Form {...resultForm}>
+                    <form onSubmit={resultForm.handleSubmit(onResultSubmit)} className="space-y-6 py-4">
+                       <FormField control={resultForm.control} name="studentId" render={({ field }) => (
+                            <FormItem>
+                                <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Enrolled Persona</FormLabel>
+                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
+                                    <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select student" /></SelectTrigger></FormControl>
+                                    <SelectContent className="rounded-xl">
+                                        {enrolledStudents?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
+                                    </SelectContent>
+                                </Select>
+                            </FormItem>
+                        )} />
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={resultForm.control} name="semester" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Academic Semester</FormLabel><FormControl><Input placeholder="Fall" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
+                            <FormField control={resultForm.control} name="year" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Year</FormLabel><FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
+                        </div>
+                        <div className="grid grid-cols-2 gap-4">
+                            <FormField control={resultForm.control} name="marks" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Points (0-100)</FormLabel><FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black" /></FormControl></FormItem> )} />
+                            <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Letter Index</FormLabel><FormControl><Input placeholder="A+" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black" /></FormControl></FormItem> )} />
+                        </div>
+                        <FormField control={resultForm.control} name="published" render={({ field }) => (
+                            <FormItem className="flex flex-row items-center justify-between rounded-2xl border border-indigo-50 p-6 bg-indigo-50/20">
+                                <div className="space-y-0.5"><FormLabel className="text-xs font-black uppercase tracking-widest text-slate-800">Finalize & Publish</FormLabel><p className="text-[10px] font-medium text-slate-500">Enable to transmit result to the student transcript immediately.</p></div>
+                                <FormControl><Switch checked={field.value} onCheckedChange={field.onChange} /></FormControl>
+                            </FormItem>
+                        )} />
+                        <DialogFooter className="pt-6">
+                            <DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose>
+                            <Button type="submit" disabled={resultForm.formState.isSubmitting} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">
+                                {resultForm.formState.isSubmitting ? 'Syncing...' : 'Authorize Grade'}
+                            </Button>
+                        </DialogFooter>
+                    </form>
+                </Form>
+                )}
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

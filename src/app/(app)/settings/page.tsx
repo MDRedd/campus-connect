@@ -30,6 +30,8 @@ import {
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog"
 import { useTheme } from 'next-themes'
+import { Bell, ShieldCheck, Palette, KeyRound, UserX, Sparkles, Globe, Sun, Moon, Laptop } from 'lucide-react'
+import { cn } from '@/lib/utils'
 
 export default function SettingsPage() {
   const { user: authUser, profile: userProfile, isUserLoading } = useUser();
@@ -63,203 +65,180 @@ export default function SettingsPage() {
 
   const handleUpdatePassword = async () => {
     if (!password || !confirmPassword) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Please fill in both password fields.' });
+        toast({ variant: 'destructive', title: 'Data Missing', description: 'Please fill in both password fields.' });
         return;
     }
     if (password !== confirmPassword) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Passwords do not match.' });
+        toast({ variant: 'destructive', title: 'Protocol Mismatch', description: 'Keyphrases do not match.' });
         return;
     }
     if (password.length < 6) {
-        toast({ variant: 'destructive', title: 'Error', description: 'Password should be at least 6 characters.' });
+        toast({ variant: 'destructive', title: 'Security Error', description: 'Keyphrase must be at least 6 characters.' });
         return;
     }
-    if (!authUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in to update your password.' });
-        return;
-    }
+    if (!authUser) return;
 
     setIsUpdatingPassword(true);
     try {
         await updatePassword(authUser, password);
-        toast({ title: 'Success', description: 'Your password has been updated.' });
+        toast({ title: 'Success', description: 'Your security keyphrase has been rotated.' });
         setPassword('');
         setConfirmPassword('');
     } catch (error: any) {
-        console.error('Error updating password:', error);
-        toast({
-            variant: 'destructive',
-            title: 'Update Failed',
-            description: error.message || 'Could not update your password. You may need to sign in again.',
-        });
+        toast({ variant: 'destructive', title: 'Update Failed', description: 'Session expired or invalid. Please re-authenticate.' });
     } finally {
         setIsUpdatingPassword(false);
     }
   };
 
   const handleDeleteAccount = async () => {
-    if (!authUser) {
-        toast({ variant: 'destructive', title: 'Error', description: 'You must be logged in.' });
-        return;
-    }
+    if (!authUser) return;
     setIsDeletingAccount(true);
     try {
         await deleteUser(authUser);
-        toast({ title: 'Account Deleted', description: 'Your account has been permanently deleted.' });
-        // The onAuthStateChanged listener in the provider will handle the redirect.
+        toast({ title: 'Account Excised', description: 'Your institutional identity has been permanently removed.' });
     } catch (error: any) {
-        console.error('Error deleting account:', error);
-        toast({
-            variant: 'destructive',
-            title: 'Deletion Failed',
-            description: error.message || 'Could not delete your account. You may need to sign in again.',
-        });
+        toast({ variant: 'destructive', title: 'Deletion Blocked', description: 'Security protocol requires fresh authentication for this action.' });
         setIsDeletingAccount(false);
     }
   };
 
   if (isUserLoading) {
     return (
-        <div className="grid gap-6">
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-                <p className="text-muted-foreground">
-                Manage your account, notifications, and application settings.
-                </p>
-            </div>
-            <Card>
-                <CardHeader>
-                    <CardTitle>Notification Settings</CardTitle>
-                    <CardDescription>
-                        Choose how you want to be notified.
-                    </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                    <Skeleton className="h-8 w-full" />
-                </CardContent>
-            </Card>
+        <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+             <div className="academic-hero h-64"><Skeleton className="h-full w-full rounded-[3rem] opacity-20" /></div>
+             <div className="grid gap-6 md:grid-cols-2">
+                {[...Array(4)].map((_, i) => <Skeleton key={i} className="h-48 rounded-[2rem]" />)}
+             </div>
         </div>
     )
   }
 
   return (
-    <div className="grid gap-6">
-       <div>
-        <h1 className="text-3xl font-bold tracking-tight">Settings</h1>
-        <p className="text-muted-foreground">
-          Manage your account, notifications, and application settings.
-        </p>
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+      <div className="academic-hero">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                      <ShieldCheck className="h-3 w-3" /> User Preferences
+                  </div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">SYSTEM SETTINGS</h1>
+                  <p className="text-indigo-100/70 font-medium max-w-lg">Synchronize your workspace environment and manage institutional security protocols.</p>
+              </div>
+              <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] flex flex-col items-center gap-2 text-white">
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Identity Status</span>
+                  <span className="text-3xl font-black tracking-tighter uppercase">Authorized</span>
+                  <span className="text-[9px] font-bold opacity-60 uppercase">Tier: {userProfile?.role}</span>
+              </div>
+          </div>
       </div>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Notification Settings</CardTitle>
-          <CardDescription>
-            Choose how you want to be notified.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex items-center justify-between">
-            <Label htmlFor="email-notifications">Email Notifications</Label>
-            <Switch 
-                id="email-notifications"
-                checked={userProfile?.notificationPreferences?.email ?? true}
-                onCheckedChange={(checked) => handlePreferenceChange('email', checked)}
-                disabled={isUserLoading}
-            />
-          </div>
-           <div className="flex items-center justify-between">
-            <Label htmlFor="push-notifications">Push Notifications</Label>
-            <Switch
-                id="push-notifications"
-                checked={userProfile?.notificationPreferences?.push ?? false}
-                onCheckedChange={(checked) => handlePreferenceChange('push', checked)}
-                disabled={isUserLoading}
-            />
-          </div>
-           <div className="flex items-center justify-between">
-            <Label htmlFor="new-grades-notifications">New Grades</Label>
-            <Switch
-                id="new-grades-notifications"
-                checked={userProfile?.notificationPreferences?.newGrades ?? true}
-                onCheckedChange={(checked) => handlePreferenceChange('newGrades', checked)}
-                disabled={isUserLoading}
-            />
-          </div>
-           <div className="flex items-center justify-between">
-            <Label htmlFor="deadline-reminders-notifications">Deadline Reminders</Label>
-            <Switch
-                id="deadline-reminders-notifications"
-                checked={userProfile?.notificationPreferences?.deadlineReminders ?? true}
-                onCheckedChange={(checked) => handlePreferenceChange('deadlineReminders', checked)}
-                disabled={isUserLoading}
-            />
-          </div>
-        </CardContent>
-      </Card>
-      
-      <Card>
-        <CardHeader>
-          <CardTitle>Theme</CardTitle>
-          <CardDescription>
-            Select the color scheme for the application.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="flex gap-4">
-            <Button className="w-full" variant={theme === 'light' ? 'default' : 'outline'} onClick={() => setTheme('light')}>Light</Button>
-            <Button className="w-full" variant={theme === 'dark' ? 'default' : 'outline'} onClick={() => setTheme('dark')}>Dark</Button>
-            <Button className="w-full" variant={theme === 'system' ? 'default' : 'outline'} onClick={() => setTheme('system')}>System</Button>
-        </CardContent>
-      </Card>
+      <div className="grid gap-8 lg:grid-cols-2">
+          {/* Notification Block */}
+          <Card className="glass-card border-none overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/20">
+                <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                    <Bell className="h-5 w-5 text-primary" /> Transmission Preferences
+                </CardTitle>
+                <CardDescription className="text-xs font-medium">Configure how you receive institutional alerts and updates.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-8">
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/40 border border-indigo-50/50 hover:bg-white transition-all">
+                <div className="space-y-0.5"><Label className="text-sm font-black uppercase text-slate-800">Email Dispatch</Label><p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">Primary Inbox Delivery</p></div>
+                <Switch checked={userProfile?.notificationPreferences?.email ?? true} onCheckedChange={(c) => handlePreferenceChange('email', c)} />
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/40 border border-indigo-50/50 hover:bg-white transition-all">
+                <div className="space-y-0.5"><Label className="text-sm font-black uppercase text-slate-800">Push Notifications</Label><p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">System HUD Alerts</p></div>
+                <Switch checked={userProfile?.notificationPreferences?.push ?? false} onCheckedChange={(c) => handlePreferenceChange('push', c)} />
+              </div>
+              <div className="flex items-center justify-between p-4 rounded-2xl bg-white/40 border border-indigo-50/50 hover:bg-white transition-all">
+                <div className="space-y-0.5"><Label className="text-sm font-black uppercase text-slate-800">Academic Updates</Label><p className="text-[10px] font-medium text-slate-500 uppercase tracking-widest">New Grades & Assessment Alerts</p></div>
+                <Switch checked={userProfile?.notificationPreferences?.newGrades ?? true} onCheckedChange={(c) => handlePreferenceChange('newGrades', c)} />
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card>
-        <CardHeader>
-          <CardTitle>Account</CardTitle>
-          <CardDescription>
-            Manage your account settings.
-          </CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-4">
-          <div>
-            <Label htmlFor="password">New Password</Label>
-            <Input id="password" type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isUpdatingPassword} />
-          </div>
-          <div>
-            <Label htmlFor="confirm-password">Confirm New Password</Label>
-            <Input id="confirm-password" type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isUpdatingPassword} />
-          </div>
-        </CardContent>
-        <CardFooter className="border-t pt-6 flex justify-between">
-            <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword}>
-              {isUpdatingPassword ? 'Updating...' : 'Update Password'}
-            </Button>
-            
-            <AlertDialog>
-                <AlertDialogTrigger asChild>
-                    <Button variant="destructive" disabled={isDeletingAccount}>
-                        {isDeletingAccount ? 'Deleting...' : 'Delete Account'}
+          {/* Theme Block */}
+          <Card className="glass-card border-none overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/20">
+                <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                    <Palette className="h-5 w-5 text-accent" /> UI Synchronization
+                </CardTitle>
+                <CardDescription className="text-xs font-medium">Select the visual modality for your workspace HUD.</CardDescription>
+            </CardHeader>
+            <CardContent className="grid grid-cols-3 gap-4 pt-8">
+                {[
+                    { val: 'light', icon: Sun, label: 'Light' },
+                    { val: 'dark', icon: Moon, label: 'Dark' },
+                    { val: 'system', icon: Laptop, label: 'Auto' }
+                ].map((t) => (
+                    <Button 
+                        key={t.val} 
+                        variant={theme === t.val ? 'default' : 'outline'} 
+                        className={cn("h-32 flex-col gap-3 rounded-2xl transition-all duration-500", theme === t.val ? "shadow-xl shadow-primary/20 scale-[1.02]" : "bg-white/40")}
+                        onClick={() => setTheme(t.val)}
+                    >
+                        <t.icon className={cn("h-8 w-8", theme === t.val ? "animate-pulse" : "opacity-40")} />
+                        <span className="text-[10px] font-black uppercase tracking-[0.2em]">{t.label}</span>
                     </Button>
-                </AlertDialogTrigger>
-                <AlertDialogContent>
-                    <AlertDialogHeader>
-                        <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
-                        <AlertDialogDescription>
-                            This action cannot be undone. This will permanently delete your account and remove your data from our servers.
-                        </AlertDialogDescription>
-                    </AlertDialogHeader>
-                    <AlertDialogFooter>
-                        <AlertDialogCancel>Cancel</AlertDialogCancel>
-                        <AlertDialogAction onClick={handleDeleteAccount} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
-                            Delete
-                        </AlertDialogAction>
-                    </AlertDialogFooter>
-                </AlertDialogContent>
-            </AlertDialog>
-        </CardFooter>
-      </Card>
+                ))}
+            </CardContent>
+          </Card>
+
+          {/* Security Block */}
+          <Card className="glass-card border-none overflow-hidden">
+            <CardHeader className="bg-white/40 border-b border-white/20">
+                <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2">
+                    <KeyRound className="h-5 w-5 text-amber-500" /> Security Rotation
+                </CardTitle>
+                <CardDescription className="text-xs font-medium">Rotate your institutional access keyphrase.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-6 pt-8">
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">New Keyphrase</Label>
+                    <Input type="password" value={password} onChange={(e) => setPassword(e.target.value)} disabled={isUpdatingPassword} className="h-12 rounded-xl bg-white/50 border-none shadow-inner" />
+                </div>
+                <div className="space-y-2">
+                    <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Confirm Protocol</Label>
+                    <Input type="password" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} disabled={isUpdatingPassword} className="h-12 rounded-xl bg-white/50 border-none shadow-inner" />
+                </div>
+                <Button onClick={handleUpdatePassword} disabled={isUpdatingPassword || !password} className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">
+                    {isUpdatingPassword ? 'Syncing Keyphrase...' : 'Rotate Security Key'}
+                </Button>
+            </CardContent>
+          </Card>
+
+          {/* Danger Zone */}
+          <Card className="glass-card border-none overflow-hidden bg-destructive/5">
+            <CardHeader className="bg-destructive/10 border-b border-destructive/20">
+                <CardTitle className="text-xl font-black uppercase tracking-tight flex items-center gap-2 text-destructive">
+                    <UserX className="h-5 w-5" /> De-provision Identity
+                </CardTitle>
+                <CardDescription className="text-xs font-medium text-destructive/70">Terminate your institutional account and excise all associated data.</CardDescription>
+            </CardHeader>
+            <CardContent className="pt-10 flex flex-col items-center justify-center text-center gap-6">
+                <div className="p-6 bg-white rounded-full shadow-inner"><UserX className="h-12 w-12 text-destructive/20" /></div>
+                <p className="text-xs font-medium text-slate-500 max-w-xs leading-relaxed uppercase tracking-wider">Account excision is a non-reversible protocol. All academic transcripts will be archived and access revoked.</p>
+                <AlertDialog>
+                    <AlertDialogTrigger asChild>
+                        <Button variant="destructive" disabled={isDeletingAccount} className="h-12 px-10 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-xl shadow-destructive/20">
+                            {isDeletingAccount ? 'Excising...' : 'Terminate Identity'}
+                        </Button>
+                    </AlertDialogTrigger>
+                    <AlertDialogContent className="rounded-3xl">
+                        <AlertDialogHeader>
+                            <AlertDialogTitle className="text-2xl font-black uppercase tracking-tight">Authorize Account Excision?</AlertDialogTitle>
+                            <AlertDialogDescription className="leading-relaxed">This action will permanently terminate your access to the Campus Connect ledger. This procedure cannot be undone.</AlertDialogDescription>
+                        </AlertDialogHeader>
+                        <AlertDialogFooter className="pt-4">
+                            <AlertDialogCancel className="rounded-xl">Cancel</AlertDialogCancel>
+                            <AlertDialogAction onClick={handleDeleteAccount} className="rounded-xl bg-destructive hover:bg-destructive/90 font-black uppercase text-[10px] tracking-widest h-12 px-8">Confirm Excision</AlertDialogAction>
+                        </AlertDialogFooter>
+                    </AlertDialogContent>
+                </AlertDialog>
+            </CardContent>
+          </Card>
+      </div>
     </div>
   )
 }
