@@ -19,6 +19,7 @@ import {
     TableCell,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Megaphone, PlusCircle, Edit, Trash2, Sparkles } from 'lucide-react';
 import {
