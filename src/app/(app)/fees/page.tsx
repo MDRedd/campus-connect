@@ -344,6 +344,7 @@ export default function FeesPage() {
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Assign Individual Fee</DialogTitle>
+                                <DialogDescription>Assign a unique fee to a single student.</DialogDescription>
                             </DialogHeader>
                              <Form {...newFeeForm}>
                                 <form onSubmit={newFeeForm.handleSubmit(onNewFeeSubmit)} className="space-y-4">
