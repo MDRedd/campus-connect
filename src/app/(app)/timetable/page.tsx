@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -11,7 +12,7 @@ import {
   CardContent,
   CardDescription
 } from '@/components/ui/card';
-import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle } from 'lucide-react';
+import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -57,385 +58,164 @@ type Timetable = {
 
 const timetableSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
-  facultyId: z.string().optional(), // Optional for faculty, required for admin
+  facultyId: z.string().optional(),
   dayOfWeek: z.string().min(1, 'Please select a day.'),
-  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
-  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time format (HH:MM).'),
+  startTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time (HH:MM).'),
+  endTime: z.string().regex(/^([0-1]?[0-9]|2[0-3]):[0-5][0-9]$/, 'Invalid time (HH:MM).'),
   room: z.string().min(1, 'Room is required.'),
-  meetingUrl: z.string().url('Please enter a valid URL.').optional().or(z.literal('')),
-  semester: z.string().min(3, 'Semester is required.'),
-  year: z.coerce.number().min(new Date().getFullYear(), 'Year cannot be in the past.'),
-}).refine(data => data.endTime > data.startTime, {
-    message: "End time must be after start time.",
-    path: ["endTime"],
-});
+  meetingUrl: z.string().url('Invalid URL.').optional().or(z.literal('')),
+  semester: z.string().min(3, 'Semester required.'),
+  year: z.coerce.number().min(2020),
+}).refine(data => data.endTime > data.startTime, { message: "End after Start", path: ["endTime"] });
 
-
-const daysOfWeek = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-];
-
+const daysOfWeek = ['Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday'];
 const START_HOUR = 8;
 const END_HOUR = 18;
 
-const timeLabels = Array.from({ length: (END_HOUR - START_HOUR) }, (_, i) => {
-    const hour = START_HOUR + i;
-    return `${String(hour).padStart(2, '0')}:00`;
-});
-
-// Helper to convert time string (e.g., "09:30") to a grid row number.
 const timeToRow = (time: string) => {
     if (!time || !time.includes(':')) return 1;
     const [hours, minutes] = time.split(':').map(Number);
-    // Calculate the number of 30-minute intervals from the start hour
-    const totalIntervals = (hours - START_HOUR) * 2 + (minutes / 30);
-    return totalIntervals + 1; // grid rows are 1-indexed
+    return (hours - START_HOUR) * 2 + (minutes / 30) + 1;
 };
 
-const dayToCol = (day: string) => {
-    return daysOfWeek.indexOf(day) + 2; // +2 because col 1 is for time labels
-};
-
+const dayToCol = (day: string) => daysOfWeek.indexOf(day) + 2;
 
 export default function TimetablePage() {
     const { user: authUser, profile: userProfile, isUserLoading } = useUser();
     const firestore = useFirestore();
     const { toast } = useToast();
-    
     const [openDialog, setOpenDialog] = useState(false);
     const [editingSlot, setEditingSlot] = useState<Timetable | null>(null);
-
     const canManageTimetable = userProfile?.role === 'faculty' || userProfile?.role.includes('admin');
     const isAdmin = !!userProfile?.role.includes('admin');
 
-    const coursesQuery = useMemoFirebase(() => {
-        if (!firestore) return null;
-        return collection(firestore, 'courses');
-    }, [firestore]);
+    const coursesQuery = useMemoFirebase(() => { if (!firestore) return null; return collection(firestore, 'courses'); }, [firestore]);
     const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(coursesQuery);
     
-    const enrollmentsQuery = useMemoFirebase(() => {
-        if (!firestore || !authUser || userProfile?.role !== 'student') return null;
-        return collection(firestore, 'users', authUser.uid, 'enrollments');
-    }, [firestore, authUser, userProfile]);
-    const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<{courseId: string}>(enrollmentsQuery);
+    const enrollmentsQuery = useMemoFirebase(() => { if (!firestore || !authUser || userProfile?.role !== 'student') return null; return collection(firestore, 'users', authUser.uid, 'enrollments'); }, [firestore, authUser, userProfile]);
+    const { data: enrollments } = useCollection<{courseId: string}>(enrollmentsQuery);
     
-    const enrolledCourses = useMemo(() => {
-        if (!enrollments || !allCourses) return null;
-        const enrolledCourseIds = new Set(enrollments.map(e => e.courseId));
-        return allCourses.filter(course => enrolledCourseIds.has(course.id));
-    }, [enrollments, allCourses]);
-
+    const enrolledCourses = useMemo(() => { if (!enrollments || !allCourses) return null; const ids = new Set(enrollments.map(e => e.courseId)); return allCourses.filter(c => ids.has(c.id)); }, [enrollments, allCourses]);
     const [fullTimetable, setFullTimetable] = useState<Timetable[] | null>(null);
     const [isTimetableLoading, setIsTimetableLoading] = useState(true);
-
     const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
-
-    const allFacultyQuery = useMemoFirebase(() => {
-        if (!firestore || !isAdmin) return null;
-        return query(collection(firestore, 'users'), where('role', '==', 'faculty'));
-    }, [firestore, isAdmin]);
+    const allFacultyQuery = useMemoFirebase(() => { if (!firestore || !isAdmin) return null; return query(collection(firestore, 'users'), where('role', '==', 'faculty')); }, [firestore, isAdmin]);
     const { data: allFaculty, isLoading: areFacultyUsersLoading } = useCollection<UserProfile>(allFacultyQuery);
 
-
     useEffect(() => {
-        if (isUserLoading || areAllCoursesLoading || !userProfile || !firestore || !allCourses) {
-            return;
-        }
-
-        // Determine which courses to fetch timetables for
+        if (isUserLoading || areAllCoursesLoading || !userProfile || !firestore || !allCourses) return;
         let targetCourses: Course[] | null = null;
-        if (userProfile.role === 'student') {
-            if (areEnrollmentsLoading || !enrolledCourses) return;
-            targetCourses = enrolledCourses;
-        } else if (userProfile.role === 'faculty') {
-            if (areFacultyCoursesLoading || !facultyCourses) return;
-            targetCourses = facultyCourses;
-        } else if (isAdmin) {
-            targetCourses = allCourses;
-        }
+        if (userProfile.role === 'student') targetCourses = enrolledCourses;
+        else if (userProfile.role === 'faculty') targetCourses = facultyCourses;
+        else if (isAdmin) targetCourses = allCourses;
 
-        if (targetCourses === null) {
-            setFullTimetable([]);
-            setIsTimetableLoading(false);
-            return;
-        }
-
+        if (targetCourses === null) { setFullTimetable([]); setIsTimetableLoading(false); return; }
         const fetchTimetable = async () => {
           setIsTimetableLoading(true);
           try {
             const courseMap = new Map(allCourses.map(c => [c.id, c]));
-
             const timetablePromises = targetCourses!.map(async (course) => {
-                const timetableQuery = query(collection(firestore, 'courses', course.id, 'timetables'));
-                const querySnapshot = await getDocs(timetableQuery);
+                const querySnapshot = await getDocs(query(collection(firestore, 'courses', course.id, 'timetables')));
                 return querySnapshot.docs.map(doc => {
-                    const data = doc.data();
-                    const courseDetails = courseMap.get(data.courseId);
-                    if (courseDetails) {
-                        return { id: doc.id, ...data, course: { name: courseDetails.name, code: courseDetails.code } } as Timetable;
-                    }
-                    return null;
+                    const data = doc.data(); const details = courseMap.get(data.courseId);
+                    return details ? { id: doc.id, ...data, course: { name: details.name, code: details.code } } as Timetable : null;
                 }).filter((e): e is Timetable => e !== null);
             });
-            
-            const results = await Promise.all(timetablePromises);
-            const flattenedResults = results.flat();
-            
-            flattenedResults.sort((a, b) => a.startTime.localeCompare(b.startTime));
-            setFullTimetable(flattenedResults);
-          } catch (error) {
-            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
-            setFullTimetable([]);
-          } finally {
-            setIsTimetableLoading(false);
-          }
+            const results = (await Promise.all(timetablePromises)).flat();
+            results.sort((a, b) => a.startTime.localeCompare(b.startTime));
+            setFullTimetable(results);
+          } catch (error) { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' })); setFullTimetable([]); } 
+          finally { setIsTimetableLoading(false); }
         };
-    
         fetchTimetable();
-      }, [
-          isUserLoading, areAllCoursesLoading, userProfile, firestore, allCourses,
-          areEnrollmentsLoading, enrolledCourses, areFacultyCoursesLoading, facultyCourses, isAdmin
-      ]);
+      }, [isUserLoading, areAllCoursesLoading, userProfile, firestore, allCourses, enrolledCourses, areFacultyCoursesLoading, facultyCourses, isAdmin]);
 
+    const form = useForm<z.infer<typeof timetableSchema>>({ resolver: zodResolver(timetableSchema), defaultValues: { year: new Date().getFullYear(), semester: 'Fall' } });
+    const handleAddNew = () => { setEditingSlot(null); form.reset({ year: new Date().getFullYear(), semester: 'Fall', meetingUrl: '' }); setOpenDialog(true); };
+    const handleEdit = (slot: Timetable) => { setEditingSlot(slot); form.reset({ ...slot, meetingUrl: slot.meetingUrl || '' }); setOpenDialog(true); };
+    const handleDelete = (slot: Timetable) => { if (!firestore || !confirm('Delete slot?')) return; deleteDocumentNonBlocking(doc(firestore, 'courses', slot.courseId, 'timetables', slot.id)); toast({ title: 'Success', description: 'Deleted.' }); };
 
-      const form = useForm<z.infer<typeof timetableSchema>>({
-          resolver: zodResolver(timetableSchema),
-          defaultValues: { year: new Date().getFullYear(), semester: 'Fall' }
-      });
-      
-    const handleAddNew = () => {
-        setEditingSlot(null);
-        form.reset({ year: new Date().getFullYear(), semester: 'Fall', meetingUrl: '' });
-        setOpenDialog(true);
-    };
+    function onTimetableSubmit(values: z.infer<typeof timetableSchema>) {
+        if (!firestore || !authUser) return;
+        let finalValues = { ...values, facultyId: isAdmin ? values.facultyId : authUser.uid };
+        if (editingSlot) updateDocumentNonBlocking(doc(firestore, 'courses', editingSlot.courseId, 'timetables', editingSlot.id), finalValues);
+        else addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'timetables'), finalValues);
+        setOpenDialog(false); setEditingSlot(null); toast({ title: 'Success', description: 'Schedule updated.' });
+    }
 
-    const handleEdit = (slot: Timetable) => {
-        setEditingSlot(slot);
-        form.reset({
-            courseId: slot.courseId,
-            facultyId: slot.facultyId,
-            dayOfWeek: slot.dayOfWeek,
-            startTime: slot.startTime,
-            endTime: slot.endTime,
-            room: slot.room,
-            meetingUrl: slot.meetingUrl || '',
-            semester: slot.semester,
-            year: slot.year,
-        });
-        setOpenDialog(true);
-    };
-
-    const handleDelete = (slot: Timetable) => {
-        if (!firestore) return;
-        if (!confirm('Are you sure you want to delete this timetable slot?')) return;
-        const slotRef = doc(firestore, 'courses', slot.courseId, 'timetables', slot.id);
-        deleteDocumentNonBlocking(slotRef);
-        toast({ title: 'Success', description: 'Timetable slot deleted.' });
-    };
-
-      function onTimetableSubmit(values: z.infer<typeof timetableSchema>) {
-        if (!firestore || !authUser || !userProfile) return;
-
-        let finalValues: any = { ...values };
-
-        if (isAdmin) {
-          if (!values.facultyId) {
-            toast({ variant: 'destructive', title: 'Error', description: 'Please select a faculty member.'});
-            return;
-          }
-        } else { // Is Faculty
-          finalValues.facultyId = authUser.uid;
-        }
-
-        if (editingSlot) {
-            const slotRef = doc(firestore, 'courses', editingSlot.courseId, 'timetables', editingSlot.id);
-            updateDocumentNonBlocking(slotRef, finalValues);
-            toast({ title: 'Success', description: 'Timetable slot updated.' });
-        } else {
-            const timetableRef = collection(firestore, 'courses', values.courseId, 'timetables');
-            addDocumentNonBlocking(timetableRef, finalValues);
-            toast({ title: 'Success', description: 'Timetable slot added.' });
-        }
-        
-        setOpenDialog(false);
-        setEditingSlot(null);
-      }
-
-      const isLoading = isUserLoading || isTimetableLoading;
-      const coursesForForm = isAdmin ? allCourses : facultyCourses;
-      const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
+    const isLoading = isUserLoading || isTimetableLoading;
+    const isIndexError = facultyCoursesError?.code === 'failed-precondition' || facultyCoursesError?.message?.toLowerCase().includes('index');
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-start">
-        <div>
-            <h1 className="text-3xl font-bold tracking-tight">Class Timetable</h1>
-            <p className="text-muted-foreground">
-            {canManageTimetable ? "Manage your weekly class schedule." : "Your weekly class schedule."}
-            </p>
-        </div>
-        {canManageTimetable && (
-            <Dialog open={openDialog} onOpenChange={setOpenDialog}>
-                <DialogTrigger asChild>
-                    <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> {editingSlot ? 'Edit Slot' : 'Add Slot'}</Button>
-                </DialogTrigger>
-                <DialogContent>
-                    <DialogHeader><DialogTitle>{editingSlot ? 'Edit Timetable Slot' : 'Add New Timetable Slot'}</DialogTitle></DialogHeader>
-                    <DialogDescription>Define when and where a class session takes place.</DialogDescription>
-                    { (areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96" /> : (
-                    <Form {...form}>
-                        <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4">
-                            <FormField control={form.control} name="courseId" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Course</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                    <SelectContent>{coursesForForm?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-
-                            {isAdmin && (
-                                <FormField control={form.control} name="facultyId" render={({ field }) => (
-                                    <FormItem>
-                                    <FormLabel>Faculty</FormLabel>
-                                    <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a faculty member" /></SelectTrigger></FormControl>
-                                        <SelectContent>{allFaculty?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
-                                    </FormItem>
-                                )} />
-                            )}
-
-                            <FormField control={form.control} name="dayOfWeek" render={({ field }) => (
-                                <FormItem>
-                                <FormLabel>Day of Week</FormLabel>
-                                <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                    <FormControl><SelectTrigger><SelectValue placeholder="Select a day" /></SelectTrigger></FormControl>
-                                    <SelectContent>{daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent>
-                                </Select>
-                                <FormMessage />
-                                </FormItem>
-                            )} />
-                             <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="startTime" render={({ field }) => ( <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input placeholder="e.g., 09:00" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel>End Time</FormLabel><FormControl><Input placeholder="e.g., 10:30" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            </div>
-                            <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel>Room</FormLabel><FormControl><Input placeholder="e.g., A-101" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel>Online Meeting URL (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://meet.google.com/..." {...field} /></FormControl><FormMessage /></FormItem> )} />
-                             <div className="grid grid-cols-2 gap-4">
-                                <FormField control={form.control} name="semester" render={({ field }) => ( <FormItem><FormLabel>Semester</FormLabel><FormControl><Input placeholder="e.g., Fall" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={form.control} name="year" render={({ field }) => ( <FormItem><FormLabel>Year</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                            </div>
-                            <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingSlot ? 'Save Changes' : 'Add Slot'}</Button></DialogFooter>
-                        </form>
-                    </Form>
-                    )}
-                </DialogContent>
-            </Dialog>
-        )}
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+      <div className="academic-hero">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm"><CalendarIcon className="h-3 w-3" /> Weekly Schedule</div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">CLASS TIMETABLE</h1>
+                  <p className="text-indigo-100/70 font-medium max-w-lg">{canManageTimetable ? "Synchronize academic calendars and manage session venues." : "View your official institutional class distribution for the current term."}</p>
+              </div>
+              {canManageTimetable && <Button onClick={handleAddNew} className="bg-white text-primary hover:bg-indigo-50 font-black rounded-xl h-12 px-8 shadow-xl shadow-black/20 uppercase tracking-widest text-[10px]"><PlusCircle className="mr-2 h-4 w-4" /> Add Session Slot</Button>}
+          </div>
       </div>
 
-      {isIndexError && (
-            <Alert variant="destructive" className="border-destructive/50 bg-destructive/5">
-                <AlertCircle className="h-4 w-4" />
-                <AlertTitle>Database Index Required</AlertTitle>
-                <AlertDescription>
-                    The timetable cannot load data because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link in the error message to create the required index for the <code>timetables</code> collection group.
-                </AlertDescription>
-            </Alert>
-        )}
+      {isIndexError && <Alert variant="destructive" className="glass-card bg-destructive/10 border-destructive/20"><AlertCircle className="h-4 w-4" /><AlertTitle className="font-black uppercase tracking-tight text-xs">Database Index Required</AlertTitle><AlertDescription className="text-xs">Check browser console (F12) to authorize search index for <code>timetables</code> group.</AlertDescription></Alert>}
       
-        <div className="rounded-lg border bg-card text-card-foreground shadow-sm">
+      <Card className="glass-card border-none overflow-hidden p-0 shadow-2xl">
             {isLoading ? <Skeleton className="h-[600px] w-full" /> : (
-            <div
-                className="grid relative"
-                style={{
-                    gridTemplateColumns: '4rem repeat(5, 1fr)',
-                    gridTemplateRows: `2.5rem repeat(${(END_HOUR - START_HOUR) * 2}, 3rem)`,
-                }}
-            >
-                {/* Column Headers (Days) */}
-                <div />
-                {daysOfWeek.map((day, i) => (
-                    <div key={day} style={{ gridColumn: i + 2 }} className="text-center font-semibold p-2 border-b">
-                        {day}
-                    </div>
-                ))}
-                
-                {/* Row Headers (Times) and Grid Lines */}
+            <div className="grid relative overflow-x-auto" style={{ gridTemplateColumns: '5rem repeat(5, 1fr)', gridTemplateRows: `3rem repeat(${(END_HOUR - START_HOUR) * 2}, 3.5rem)` }}>
+                <div className="bg-slate-50/80 border-b border-r" />
+                {daysOfWeek.map((day, i) => ( <div key={day} style={{ gridColumn: i + 2 }} className="bg-slate-50/80 text-center font-black uppercase text-[10px] tracking-[0.2em] py-4 border-b border-r last:border-r-0 text-muted-foreground">{day}</div> ))}
                 {Array.from({ length: (END_HOUR - START_HOUR) * 2 }).map((_, i) => {
-                    const hour = START_HOUR + Math.floor(i / 2);
-                    const minute = (i % 2) * 30;
-                    const isHour = minute === 0;
-
+                    const hour = START_HOUR + Math.floor(i / 2); const isHour = (i % 2) === 0;
                     return (
                         <React.Fragment key={i}>
-                            <div
-                                style={{ gridRow: i + 2 }}
-                                className={cn("text-right pr-2 text-muted-foreground", isHour ? 'text-xs -translate-y-2' : 'text-[10px] opacity-0')}
-                            >
-                                {isHour && `${String(hour).padStart(2, '0')}:00`}
-                            </div>
-                            <div
-                                style={{ gridRow: i + 2, gridColumn: '2 / span 5' }}
-                                className={cn("border-t", isHour ? "border-border" : "border-dashed")}
-                            ></div>
+                            <div style={{ gridRow: i + 2 }} className={cn("text-right pr-4 bg-slate-50/40 border-r", isHour ? 'text-[10px] font-black uppercase text-muted-foreground pt-1' : '')}>{isHour && `${String(hour).padStart(2, '0')}:00`}</div>
+                            <div style={{ gridRow: i + 2, gridColumn: '2 / span 5' }} className={cn("border-t border-r last:border-r-0", isHour ? "border-slate-100" : "border-slate-50 border-dashed")} />
                         </React.Fragment>
                     )
                 })}
-
-                {/* Timetable Entries */}
-                {fullTimetable?.map((entry, index) => {
-                    const rowStart = timeToRow(entry.startTime);
-                    const rowEnd = timeToRow(entry.endTime);
-                    const col = dayToCol(entry.dayOfWeek);
-                    const colorIndex = (entry.courseId.charCodeAt(0) % 5) + 1; // Consistent color per course
-
-                    if (rowStart === null || rowEnd === null || col === null) return null;
-                    
+                {fullTimetable?.map((entry) => {
+                    const rStart = timeToRow(entry.startTime); const rEnd = timeToRow(entry.endTime); const col = dayToCol(entry.dayOfWeek);
+                    const colorIdx = (entry.courseId.charCodeAt(0) % 5) + 1;
                     return (
-                        <div
-                            key={entry.id}
-                            style={{
-                                gridRow: `${rowStart} / ${rowEnd}`,
-                                gridColumn: col
-                            }}
-                            className={cn(
-                                "relative m-px p-2 flex flex-col rounded-lg border group",
-                                `bg-chart-${colorIndex}/10 border-chart-${colorIndex}/20 text-chart-${colorIndex}`
-                            )}
-                        >
-                            <p className="font-bold text-sm leading-tight">{entry.course.name}</p>
-                            <p className="text-xs">{entry.course.code}</p>
-                            <div className="mt-auto space-y-1 text-xs">
-                                <div className="flex items-center gap-1.5"><Clock className="h-3 w-3" />{entry.startTime} - {entry.endTime}</div>
-                                <div className="flex items-center gap-1.5"><MapPin className="h-3 w-3" />{entry.room}</div>
+                        <div key={entry.id} style={{ gridRow: `${rStart} / ${rEnd}`, gridColumn: col }} className={cn("relative m-1 p-3 flex flex-col rounded-2xl border transition-all duration-300 group hover:z-20 hover:scale-[1.02] hover:shadow-xl", `bg-chart-${colorIdx}/10 border-chart-${colorIdx}/30 text-chart-${colorIdx}`)}>
+                            <div className="flex justify-between items-start">
+                                <p className="font-black text-xs uppercase tracking-tight leading-none truncate pr-4">{entry.course.name}</p>
+                                {entry.meetingUrl && <a href={entry.meetingUrl} target="_blank" rel="noopener noreferrer" className="shrink-0 p-1 rounded-full hover:bg-black/5"><Video className="h-3 w-3" /></a>}
                             </div>
-                            {entry.meetingUrl && (
-                                <a href={entry.meetingUrl} target="_blank" rel="noopener noreferrer" className="absolute top-1 right-1 p-1 rounded-full hover:bg-black/10">
-                                    <Video className="h-4 w-4" />
-                                </a>
-                            )}
-                            {canManageTimetable && (
-                                <div className="absolute bottom-1 right-1 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                                    <Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(entry)}><Pencil className="h-3 w-3"/></Button>
-                                    <Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={() => handleDelete(entry)}><Trash2 className="h-3 w-3"/></Button>
-                                </div>
-                            )}
+                            <p className="text-[9px] font-black uppercase tracking-widest opacity-60 mt-1">{entry.course.code}</p>
+                            <div className="mt-auto space-y-1">
+                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-tighter"><Clock className="h-2.5 w-2.5" />{entry.startTime}-{entry.endTime}</div>
+                                <div className="flex items-center gap-1.5 text-[9px] font-black uppercase tracking-tighter"><MapPin className="h-2.5 w-2.5" />{entry.room}</div>
+                            </div>
+                            {canManageTimetable && <div className="absolute top-2 right-2 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity bg-white/40 backdrop-blur-sm rounded-lg p-0.5 border border-white/20"><Button variant="ghost" size="icon" className="h-6 w-6" onClick={() => handleEdit(entry)}><Pencil className="h-3 w-3"/></Button><Button variant="ghost" size="icon" className="h-6 w-6 hover:text-destructive" onClick={() => handleDelete(entry)}><Trash2 className="h-3 w-3"/></Button></div>}
                         </div>
                     )
                 })}
             </div>
             )}
-        </div>
+        </Card>
+
+        <Dialog open={openDialog} onOpenChange={setOpenDialog}>
+            <DialogContent className="rounded-3xl">
+                <DialogHeader><DialogTitle>{editingSlot ? 'Edit Session' : 'Allocate New Session'}</DialogTitle><DialogDescription>Define temporal and physical allocation for class sessions.</DialogDescription></DialogHeader>
+                {(areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96" /> : (
+                <Form {...form}><form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4">
+                    <FormField control={form.control} name="courseId" render={({ field }) => ( <FormItem><FormLabel>Target Module</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingSlot}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{coursesForForm?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
+                    {isAdmin && ( <FormField control={form.control} name="facultyId" render={({ field }) => ( <FormItem><FormLabel>Assigned Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{allFaculty?.map(f => <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} /> )}
+                    <FormField control={form.control} name="dayOfWeek" render={({ field }) => ( <FormItem><FormLabel>Operational Day</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}><FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select day" /></SelectTrigger></FormControl><SelectContent className="rounded-xl">{daysOfWeek.map(d => <SelectItem key={d} value={d}>{d}</SelectItem>)}</SelectContent></Select><FormMessage /></FormItem> )} />
+                    <div className="grid grid-cols-2 gap-4">
+                        <FormField control={form.control} name="startTime" render={({ field }) => ( <FormItem><FormLabel>Start (HH:MM)</FormLabel><FormControl><Input placeholder="09:00" {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
+                        <FormField control={form.control} name="endTime" render={({ field }) => ( <FormItem><FormLabel>End (HH:MM)</FormLabel><FormControl><Input placeholder="10:30" {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
+                    </div>
+                    <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel>Physical Venue</FormLabel><FormControl><Input placeholder="A-101" {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
+                    <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel>Online Gateway (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl" /></FormControl></FormItem> )} />
+                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Update Schedule</Button></DialogFooter>
+                </form></Form>
+                )}
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

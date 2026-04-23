@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -21,12 +22,12 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
+  DialogDescription,
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BookCopy, FileText, Download, PlusCircle, Trash2 } from 'lucide-react';
+import { BookCopy, FileText, Download, PlusCircle, Trash2, GraduationCap, Library, Sparkles, Clock } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
-import { generatePersonalizedNotification } from '@/ai/flows/personalized-notification-generation';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import * as z from 'zod';
@@ -36,6 +37,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useToast } from '@/hooks/use-toast';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
+import { cn } from '@/lib/utils';
 
 // Simplified types
 type Enrollment = { id: string; courseId: string; };
@@ -43,7 +45,6 @@ type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
 type Submission = { id: string; assignmentId: string; studentId: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
-type Student = { id: string; name: string; };
 
 const assignmentSchema = z.object({
   courseId: z.string().min(1, 'Please select a course.'),
@@ -198,29 +199,23 @@ export default function AcademicsPage() {
 
   const handleDropCourse = (courseId: string) => {
       if (!firestore || !authUser || !enrollments) return;
-      if (!confirm('Are you sure you want to drop this course? All your submissions and records for this course will remain in the database, but you will no longer see it in your academics list.')) return;
+      if (!confirm('Are you sure you want to drop this course? All your submissions and records will be preserved, but you will no longer see it in your list.')) return;
 
       const enrollment = enrollments.find(e => e.courseId === courseId);
       if (enrollment) {
           deleteDocumentNonBlocking(doc(firestore, 'users', authUser.uid, 'enrollments', enrollment.id));
-          toast({ title: 'Course Dropped', description: 'You have been un-enrolled from the course.' });
+          toast({ title: 'Course Dropped', description: 'You have been un-enrolled.' });
       }
   };
 
   async function onAddAssignment(values: z.infer<typeof assignmentSchema>) {
     if (!firestore || !authUser) return;
-    
-    const newAssignmentRef = await addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'assignments'), {
-        title: values.title,
-        description: values.description,
-        courseId: values.courseId,
+    addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'assignments'), {
+        ...values,
         deadline: new Date(values.deadline).toISOString(),
         facultyId: authUser.uid,
     });
-
-    if (!newAssignmentRef) return;
-
-    toast({ title: 'Success', description: 'Assignment added.' });
+    toast({ title: 'Success', description: 'Assignment posted.' });
     setOpenAssignmentDialog(false);
     assignmentForm.reset();
   }
@@ -228,9 +223,7 @@ export default function AcademicsPage() {
   function onAddMaterial(values: z.infer<typeof materialSchema>) {
       if (!firestore || !authUser) return;
       addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'study_materials'), {
-          title: values.title,
-          description: values.description,
-          fileUrl: values.fileUrl,
+          ...values,
           uploadedBy: authUser.uid,
           uploadDate: new Date().toISOString()
       });
@@ -242,176 +235,215 @@ export default function AcademicsPage() {
   const isLoading = isUserLoading || areDisplayCoursesLoading;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Academics</h1>
-        <p className="text-muted-foreground">
-          {isFaculty ? 'Manage your courses, assignments, and study materials.' : 'View your courses, assignments, and study materials.'}
-        </p>
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+      <div className="academic-hero">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                      <Library className="h-3 w-3" /> Academic Ledger
+                  </div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter">ACADEMICS</h1>
+                  <p className="text-indigo-100/70 font-medium max-w-lg">
+                      {isFaculty ? 'Manage institutional learning assets, assignments, and curriculum progress.' : 'Your centralized academic repository for courses, assignments, and study materials.'}
+                  </p>
+              </div>
+              <div className="hidden lg:block opacity-20">
+                  <BookCopy className="h-32 w-32" />
+              </div>
+          </div>
       </div>
+
       <Tabs defaultValue="courses" className="w-full">
-        <TabsList className="grid w-full max-w-md grid-cols-3">
-          <TabsTrigger value="courses">My Courses</TabsTrigger>
-          <TabsTrigger value="assignments">Assignments</TabsTrigger>
-          <TabsTrigger value="materials">Study Materials</TabsTrigger>
+        <TabsList className="grid w-full max-w-md grid-cols-3 h-12 p-1 bg-white/50 backdrop-blur-sm border rounded-xl">
+          <TabsTrigger value="courses" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Courses</TabsTrigger>
+          <TabsTrigger value="assignments" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Assignments</TabsTrigger>
+          <TabsTrigger value="materials" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Materials</TabsTrigger>
         </TabsList>
-        <TabsContent value="courses" className="mt-6">
+
+        <TabsContent value="courses" className="mt-8">
           {isLoading ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-              {[...Array(3)].map((_, i) => ( <Card key={i}><CardHeader><Skeleton className="h-24" /></CardHeader></Card> ))}
+              {[...Array(3)].map((_, i) => ( <Skeleton key={i} className="h-48 rounded-[2rem]" /> ))}
             </div>
           ) : displayCourses && displayCourses.length > 0 ? (
             <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
               {displayCourses.map((course) => (
-                <Card key={course.id} className="flex flex-col group relative">
-                  <CardHeader>
-                    <CardTitle className="flex items-center gap-4">
-                      <div className="bg-primary/10 text-primary p-3 rounded-lg"> <BookCopy className="h-6 w-6" /> </div>
-                      <span className="flex-1">{course.name}</span>
-                    </CardTitle>
-                    <CardDescription>{course.code} | {course.credits} Credits</CardDescription>
+                <Card key={course.id} className="glass-card border-none flex flex-col group overflow-hidden">
+                  <CardHeader className="pb-4">
+                    <div className="flex justify-between items-start">
+                        <div className="bg-primary/5 text-primary p-4 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-500">
+                             <BookCopy className="h-6 w-6" />
+                        </div>
+                        {!isFaculty && (
+                            <Button variant="ghost" size="icon" className="text-muted-foreground hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDropCourse(course.id)}>
+                                <Trash2 className="h-4 w-4" />
+                            </Button>
+                        )}
+                    </div>
+                    <div className="pt-4 space-y-1">
+                        <CardTitle className="text-xl font-black tracking-tight uppercase leading-none">{course.name}</CardTitle>
+                        <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60">{course.code} • {course.credits} Credits</CardDescription>
+                    </div>
                   </CardHeader>
-                  <CardFooter className="flex gap-2">
-                    <Button size="sm" asChild className="flex-1"><Link href={`/courses/${course.id}`}>View Details</Link></Button>
-                    {!isFaculty && (
-                        <Button variant="ghost" size="icon" title="Drop Course" className="text-destructive opacity-0 group-hover:opacity-100 transition-opacity" onClick={() => handleDropCourse(course.id)}>
-                            <Trash2 className="h-4 w-4" />
-                        </Button>
-                    )}
+                  <CardFooter className="mt-auto pt-4">
+                    <Button asChild className="w-full rounded-xl shadow-lg shadow-primary/10 group-hover:shadow-primary/20 transition-all">
+                        <Link href={`/courses/${course.id}`}>Enter Learning Space <ArrowRight className="ml-2 h-4 w-4 group-hover:translate-x-1 transition-transform" /></Link>
+                    </Button>
                   </CardFooter>
                 </Card>
               ))}
             </div>
           ) : (
-             <Card><CardContent className="p-8 text-center"><p className="text-muted-foreground">{isFaculty ? 'You are not assigned to any courses.' : 'You are not enrolled in any courses.'}</p></CardContent></Card>
+             <div className="flex flex-col items-center justify-center p-20 glass-card border-dashed">
+                <BookCopy className="h-16 w-16 text-muted-foreground opacity-20 mb-4" />
+                <p className="font-bold text-muted-foreground uppercase tracking-widest text-xs">{isFaculty ? 'No courses assigned' : 'No active enrollments'}</p>
+             </div>
           )}
         </TabsContent>
 
-        <TabsContent value="assignments" className="mt-6">
-            <Card>
-              <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                  <CardTitle>Assignments</CardTitle>
-                  <CardDescription>{isFaculty ? 'Manage assignments for your courses.' : 'Submit your work before the deadline.'}</CardDescription>
+        <TabsContent value="assignments" className="mt-8">
+            <Card className="glass-card border-none">
+              <CardHeader className="flex flex-row items-center justify-between pb-8 border-b border-indigo-50/50">
+                <div className="space-y-1">
+                  <CardTitle className="text-2xl font-black tracking-tight uppercase">ACTIVE ASSIGNMENTS</CardTitle>
+                  <CardDescription className="text-xs font-medium">{isFaculty ? 'Manage curriculum milestones.' : 'Submit academic work before institutional deadlines.'}</CardDescription>
                 </div>
                 {isFaculty && (
                     <Dialog open={openAssignmentDialog} onOpenChange={setOpenAssignmentDialog}>
                         <DialogTrigger asChild>
-                            <Button size="sm" disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> Add Assignment</Button>
+                            <Button className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> New Assignment</Button>
                         </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader><DialogTitle>Add New Assignment</DialogTitle></DialogHeader>
+                        <DialogContent className="rounded-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Post New Assignment</DialogTitle>
+                                <DialogDescription>Define assignment scope and submission deadline.</DialogDescription>
+                            </DialogHeader>
                             <Form {...assignmentForm}>
                                 <form onSubmit={assignmentForm.handleSubmit(onAddAssignment)} className="space-y-4">
                                 <FormField control={assignmentForm.control} name="courseId" render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Course</FormLabel>
+                                    <FormLabel>Target Course</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                        <SelectContent>{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select><FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={assignmentForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={assignmentForm.control} name="deadline" render={({ field }) => ( <FormItem><FormLabel>Deadline</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Assignment</Button></DialogFooter>
+                                <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Assignment Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={assignmentForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Scope/Description</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={assignmentForm.control} name="deadline" render={({ field }) => ( <FormItem><FormLabel>Deadline</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Publish Assignment</Button></DialogFooter>
                                 </form>
                             </Form>
                         </DialogContent>
                     </Dialog>
                 )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="grid gap-4 mt-6">
                 {areAssignmentsLoading || (!isFaculty && areMySubmissionsLoading) ? (
-                    <Skeleton className="h-32 w-full" />
+                    <Skeleton className="h-32 w-full rounded-2xl" />
                 ) : assignments && assignments.length > 0 ? (
                     assignments.map(assignment => {
                       const mySubmission = mySubmissions?.[assignment.id];
-                      const buttonText = isFaculty ? 'View Submissions' : mySubmission ? 'View Submission' : 'Submit';
+                      const buttonText = isFaculty ? 'Manage Submissions' : mySubmission ? 'View Submission' : 'Submit Work';
                       return (
-                        <Card key={assignment.id}>
-                            <CardHeader><CardTitle>{assignment.title}</CardTitle><CardDescription>{assignment.courseName} ({assignment.courseCode})</CardDescription></CardHeader>
-                            <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
-                            <CardFooter className="flex justify-between items-center">
-                            <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                            <Button asChild>
-                                <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>
-                                    {buttonText}
-                                </Link>
-                            </Button>
+                        <Card key={assignment.id} className="border border-indigo-50/50 hover:border-primary/20 transition-all group overflow-hidden bg-white/40">
+                            <CardHeader className="flex flex-row items-center gap-4">
+                                <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
+                                    <FileText className="h-6 w-6 text-primary" />
+                                </div>
+                                <div className="flex-1 min-w-0">
+                                    <CardTitle className="text-lg font-bold truncate group-hover:text-primary transition-colors uppercase tracking-tight">{assignment.title}</CardTitle>
+                                    <CardDescription className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest">{assignment.courseName} ({assignment.courseCode})</CardDescription>
+                                </div>
+                                <div className="hidden md:flex flex-col items-end gap-1">
+                                    <p className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground flex items-center gap-1.5"><Clock className="h-3 w-3" /> Deadline</p>
+                                    <p className="text-sm font-bold text-slate-700">{format(new Date(assignment.deadline), 'MMM d, yyyy')}</p>
+                                </div>
+                            </CardHeader>
+                            <CardFooter className="bg-slate-50/30 px-6 py-4 flex justify-between items-center">
+                                <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{assignment.description}</p>
+                                <Button asChild variant={mySubmission ? "outline" : "default"} className="rounded-xl h-10 px-6 shrink-0">
+                                    <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>
+                                        {buttonText}
+                                    </Link>
+                                </Button>
                             </CardFooter>
                         </Card>
                       )
                     })
                 ) : (
-                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                    <FileText className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No Assignments... Yet!</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{isFaculty ? 'Add an assignment to get started.' : 'Check back here for updates on your coursework.'}</p>
+                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                        <FileText className="h-16 w-16 mb-4" />
+                        <p className="font-black uppercase tracking-tighter">No Active Assignments</p>
                     </div>
                 )}
               </CardContent>
             </Card>
         </TabsContent>
 
-        <TabsContent value="materials" className="mt-6">
-            <Card>
-              <CardHeader className="flex flex-row items-start justify-between">
-                <div>
-                    <CardTitle>Study Materials</CardTitle>
-                    <CardDescription>{isFaculty ? 'Manage study materials for your courses.' : 'Download lecture notes and other resources.'}</CardDescription>
+        <TabsContent value="materials" className="mt-8">
+            <Card className="glass-card border-none">
+              <CardHeader className="flex flex-row items-center justify-between border-b border-indigo-50/50 pb-8">
+                <div className="space-y-1">
+                    <CardTitle className="text-2xl font-black tracking-tight uppercase">CURRICULUM ASSETS</CardTitle>
+                    <CardDescription className="text-xs font-medium">{isFaculty ? 'Host course materials and resources.' : 'Access verified institutional learning resources.'}</CardDescription>
                 </div>
                 {isFaculty && (
                     <Dialog open={openMaterialDialog} onOpenChange={setOpenMaterialDialog}>
                         <DialogTrigger asChild>
-                            <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Add Material</Button>
+                            <Button className="rounded-xl shadow-lg shadow-accent/20"><PlusCircle className="mr-2 h-4 w-4" /> Add Resource</Button>
                         </DialogTrigger>
-                        <DialogContent>
-                            <DialogHeader><DialogTitle>Add New Study Material</DialogTitle></DialogHeader>
+                        <DialogContent className="rounded-3xl">
+                            <DialogHeader>
+                                <DialogTitle>Upload Study Material</DialogTitle>
+                                <DialogDescription>Host a new resource for your students.</DialogDescription>
+                            </DialogHeader>
                             <Form {...materialForm}>
                                 <form onSubmit={materialForm.handleSubmit(onAddMaterial)} className="space-y-4">
                                 <FormField control={materialForm.control} name="courseId" render={({ field }) => (
                                     <FormItem>
                                     <FormLabel>Course</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                        <SelectContent>{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                    </Select>
-                                    <FormMessage />
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select><FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={materialForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={materialForm.control} name="fileUrl" render={({ field }) => ( <FormItem><FormLabel>File URL</FormLabel><FormControl><Input type="url" placeholder="https://example.com/notes.pdf" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Add Material</Button></DialogFooter>
+                                <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Resource Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={materialForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Brief Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={materialForm.control} name="fileUrl" render={({ field }) => ( <FormItem><FormLabel>Resource Link (Drive/URL)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Save Material</Button></DialogFooter>
                                 </form>
                             </Form>
                         </DialogContent>
                     </Dialog>
                 )}
               </CardHeader>
-              <CardContent className="space-y-4">
+              <CardContent className="grid gap-4 mt-6">
                 {areStudyMaterialsLoading ? (
-                    <Skeleton className="h-20 w-full" />
+                    <Skeleton className="h-24 w-full rounded-2xl" />
                 ) : studyMaterials && studyMaterials.length > 0 ? (
                     studyMaterials.map(material => (
-                    <Card key={material.id} className="flex items-center justify-between p-4">
-                        <div className="flex-1">
-                        <h4 className="font-semibold">{material.title}</h4>
-                        <p className="text-sm text-muted-foreground">{material.description}</p>
+                    <Card key={material.id} className="group flex items-center justify-between p-6 border border-indigo-50/50 hover:bg-slate-50/50 transition-all rounded-2xl bg-white/40">
+                        <div className="flex items-center gap-6">
+                            <div className="bg-accent/10 text-accent p-4 rounded-2xl group-hover:scale-110 transition-transform">
+                                <Download className="h-6 w-6" />
+                            </div>
+                            <div className="flex-1 space-y-1">
+                                <h4 className="font-black text-slate-800 uppercase tracking-tight">{material.title}</h4>
+                                <p className="text-xs text-muted-foreground font-medium">{material.description} • <span className="text-accent">{material.courseCode}</span></p>
+                            </div>
                         </div>
-                        <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm" asChild><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Download</a></Button>
-                        </div>
+                        <Button variant="outline" size="sm" asChild className="rounded-xl h-10 px-6 border-indigo-100 hover:bg-white">
+                            <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">Download <Download className="ml-2 h-4 w-4" /></a>
+                        </Button>
                     </Card>
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                    <Download className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No Materials Available</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">{isFaculty ? 'Upload study materials for your students.' : 'Your instructors will upload materials here.'}</p>
+                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                        <Download className="h-16 w-16 mb-4" />
+                        <p className="font-black uppercase tracking-tighter text-xs">Repository Empty</p>
                     </div>
                 )}
               </CardContent>

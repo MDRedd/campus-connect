@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -27,6 +28,8 @@ import {
   Trash2,
   MapPin,
   MessageCircle,
+  Sparkles,
+  Zap,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -50,6 +53,7 @@ import { format } from 'date-fns';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
+import { Badge } from '@/components/ui/badge';
 
 // Types based on backend.json
 type Course = { id: string; name: string; code: string; };
@@ -58,7 +62,6 @@ type Club = { id: string; name: string; description: string; facultyIncharge: st
 type Event = { id: string; title: string; description: string; date: string; time: string; location: string; organizer: string; };
 type CommunityPost = { id: string; title: string; description: string; studentId: string; studentName: string; createdAt: any; };
 type UserProfile = { id: string; name: string; role: string; };
-
 
 const clubSchema = z.object({
   name: z.string().min(3, 'Club name must be at least 3 characters long.'),
@@ -85,7 +88,6 @@ const communityPostSchema = z.object({
   title: z.string().min(5, 'Title must be at least 5 characters long.'),
   description: z.string().min(10, 'Description is required.'),
 });
-
 
 export default function EngagementPage() {
     const firestore = useFirestore();
@@ -129,10 +131,7 @@ export default function EngagementPage() {
 
     const eventsQuery = useMemoFirebase(() => {
         if (!firestore || !user) return null;
-        return query(
-            collection(firestore, 'events'), 
-            orderBy('date', 'asc')
-        );
+        return query(collection(firestore, 'events'), orderBy('date', 'asc'));
     }, [firestore, user]);
     const { data: events, isLoading: areEventsLoading } = useCollection<Event>(eventsQuery);
 
@@ -142,15 +141,9 @@ export default function EngagementPage() {
     }, [firestore]);
     const { data: communityPosts, isLoading: areCommunityPostsLoading } = useCollection<CommunityPost>(communityPostsQuery);
     
-    // Fetch all forums from all courses
     useEffect(() => {
         if (!firestore || areCoursesLoading) return;
-        if (!allCourses) {
-            setForums([]);
-            setAreForumsLoading(false);
-            return;
-        }
-
+        if (!allCourses) { setForums([]); setAreForumsLoading(false); return; }
         const fetchForums = async () => {
             setAreForumsLoading(true);
             const allForums: Forum[] = [];
@@ -159,23 +152,15 @@ export default function EngagementPage() {
                     const forumsQuery = query(collection(firestore, 'courses', course.id, 'forums'));
                     const querySnapshot = await getDocs(forumsQuery);
                     querySnapshot.forEach((doc) => {
-                        allForums.push({
-                            id: doc.id,
-                            courseCode: course.code,
-                            courseName: course.name,
-                            ...(doc.data() as Omit<Forum, 'id'>)
-                        });
+                        allForums.push({ id: doc.id, courseCode: course.code, courseName: course.name, ...(doc.data() as Omit<Forum, 'id'>) });
                     });
                 }
                 setForums(allForums);
             } catch (error) {
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'forums', operation: 'list' }));
                 setForums([]);
-            } finally {
-                setAreForumsLoading(false);
-            }
+            } finally { setAreForumsLoading(false); }
         };
-
         fetchForums();
     }, [firestore, allCourses, areCoursesLoading, refetchTrigger]);
     
@@ -184,10 +169,7 @@ export default function EngagementPage() {
     const filteredForums = useMemo(() => {
         if (!forums) return null;
         if (!searchQuery) return forums;
-        return forums.filter(forum => 
-            forum.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-            forum.description.toLowerCase().includes(searchQuery.toLowerCase())
-        );
+        return forums.filter(forum => forum.title.toLowerCase().includes(searchQuery.toLowerCase()) || forum.description.toLowerCase().includes(searchQuery.toLowerCase()));
     }, [forums, searchQuery]);
 
     const filteredEvents = useMemo(() => {
@@ -195,569 +177,292 @@ export default function EngagementPage() {
         return events.filter(event => new Date(event.date) >= new Date());
     }, [events]);
 
-    const clubForm = useForm<z.infer<typeof clubSchema>>({
-      resolver: zodResolver(clubSchema),
-    });
-    const eventForm = useForm<z.infer<typeof eventSchema>>({
-      resolver: zodResolver(eventSchema),
-    });
-    const forumForm = useForm<z.infer<typeof forumSchema>>({
-      resolver: zodResolver(forumSchema),
-    });
-    const communityPostForm = useForm<z.infer<typeof communityPostSchema>>({
-        resolver: zodResolver(communityPostSchema),
-    });
+    const clubForm = useForm<z.infer<typeof clubSchema>>({ resolver: zodResolver(clubSchema) });
+    const eventForm = useForm<z.infer<typeof eventSchema>>({ resolver: zodResolver(eventSchema) });
+    const forumForm = useForm<z.infer<typeof forumSchema>>({ resolver: zodResolver(forumSchema) });
+    const communityPostForm = useForm<z.infer<typeof communityPostSchema>>({ resolver: zodResolver(communityPostSchema) });
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
     
-    const handleAddNewClub = () => {
-        setEditingClub(null);
-        clubForm.reset();
-        setOpenClubDialog(true);
-    };
-
-    const handleEditClub = (club: Club) => {
-        setEditingClub(club);
-        clubForm.reset({
-            name: club.name,
-            description: club.description,
-            facultyIncharge: club.facultyIncharge,
-        });
-        setOpenClubDialog(true);
-    };
-
-    const handleDeleteClub = (clubId: string) => {
-        if (!firestore || !confirm('Are you sure you want to delete this club?')) return;
-        deleteDocumentNonBlocking(doc(firestore, 'clubs', clubId));
-        toast({ title: 'Success', description: 'Club deleted.' });
-    };
+    const handleAddNewClub = () => { setEditingClub(null); clubForm.reset(); setOpenClubDialog(true); };
+    const handleEditClub = (club: Club) => { setEditingClub(club); clubForm.reset({ name: club.name, description: club.description, facultyIncharge: club.facultyIncharge }); setOpenClubDialog(true); };
+    const handleDeleteClub = (clubId: string) => { if (!firestore || !confirm('Confirm deletion?')) return; deleteDocumentNonBlocking(doc(firestore, 'clubs', clubId)); toast({ title: 'Success', description: 'Club deleted.' }); };
     
     function onClubSubmit(values: z.infer<typeof clubSchema>) {
       if (!firestore || !user) return;
-
-      if (editingClub) {
-          const clubRef = doc(firestore, 'clubs', editingClub.id);
-          updateDocumentNonBlocking(clubRef, values);
-          toast({ title: 'Success', description: 'Club updated successfully.' });
-      } else {
-          const clubData = {
-              ...values,
-              members: [],
-          };
-          addDocumentNonBlocking(collection(firestore, 'clubs'), clubData);
-          toast({ title: 'Success', description: 'Club created successfully.' });
-      }
-      setOpenClubDialog(false);
-      setEditingClub(null);
-      clubForm.reset();
+      if (editingClub) { updateDocumentNonBlocking(doc(firestore, 'clubs', editingClub.id), values); toast({ title: 'Success', description: 'Club updated.' }); } 
+      else { addDocumentNonBlocking(collection(firestore, 'clubs'), { ...values, members: [] }); toast({ title: 'Success', description: 'Club created.' }); }
+      setOpenClubDialog(false); setEditingClub(null); clubForm.reset();
     }
     
-    const handleAddNewEvent = () => {
-        setEditingEvent(null);
-        eventForm.reset();
-        setOpenEventDialog(true);
-    };
-
-    const handleEditEvent = (event: Event) => {
-        setEditingEvent(event);
-        eventForm.reset({
-            ...event,
-            date: format(new Date(event.date), 'yyyy-MM-dd')
-        });
-        setOpenEventDialog(true);
-    };
-
-    const handleDeleteEvent = (eventId: string) => {
-        if (!firestore || !confirm('Are you sure you want to delete this event?')) return;
-        deleteDocumentNonBlocking(doc(firestore, 'events', eventId));
-        toast({ title: 'Success', description: 'Event deleted.' });
-    };
-
-    const handleViewDetails = (event: Event) => {
-        setSelectedEvent(event);
-        setOpenEventDetailsDialog(true);
-    }
+    const handleAddNewEvent = () => { setEditingEvent(null); eventForm.reset(); setOpenEventDialog(true); };
+    const handleEditEvent = (event: Event) => { setEditingEvent(event); eventForm.reset({ ...event, date: format(new Date(event.date), 'yyyy-MM-dd') }); setOpenEventDialog(true); };
+    const handleDeleteEvent = (eventId: string) => { if (!firestore || !confirm('Confirm deletion?')) return; deleteDocumentNonBlocking(doc(firestore, 'events', eventId)); toast({ title: 'Success', description: 'Event deleted.' }); };
+    const handleViewDetails = (event: Event) => { setSelectedEvent(event); setOpenEventDetailsDialog(true); }
 
     function onEventSubmit(values: z.infer<typeof eventSchema>) {
         if (!firestore) return;
-        
-        const eventData = {
-            ...values,
-            date: new Date(values.date).toISOString()
-        };
-
-        if (editingEvent) {
-            updateDocumentNonBlocking(doc(firestore, 'events', editingEvent.id), eventData);
-            toast({ title: 'Success', description: 'Event updated.' });
-        } else {
-            addDocumentNonBlocking(collection(firestore, 'events'), eventData);
-            toast({ title: 'Success', description: 'Event created.' });
-        }
-        setOpenEventDialog(false);
-        setEditingEvent(null);
+        const data = { ...values, date: new Date(values.date).toISOString() };
+        if (editingEvent) { updateDocumentNonBlocking(doc(firestore, 'events', editingEvent.id), data); toast({ title: 'Success', description: 'Event updated.' }); } 
+        else { addDocumentNonBlocking(collection(firestore, 'events'), data); toast({ title: 'Success', description: 'Event created.' }); }
+        setOpenEventDialog(false); setEditingEvent(null);
     }
     
     function onCreateForum(values: z.infer<typeof forumSchema>) {
       if (!firestore || !user) return;
-      
-      const forumsRef = collection(firestore, 'courses', values.courseId, 'forums');
-      addDocumentNonBlocking(forumsRef, {
-          courseId: values.courseId,
-          title: values.title,
-          description: values.description,
-          createdBy: user.uid,
-          createdAt: serverTimestamp(),
-      });
-      
-      toast({ title: 'Success', description: 'Forum created. The list will update shortly.' });
-      setOpenForumDialog(false);
-      forumForm.reset();
-      setRefetchTrigger(c => c + 1);
+      addDocumentNonBlocking(collection(firestore, 'courses', values.courseId, 'forums'), { ...values, createdBy: user.uid, createdAt: serverTimestamp() });
+      toast({ title: 'Success', description: 'Forum created.' });
+      setOpenForumDialog(false); forumForm.reset(); setRefetchTrigger(c => c + 1);
     }
 
     function onCommunityPostSubmit(values: z.infer<typeof communityPostSchema>) {
         if (!firestore || !user || !userProfile) return;
-        addDocumentNonBlocking(collection(firestore, 'communityPosts'), {
-            title: values.title,
-            description: values.description,
-            studentId: user.uid,
-            studentName: userProfile.name,
-            createdAt: serverTimestamp(),
-        });
-        toast({ title: 'Success', description: 'Your post has been published.' });
-        setOpenCommunityPostDialog(false);
-        communityPostForm.reset();
+        addDocumentNonBlocking(collection(firestore, 'communityPosts'), { ...values, studentId: user.uid, studentName: userProfile.name, createdAt: serverTimestamp() });
+        toast({ title: 'Success', description: 'Post published.' });
+        setOpenCommunityPostDialog(false); communityPostForm.reset();
     }
 
     const isLoading = isUserLoading || areCoursesLoading || areClubsLoading || areEventsLoading || (isSuperAdmin && areFacultyLoading);
-    const isForumCreationLoading = areCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
     const coursesForForum = userProfile?.role?.includes('admin') ? allCourses : facultyCourses;
 
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-3xl font-bold tracking-tight">Student Engagement</h1>
-        <p className="text-muted-foreground">
-          Connect with peers, join clubs, and participate in events.
-        </p>
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+      <div className="academic-hero bg-gradient-to-br from-indigo-600 to-purple-600">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-2">
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                      <Sparkles className="h-3 w-3" /> Community Hub
+                  </div>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">ENGAGEMENT</h1>
+                  <p className="text-indigo-100/70 font-medium max-w-lg">
+                      Build connections, participate in vibrant student life, and contribute to the campus community through forums and clubs.
+                  </p>
+              </div>
+              <div className="hidden lg:block opacity-20"><Users className="h-32 w-32" /></div>
+          </div>
       </div>
 
-      <Tabs defaultValue="forums" className="w-full">
-        <TabsList className="grid w-full max-w-lg grid-cols-4">
-          <TabsTrigger value="forums">
-            <MessageSquare className="mr-2 h-4 w-4" />
-            Forums
-          </TabsTrigger>
-          <TabsTrigger value="community">
-            <MessageCircle className="mr-2 h-4 w-4" />
-            Community
-          </TabsTrigger>
-          <TabsTrigger value="clubs">
-            <Users className="mr-2 h-4 w-4" />
-            Clubs
-          </TabsTrigger>
-          <TabsTrigger value="events">
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            Events
-          </TabsTrigger>
+      <Tabs defaultValue="community" className="w-full">
+        <TabsList className="grid w-full max-w-lg grid-cols-4 h-12 p-1 bg-white/50 backdrop-blur-sm border rounded-xl">
+          <TabsTrigger value="community" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Social</TabsTrigger>
+          <TabsTrigger value="forums" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Forums</TabsTrigger>
+          <TabsTrigger value="clubs" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Clubs</TabsTrigger>
+          <TabsTrigger value="events" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Events</TabsTrigger>
         </TabsList>
 
-        <TabsContent value="forums" className="mt-6">
-          <Card>
-            <CardHeader>
-                <div className="flex justify-between items-start">
-                    <div>
-                        <CardTitle>Discussion Forums</CardTitle>
-                        <CardDescription>
-                            Engage in conversations, ask questions, and share knowledge within your courses.
-                        </CardDescription>
+        <TabsContent value="community" className="mt-8">
+            <Card className="glass-card border-none">
+                <CardHeader className="flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
+                    <div className="space-y-1">
+                        <CardTitle className="text-2xl font-black tracking-tight uppercase">COMMUNITY BOARD</CardTitle>
+                        <CardDescription className="text-xs">A shared space for campus voices and daily updates.</CardDescription>
                     </div>
-                    {isFacultyOrAdmin && (
-                        <Dialog open={openForumDialog} onOpenChange={setOpenForumDialog}>
-                            <DialogTrigger asChild>
-                                <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Create New Forum</DialogTitle>
-                                    <DialogDescription>Start a new discussion board for a specific course.</DialogDescription>
-                                </DialogHeader>
-                                {isForumCreationLoading ? <Skeleton className="h-64" /> : (
-                                <Form {...forumForm}>
-                                    <form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4">
-                                        <FormField control={forumForm.control} name="courseId" render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Course</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl><SelectTrigger><SelectValue placeholder="Select a course" /></SelectTrigger></FormControl>
-                                                <SelectContent>{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Forum Title</FormLabel><FormControl><Input {...field} placeholder="e.g., General Q&A" /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="What is this forum for?" /></FormControl><FormMessage /></FormItem> )} />
-                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Create Forum</Button></DialogFooter>
-                                    </form>
-                                </Form>
-                                )}
-                            </DialogContent>
-                        </Dialog>
-                    )}
+                    <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
+                        <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
+                        <DialogContent className="rounded-3xl">
+                            <DialogHeader><DialogTitle>New Community Thread</DialogTitle><DialogDescription>Share your thoughts with the campus.</DialogDescription></DialogHeader>
+                            <Form {...communityPostForm}><form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4">
+                                <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Content</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Publish Now</Button></DialogFooter>
+                            </form></Form>
+                        </DialogContent>
+                    </Dialog>
+                </CardHeader>
+                <CardContent className="grid gap-6 mt-6">
+                    {areCommunityPostsLoading ? <Skeleton className="h-48 w-full rounded-3xl" /> : communityPosts && communityPosts.length > 0 ? (
+                        communityPosts.map((post) => (
+                            <Card key={post.id} className="border border-indigo-50/50 bg-white/40 hover:bg-white/80 transition-all rounded-3xl overflow-hidden group">
+                                <CardContent className="p-8">
+                                    <div className="flex justify-between items-start mb-4">
+                                        <h3 className="text-xl font-black tracking-tight uppercase group-hover:text-primary transition-colors">{post.title}</h3>
+                                        <Badge variant="secondary" className="rounded-lg text-[9px] font-black uppercase tracking-widest">{post.createdAt ? format(post.createdAt.toDate(), 'MMM d') : '...'}</Badge>
+                                    </div>
+                                    <p className="text-sm text-slate-600 leading-relaxed mb-6">{post.description}</p>
+                                    <div className="flex items-center gap-3 pt-4 border-t border-indigo-50/50">
+                                        <Avatar className="h-8 w-8 border border-white shadow-sm">
+                                            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={post.studentName} />}
+                                            <AvatarFallback className="font-black text-[10px] uppercase bg-primary/5 text-primary">{post.studentName.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
+                                        </Avatar>
+                                        <Link href={`/users/${post.studentId}`} className="text-xs font-black text-slate-800 uppercase tracking-widest hover:underline">{post.studentName}</Link>
+                                    </div>
+                                </CardContent>
+                            </Card>
+                        ))
+                    ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No community activity found</div>}
+                </CardContent>
+            </Card>
+        </TabsContent>
+
+        <TabsContent value="forums" className="mt-8">
+          <Card className="glass-card border-none">
+            <CardHeader className="flex flex-row items-center justify-between pb-8 border-b border-indigo-50/50">
+                <div className="space-y-1">
+                    <CardTitle className="text-2xl font-black tracking-tight uppercase">ACADEMIC FORUMS</CardTitle>
+                    <CardDescription className="text-xs">Subject-specific knowledge sharing and discourse.</CardDescription>
                 </div>
-              <div className="relative pt-2">
-                <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                <Input 
-                    placeholder="Search forums by title or description..." 
-                    className="pl-8 w-full md:w-1/2 lg:w-1/3" 
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                />
-              </div>
+                {isFacultyOrAdmin && (
+                    <Dialog open={openForumDialog} onOpenChange={setOpenForumDialog}>
+                        <DialogTrigger asChild><Button size="sm" className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
+                        <DialogContent className="rounded-3xl">
+                            <DialogHeader><DialogTitle>Establish New Forum</DialogTitle><DialogDescription>Set up a specialized discussion space.</DialogDescription></DialogHeader>
+                            <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4">
+                                <FormField control={forumForm.control} name="courseId" render={({ field }) => (
+                                    <FormItem><FormLabel>Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <SelectContent className="rounded-xl">{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                    </Select><FormMessage /></FormItem>
+                                )} />
+                                <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Topic Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Launch Forum</Button></DialogFooter>
+                            </form></Form>
+                        </DialogContent>
+                    </Dialog>
+                )}
             </CardHeader>
-            <CardContent className="space-y-4">
-              {isLoading || areForumsLoading ? (
-                <>
-                  <Skeleton className="h-36 w-full" />
-                  <Skeleton className="h-36 w-full" />
-                </>
-              ) : filteredForums && filteredForums.length > 0 ? (
-                filteredForums.map((forum) => (
-                  <Card key={forum.id}>
-                    <CardHeader>
-                      <CardTitle className="text-lg">{forum.title}</CardTitle>
-                      <CardDescription>{forum.description}</CardDescription>
-                    </CardHeader>
-                    <CardContent>
-                      <div className="flex justify-between items-center text-sm text-muted-foreground">
-                          <div className="flex items-center gap-2">
-                              <span className="font-semibold text-foreground">{forum.courseCode}</span>
-                              <span>•</span>
-                              <span>{forum.courseName}</span>
-                          </div>
-                      </div>
-                    </CardContent>
-                    <CardFooter>
-                       <Button asChild>
-                        <Link href={`/engagement/forum/${forum.id}?courseId=${forum.courseId}`}>
-                          View Forum <ArrowRight className="ml-2 h-4 w-4" />
-                        </Link>
-                      </Button>
-                    </CardFooter>
-                  </Card>
-                ))
-              ) : (
-                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                    <MessageSquare className="h-12 w-12 text-muted-foreground" />
-                    <h3 className="mt-4 text-lg font-semibold">No Forums Found</h3>
-                    <p className="mt-1 text-sm text-muted-foreground">
-                        {searchQuery ? `No forums match "${searchQuery}".` : "Check back later for discussions."}
-                    </p>
+            <CardContent className="grid gap-4 mt-6">
+                <div className="relative mb-6 px-4">
+                    <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+                    <Input placeholder="Search forum directory..." className="pl-10 h-12 rounded-2xl bg-white/50 border-none shadow-inner" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
-              )}
+                {areForumsLoading ? <Skeleton className="h-24 w-full rounded-2xl" /> : filteredForums && filteredForums.length > 0 ? (
+                    filteredForums.map((forum) => (
+                        <Card key={forum.id} className="border border-indigo-50/50 bg-white/40 hover:bg-white/80 transition-all rounded-2xl group overflow-hidden">
+                            <CardHeader className="flex flex-row items-center gap-6 p-6">
+                                <div className="bg-primary/5 text-primary p-4 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-500"><MessageSquare className="h-6 w-6" /></div>
+                                <div className="flex-1 min-w-0">
+                                    <CardTitle className="text-lg font-black uppercase tracking-tight truncate">{forum.title}</CardTitle>
+                                    <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60">{forum.courseCode} • {forum.courseName}</CardDescription>
+                                </div>
+                                <Button asChild variant="secondary" className="rounded-xl h-10 px-8 shrink-0">
+                                    <Link href={`/engagement/forum/${forum.id}?courseId=${forum.courseId}`}>Enter Forum <Zap className="ml-2 h-3 w-3 fill-current" /></Link>
+                                </Button>
+                            </CardHeader>
+                        </Card>
+                    ))
+                ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No matching forums found</div>}
             </CardContent>
           </Card>
         </TabsContent>
         
-        <TabsContent value="community" className="mt-6">
-            <Card>
-                <CardHeader>
-                    <div className="flex justify-between items-start">
-                        <div>
-                            <CardTitle>Community Board</CardTitle>
-                            <CardDescription>
-                                A public place for all campus members to post updates, requests, and announcements.
-                            </CardDescription>
-                        </div>
-                        <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
-                            <DialogTrigger asChild>
-                                <Button size="sm"><PlusCircle className="mr-2 h-4 w-4" /> Create Post</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>Create New Community Post</DialogTitle>
-                                    <DialogDescription>Share your thoughts with the campus community.</DialogDescription>
-                                </DialogHeader>
-                                <Form {...communityPostForm}>
-                                    <form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4">
-                                        <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Post Title</FormLabel><FormControl><Input {...field} placeholder="Catchy title" /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="Tell the community what's on your mind..." /></FormControl><FormMessage /></FormItem> )} />
-                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Publish Post</Button></DialogFooter>
-                                    </form>
-                                </Form>
-                            </DialogContent>
-                        </Dialog>
-                    </div>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                    {areCommunityPostsLoading ? (
-                        <>
-                            <Skeleton className="h-24 w-full" />
-                            <Skeleton className="h-24 w-full" />
-                        </>
-                    ) : communityPosts && communityPosts.length > 0 ? (
-                        communityPosts.map((post) => (
-                            <Card key={post.id}>
-                                <CardHeader>
-                                    <CardTitle className="text-lg">{post.title}</CardTitle>
-                                </CardHeader>
-                                <CardContent>
-                                    <p className="text-sm text-muted-foreground">{post.description}</p>
-                                </CardContent>
-                                <CardFooter className="flex justify-between items-center text-sm text-muted-foreground">
-                                    <div className="flex items-center gap-2">
-                                        <Avatar className="h-6 w-6">
-                                            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={post.studentName} />}
-                                            <AvatarFallback>{post.studentName.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
-                                        </Avatar>
-                                        <Link href={`/users/${post.studentId}`} className="hover:underline text-foreground font-medium">
-                                            {post.studentName}
-                                        </Link>
-                                    </div>
-                                    <span>{format(post.createdAt.toDate(), 'PPP')}</span>
-                                </CardFooter>
-                            </Card>
-                        ))
-                    ) : (
-                        <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                            <MessageCircle className="h-12 w-12 text-muted-foreground" />
-                            <h3 className="mt-4 text-lg font-semibold">The board is empty!</h3>
-                            <p className="mt-1 text-sm text-muted-foreground">
-                                Be the first to create a post on the community board.
-                            </p>
-                        </div>
-                    )}
-                </CardContent>
-            </Card>
-        </TabsContent>
-
-        <TabsContent value="clubs" className="mt-6">
-            <Card>
-                <CardHeader className="flex-row justify-between items-start">
-                    <div>
-                        <CardTitle>Student Clubs</CardTitle>
-                        <CardDescription>Explore student-run organizations and find your niche.</CardDescription>
+        <TabsContent value="clubs" className="mt-8">
+            <Card className="glass-card border-none">
+                <CardHeader className="flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
+                    <div className="space-y-1">
+                        <CardTitle className="text-2xl font-black tracking-tight uppercase">STUDENT GUILDS</CardTitle>
+                        <CardDescription className="text-xs">Extracurricular organizations and interest groups.</CardDescription>
                     </div>
                     {isSuperAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
-                            <DialogTrigger asChild>
-                                <Button size="sm" onClick={handleAddNewClub}><PlusCircle className="mr-2 h-4 w-4" /> Create Club</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{editingClub ? 'Edit Club' : 'Create New Club'}</DialogTitle>
-                                    <DialogDescription>Define a new student club and assign oversight to a faculty member.</DialogDescription>
-                                </DialogHeader>
-                                {areFacultyLoading ? <Skeleton className="h-64"/> : (
-                                <Form {...clubForm}>
-                                    <form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
-                                        <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Club Name</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={clubForm.control} name="facultyIncharge" render={({ field }) => (
-                                            <FormItem>
-                                            <FormLabel>Faculty In-Charge</FormLabel>
-                                            <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                                <FormControl>
-                                                    <SelectTrigger><SelectValue placeholder="Select a faculty member" /></SelectTrigger>
-                                                </FormControl>
-                                                <SelectContent>
-                                                    {allFaculty?.map(f => (
-                                                        <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem>
-                                                    ))}
-                                                </SelectContent>
-                                            </Select>
-                                            <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingClub ? 'Save Changes': 'Create Club'}</Button></DialogFooter>
-                                    </form>
-                                </Form>
-                                )}
+                            <DialogTrigger asChild><Button size="sm" className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
+                            <DialogContent className="rounded-3xl">
+                                <DialogHeader><DialogTitle>Register New Club</DialogTitle><DialogDescription>Establish a new institutional student organization.</DialogDescription></DialogHeader>
+                                <Form {...clubForm}><form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
+                                    <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Club Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Mission Statement</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={clubForm.control} name="facultyIncharge" render={({ field }) => (
+                                        <FormItem><FormLabel>Sponsoring Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl>
+                                            <SelectContent className="rounded-xl">{allFaculty?.map(f => ( <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem> ))}</SelectContent>
+                                        </Select><FormMessage /></FormItem>
+                                    )} />
+                                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Authorize Club</Button></DialogFooter>
+                                </form></Form>
                             </DialogContent>
                         </Dialog>
                     )}
                 </CardHeader>
-                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                    {isLoading ? (
-                         [...Array(3)].map((_, i) => (
-                            <Card key={i}>
-                                <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
-                                <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
-                                <CardContent><Skeleton className="h-10 w-full" /></CardContent>
-                                <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
-                            </Card>
-                         ))
-                    ) : clubs && clubs.length > 0 ? (
+                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                    {isLoading ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded-[2rem]" />) : clubs && clubs.length > 0 ? (
                         clubs.map(club => {
                             const canManageClub = isSuperAdmin || (userProfile?.role === 'faculty' && club.facultyIncharge === user?.uid);
                             return (
-                            <Card key={club.id} className="overflow-hidden flex flex-col">
-                                {clubImage && (
-                                    <Image
-                                        src={clubImage.imageUrl}
-                                        alt={club.name}
-                                        width={600}
-                                        height={400}
-                                        className="h-48 w-full object-cover"
-                                        data-ai-hint={clubImage.imageHint}
-                                    />
-                                )}
-                                <CardHeader>
-                                    <div className="flex justify-between items-start">
-                                      <CardTitle>{club.name}</CardTitle>
-                                      {canManageClub && (
-                                          <div className="flex items-center -mr-2 -mt-2">
-                                              <Button variant="ghost" size="icon" onClick={() => handleEditClub(club)}><Edit className="h-4 w-4" /></Button>
-                                              <Button variant="ghost" size="icon" onClick={() => handleDeleteClub(club.id)}><Trash2 className="h-4 w-4 text-destructive" /></Button>
-                                          </div>
-                                      )}
+                            <Card key={club.id} className="glass-card border-none flex flex-col group overflow-hidden">
+                                {clubImage && <div className="h-40 relative"><Image src={clubImage.imageUrl} alt={club.name} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" data-ai-hint={clubImage.imageHint} /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" /></div>}
+                                <CardHeader className="relative -mt-12">
+                                    <div className="flex justify-between items-end">
+                                      <CardTitle className="text-xl font-black uppercase text-white tracking-tight">{club.name}</CardTitle>
+                                      {canManageClub && ( <div className="flex gap-1 bg-white/20 backdrop-blur-md rounded-lg p-1 border border-white/20"><Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:text-primary" onClick={() => handleEditClub(club)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:text-destructive" onClick={() => handleDeleteClub(club.id)}><Trash2 className="h-4 w-4" /></Button></div> )}
                                     </div>
                                 </CardHeader>
-                                <CardContent className="flex-grow">
-                                    <p className="text-sm text-muted-foreground line-clamp-3">{club.description}</p>
+                                <CardContent className="flex-grow pt-4">
+                                    <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-medium">{club.description}</p>
                                 </CardContent>
-                                <CardFooter>
-                                    <Button asChild className="w-full">
-                                        <Link href={`/engagement/club/${club.id}`}>
-                                            View Club Details <ArrowRight className="ml-2 h-4 w-4" />
-                                        </Link>
-                                    </Button>
-                                </CardFooter>
+                                <CardFooter><Button asChild className="w-full rounded-xl"><Link href={`/engagement/club/${club.id}`}>Membership Details <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardFooter>
                             </Card>
                         )})
-                    ) : (
-                        <Card className="md:col-span-2 lg:col-span-3">
-                            <CardContent className="p-8 text-center">
-                                <Users className="h-12 w-12 text-muted-foreground mx-auto" />
-                                <h3 className="mt-4 text-lg font-semibold">No Clubs Available</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">Student clubs will appear here once they are registered.</p>
-                            </CardContent>
-                        </Card>
-                    )}
+                    ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No registered clubs</div>}
                 </CardContent>
             </Card>
         </TabsContent>
 
-        <TabsContent value="events" className="mt-6">
-           <Card>
-                <CardHeader className="flex-row justify-between items-start">
-                    <div>
-                        <CardTitle>Upcoming Events</CardTitle>
-                        <CardDescription>Stay updated with workshops, seminars, and fests.</CardDescription>
+        <TabsContent value="events" className="mt-8">
+           <Card className="glass-card border-none">
+                <CardHeader className="flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
+                    <div className="space-y-1">
+                        <CardTitle className="text-2xl font-black tracking-tight uppercase">UPCOMING SPECTACLES</CardTitle>
+                        <CardDescription className="text-xs">Campus seminars, workshops, and festive events.</CardDescription>
                     </div>
                      {isFacultyOrAdmin && (
                         <Dialog open={openEventDialog} onOpenChange={setOpenEventDialog}>
-                            <DialogTrigger asChild>
-                                <Button size="sm" onClick={handleAddNewEvent}><PlusCircle className="mr-2 h-4 w-4" /> Create Event</Button>
-                            </DialogTrigger>
-                            <DialogContent>
-                                <DialogHeader>
-                                    <DialogTitle>{editingEvent ? 'Edit Event' : 'Create New Event'}</DialogTitle>
-                                    <DialogDescription>Publicize an upcoming campus event or workshop.</DialogDescription>
-                                </DialogHeader>
-                                <Form {...eventForm}>
-                                    <form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
-                                        <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Title</FormLabel><FormControl><Input {...field} placeholder="e.g., AI Ethics Seminar" /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Textarea {...field} placeholder="What's the event about?" /></FormControl><FormMessage /></FormItem> )} />
-                                        <div className="grid grid-cols-2 gap-4">
-                                            <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel>Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                            <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel>Time</FormLabel><FormControl><Input type="time" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                        </div>
-                                        <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Location</FormLabel><FormControl><Input {...field} placeholder="e.g., Auditorium B" /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel>Organizer</FormLabel><FormControl><Input {...field} placeholder="e.g., CSE Society" /></FormControl><FormMessage /></FormItem> )} />
-                                        <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">{editingEvent ? 'Save Changes' : 'Create Event'}</Button></DialogFooter>
-                                    </form>
-                                </Form>
+                            <DialogTrigger asChild><Button size="sm" className="rounded-xl shadow-lg shadow-accent/20"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
+                            <DialogContent className="rounded-3xl">
+                                <DialogHeader><DialogTitle>Publish Campus Event</DialogTitle><DialogDescription>Announce a new workshop or seminar.</DialogDescription></DialogHeader>
+                                <Form {...eventForm}><form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
+                                    <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Agenda/Details</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    <div className="grid grid-cols-2 gap-4">
+                                        <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel>Event Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="time" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    </div>
+                                    <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Venue</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel>Hosting Body</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Announce Event</Button></DialogFooter>
+                                </form></Form>
                             </DialogContent>
                         </Dialog>
                     )}
                 </CardHeader>
-                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                     {areEventsLoading ? (
-                        [...Array(3)].map((_, i) => (
-                            <Card key={i}>
-                                <CardContent className="p-0"><Skeleton className="h-48 w-full" /></CardContent>
-                                <CardHeader><Skeleton className="h-6 w-3/4" /></CardHeader>
-                                <CardContent><Skeleton className="h-10 w-full" /></CardContent>
-                                <CardFooter><Skeleton className="h-10 w-full" /></CardFooter>
-                            </Card>
-                        ))
-                     ) : filteredEvents && filteredEvents.length > 0 ? (
+                <CardContent className="grid gap-6 md:grid-cols-2 lg:grid-cols-3 mt-6">
+                     {areEventsLoading ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-64 rounded-[2rem]" />) : filteredEvents && filteredEvents.length > 0 ? (
                         filteredEvents.map(event => (
-                            <Card key={event.id} className="overflow-hidden flex flex-col">
-                                {eventImage && (
-                                    <Image
-                                        src={eventImage.imageUrl}
-                                        alt={event.title}
-                                        width={600}
-                                        height={400}
-                                        className="h-48 w-full object-cover"
-                                        data-ai-hint={eventImage.imageHint}
-                                    />
-                                )}
-                                <CardHeader>
-                                    <CardTitle>{event.title}</CardTitle>
+                            <Card key={event.id} className="glass-card border-none flex flex-col group overflow-hidden">
+                                {eventImage && <div className="h-40 relative"><Image src={eventImage.imageUrl} alt={event.title} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" data-ai-hint={eventImage.imageHint} /><div className="absolute inset-0 bg-gradient-to-t from-primary/80 to-transparent" /></div>}
+                                <CardHeader className="relative -mt-12">
+                                    <CardTitle className="text-xl font-black uppercase text-white tracking-tight leading-tight">{event.title}</CardTitle>
                                 </CardHeader>
-                                <CardContent className="grid gap-1 text-sm flex-grow">
-                                <div className="flex items-center gap-2 text-muted-foreground">
-                                    <CalendarIcon className="h-4 w-4" />
-                                    <span>{format(new Date(event.date), 'PPP')} at {event.time}</span>
-                                </div>
-                                    <div className="flex items-center gap-2 text-muted-foreground">
-                                    <MapPin className="h-4 w-4" />
-                                    <span>{event.location}</span>
-                                </div>
+                                <CardContent className="grid gap-3 pt-4 flex-grow">
+                                    <div className="flex items-center gap-3 text-xs font-black text-muted-foreground uppercase tracking-widest"><CalendarIcon className="h-4 w-4 text-primary" /><span>{format(new Date(event.date), 'MMM d')} • {event.time}</span></div>
+                                    <div className="flex items-center gap-3 text-xs font-black text-muted-foreground uppercase tracking-widest"><MapPin className="h-4 w-4 text-primary" /><span>{event.location}</span></div>
                                 </CardContent>
                                 <CardFooter className="flex gap-2">
                                     {isFacultyOrAdmin ? (
                                         <>
-                                            <Button variant="outline" size="sm" className="w-full" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
-                                            <Button variant="destructive" size="sm" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            <Button variant="outline" size="sm" className="w-full rounded-xl" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                                            <Button variant="destructive" size="sm" className="rounded-xl" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </>
-                                    ) : (
-                                        <Button variant="secondary" className="w-full" onClick={() => handleViewDetails(event)}>View Details</Button>
-                                    )}
+                                    ) : <Button variant="secondary" className="w-full rounded-xl" onClick={() => handleViewDetails(event)}>Reserve Access</Button>}
                                 </CardFooter>
                             </Card>
                         ))
-                     ) : (
-                        <Card className="md:col-span-2 lg:col-span-3">
-                            <CardContent className="p-8 text-center">
-                                <CalendarIcon className="h-12 w-12 text-muted-foreground mx-auto" />
-                                <h3 className="mt-4 text-lg font-semibold">No Upcoming Events</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">New campus events will appear here.</p>
-                            </CardContent>
-                        </Card>
-                     )}
+                     ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No upcoming events</div>}
                 </CardContent>
             </Card>
         </TabsContent>
       </Tabs>
       <Dialog open={openEventDetailsDialog} onOpenChange={setOpenEventDetailsDialog}>
-        <DialogContent>
-            <DialogHeader>
-                <DialogTitle>{selectedEvent?.title}</DialogTitle>
-                <DialogDescription>
-                    Organized by <span className="font-semibold">{selectedEvent?.organizer}</span>
-                </DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4">
-                <p className="text-sm text-muted-foreground">{selectedEvent?.description}</p>
-                <div className="flex items-center gap-2">
-                    <CalendarIcon className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedEvent ? `${format(new Date(selectedEvent.date), 'PPP')} at ${selectedEvent.time}` : ''}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                    <MapPin className="h-4 w-4 text-muted-foreground" />
-                    <span>{selectedEvent?.location}</span>
+        <DialogContent className="rounded-3xl">
+            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">{selectedEvent?.title}</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">HOSTED BY {selectedEvent?.organizer}</DialogDescription></DialogHeader>
+            <div className="py-6 space-y-4">
+                <p className="text-sm text-slate-600 leading-relaxed font-medium">{selectedEvent?.description}</p>
+                <div className="grid grid-cols-2 gap-4 pt-4">
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-indigo-50"><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Schedule</p><p className="text-sm font-bold text-slate-700">{selectedEvent ? format(new Date(selectedEvent.date), 'PPP') : ''} @ {selectedEvent?.time}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-indigo-50"><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Venue</p><p className="text-sm font-bold text-slate-700">{selectedEvent?.location}</p></div>
                 </div>
             </div>
-            <DialogFooter>
-                <DialogClose asChild>
-                    <Button>Close</Button>
-                </DialogClose>
-            </DialogFooter>
+            <DialogFooter><DialogClose asChild><Button className="w-full h-12 rounded-xl font-bold uppercase tracking-widest">Close Entry</Button></DialogClose></DialogFooter>
         </DialogContent>
     </Dialog>
     </div>

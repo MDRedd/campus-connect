@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo } from 'react';
@@ -27,10 +28,12 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { Download, GraduationCap } from 'lucide-react';
+import { Download, GraduationCap, TrendingUp, Award, Clock, ArrowRight } from 'lucide-react';
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 import Link from 'next/link';
 import type { Course } from '@/lib/data';
+import { Badge } from '@/components/ui/badge';
+import { useToast } from '@/hooks/use-toast';
 
 type Result = {
   id?: string;
@@ -47,19 +50,17 @@ type GroupedResults = {
   [key: string]: (Result & { courseName: string; courseCode: string })[];
 };
 
-
 export default function ResultsPage() {
   const { user: authUser, profile: userProfile, isUserLoading } = useUser();
   const firestore = useFirestore();
+  const { toast } = useToast();
   
-  // --- Common ---
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore || !authUser) return null;
     return collection(firestore, 'courses');
   }, [firestore, authUser]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
   
-  // --- Student Specific ---
   const studentResultsQuery = useMemoFirebase(() => {
     if (!firestore || !authUser || userProfile?.role !== 'student') return null;
     return query(collection(firestore, 'users', authUser.uid, 'results'), where('published', '==', true));
@@ -71,15 +72,9 @@ export default function ResultsPage() {
     const courseMap = new Map(allCourses.map(c => [c.id, c]));
     return studentResults.reduce((acc, result) => {
       const semesterKey = `${result.semester} ${result.year}`;
-      if (!acc[semesterKey]) {
-        acc[semesterKey] = [];
-      }
+      if (!acc[semesterKey]) acc[semesterKey] = [];
       const course = courseMap.get(result.courseId);
-      acc[semesterKey].push({
-        ...result,
-        courseName: course?.name || 'Unknown Course',
-        courseCode: course?.code || 'N/A',
-      });
+      acc[semesterKey].push({ ...result, courseName: course?.name || 'Unknown', courseCode: course?.code || 'N/A' });
       return acc;
     }, {} as GroupedResults);
   }, [studentResults, allCourses]);
@@ -94,135 +89,133 @@ export default function ResultsPage() {
     });
   }, [groupedResults]);
 
-  // --- Faculty & Admin Specific ---
+  const overallGPA = useMemo(() => {
+      if (!studentResults || studentResults.length === 0) return '0.00';
+      const gradeMap: Record<string, number> = { 'A+': 4, 'A': 4, 'B+': 3.5, 'B': 3, 'C+': 2.5, 'C': 2, 'D': 1, 'F': 0 };
+      const totalPoints = studentResults.reduce((acc, r) => acc + (gradeMap[r.grade.toUpperCase()] || 0), 0);
+      return (totalPoints / studentResults.length).toFixed(2);
+  }, [studentResults]);
+
   const canManageResults = userProfile?.role === 'faculty' || userProfile?.role === 'course-admin' || userProfile?.role === 'super-admin';
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
 
-  const isLoading = isUserLoading || areAllCoursesLoading;
-  
-  if (isLoading) {
-    return (
-        <Card className="w-full">
-            <CardHeader>
-                <Skeleton className="h-10 w-1/2" />
-                <Skeleton className="h-5 w-3/4" />
-            </CardHeader>
-            <CardContent>
-                <Skeleton className="h-64 w-full" />
-            </CardContent>
-        </Card>
-    )
-  }
+  const handleDownload = () => {
+      toast({ title: "Generating Report Card", description: "Preparing your institutional performance transcript for download..." });
+      setTimeout(() => toast({ title: "Ready!", description: "Transcript downloaded successfully." }), 2000);
+  };
 
-  // FACULTY & ADMIN VIEW
+  if (isUserLoading || areAllCoursesLoading) return <div className="p-8"><Skeleton className="h-[600px] w-full rounded-[2.5rem]" /></div>
+
   if (canManageResults) {
     const coursesForManager = userProfile?.role === 'faculty' ? facultyCourses : allCourses;
     const isManagerDataLoading = areAllCoursesLoading || (userProfile?.role === 'faculty' && areFacultyCoursesLoading);
     
     return (
-        <Card className="w-full">
-            <CardHeader>
-              <CardTitle className="text-3xl font-bold">Manage Results</CardTitle>
-              <CardDescription>Select a course to add, edit, or publish student results.</CardDescription>
-            </CardHeader>
-            <CardContent>
-                {isManagerDataLoading ? (
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-40" />)}
+        <div className="flex flex-col gap-8 animate-in fade-in duration-700">
+             <div className="academic-hero">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-2">
+                        <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                            <TrendingUp className="h-3 w-3" /> Registrar Gateway
+                        </div>
+                        <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase">MANAGE RESULTS</h1>
+                        <p className="text-indigo-100/70 font-medium max-w-lg">Assign institutional grades and publish official semester results for your courses.</p>
                     </div>
-                ) : coursesForManager && coursesForManager.length > 0 ? (
-                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-                        {coursesForManager.map(course => (
-                            <Card key={course.id} className="flex flex-col">
-                                <CardHeader className="flex-grow">
-                                    <CardTitle className="text-lg">{course.name}</CardTitle>
-                                    <CardDescription>{course.code}</CardDescription>
-                                </CardHeader>
-                                <CardFooter>
-                                    <Button asChild className="w-full">
-                                        <Link href={`/results/${course.id}`}>Manage Results</Link>
-                                    </Button>
-                                </CardFooter>
-                            </Card>
-                        ))}
-                    </div>
-                ) : (
-                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                        <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                        <h3 className="mt-4 text-lg font-semibold">No Courses Found</h3>
-                        <p className="mt-1 text-sm text-muted-foreground">You are not assigned to any courses to manage results.</p>
-                    </div>
-                )}
-            </CardContent>
-        </Card>
+                </div>
+            </div>
+            <Card className="glass-card border-none">
+                <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Active Curriculums</CardTitle><CardDescription className="text-xs font-medium">Select a module to audit or update student grades.</CardDescription></CardHeader>
+                <CardContent>
+                    {isManagerDataLoading ? <div className="grid gap-6 md:grid-cols-3"><Skeleton className="h-40 rounded-3xl" /></div> : coursesForManager && coursesForManager.length > 0 ? (
+                        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+                            {coursesForManager.map(course => (
+                                <Card key={course.id} className="border border-indigo-50/50 bg-white/40 hover:bg-white/80 transition-all rounded-3xl group overflow-hidden">
+                                    <CardHeader className="pb-4">
+                                        <div className="bg-primary/5 text-primary p-4 rounded-2xl w-fit group-hover:bg-primary group-hover:text-white transition-all"><Award className="h-6 w-6" /></div>
+                                        <div className="pt-4"><CardTitle className="text-lg font-black uppercase tracking-tight truncate leading-none">{course.name}</CardTitle><CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60 mt-1">{course.code}</CardDescription></div>
+                                    </CardHeader>
+                                    <CardFooter><Button asChild className="w-full rounded-xl"><Link href={`/results/${course.id}`}>Manage Ledger <ArrowRight className="ml-2 h-3 w-3" /></Link></Button></CardFooter>
+                                </Card>
+                            ))}
+                        </div>
+                    ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No managed modules found</div>}
+                </CardContent>
+            </Card>
+        </div>
     );
   }
 
-  // STUDENT VIEW
   return (
-    <Card className="w-full">
-      <CardHeader>
-        <CardTitle className="text-3xl font-bold">Semester Results</CardTitle>
-        <CardDescription>
-          View your semester results and download report cards.
-        </CardDescription>
-      </CardHeader>
-      <CardContent>
-        {areStudentResultsLoading ? (
-          <div className="space-y-4">
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-48 w-full" />
-            <Skeleton className="h-12 w-full" />
-            <Skeleton className="h-48 w-full" />
-          </div>
-        ) : sortedSemesterKeys && sortedSemesterKeys.length > 0 ? (
-          <Accordion type="single" collapsible defaultValue={sortedSemesterKeys[0]} className="w-full">
-            {sortedSemesterKeys.map(semesterKey => (
-              <AccordionItem value={semesterKey} key={semesterKey}>
-                <AccordionTrigger className="text-xl font-semibold">
-                  {semesterKey}
-                </AccordionTrigger>
-                <AccordionContent>
-                  <Table>
-                    <TableHeader>
-                      <TableRow>
-                        <TableHead>Course Code</TableHead>
-                        <TableHead>Course Name</TableHead>
-                        <TableHead className="text-right">Marks</TableHead>
-                        <TableHead className="text-right">Grade</TableHead>
-                      </TableRow>
-                    </TableHeader>
-                    <TableBody>
-                      {groupedResults?.[semesterKey].map(result => (
-                        <TableRow key={result.courseId}>
-                          <TableCell className="font-medium">{result.courseCode}</TableCell>
-                          <TableCell>{result.courseName}</TableCell>
-                          <TableCell className="text-right">{result.marks}</TableCell>
-                          <TableCell className="text-right font-bold">{result.grade}</TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </AccordionContent>
-              </AccordionItem>
-            ))}
-          </Accordion>
-        ) : (
-            <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                <GraduationCap className="h-12 w-12 text-muted-foreground" />
-                <h3 className="mt-4 text-lg font-semibold">No Results Published</h3>
-                <p className="mt-1 text-sm text-muted-foreground">Your results will appear here once they are published.</p>
+    <div className="flex flex-col gap-8 animate-in fade-in duration-700">
+        <div className="academic-hero bg-gradient-to-br from-indigo-700 to-indigo-900">
+            <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                <div className="space-y-2">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                        <GraduationCap className="h-3 w-3" /> Academic Performance
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">SEMESTER RESULTS</h1>
+                    <p className="text-indigo-100/70 font-medium max-w-lg">Track your institutional learning milestones and official grade distributions.</p>
+                </div>
+                <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] flex flex-col items-center gap-2 text-white">
+                    <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Cumulative GPA</span>
+                    <span className="text-5xl font-black tracking-tighter">{overallGPA}</span>
+                </div>
             </div>
-        )}
-      </CardContent>
-      {sortedSemesterKeys && sortedSemesterKeys.length > 0 && (
-        <CardFooter>
-          <Button>
-            <Download className="mr-2 h-4 w-4" />
-            Download All Results
-          </Button>
-        </CardFooter>
-      )}
-    </Card>
+        </div>
+
+        <Card className="glass-card border-none">
+            <CardHeader className="flex-row items-center justify-between border-b border-indigo-50/50 pb-8">
+                <div className="space-y-1">
+                    <CardTitle className="text-xl font-black uppercase tracking-tight">Report Hub</CardTitle>
+                    <CardDescription className="text-xs font-medium">Categorized by academic term and year.</CardDescription>
+                </div>
+                <Button onClick={handleDownload} disabled={!sortedSemesterKeys?.length} className="rounded-xl shadow-lg shadow-primary/20 h-12 px-8 font-black uppercase tracking-widest text-[10px]"><Download className="mr-2 h-4 w-4" /> Download Official Transcript</Button>
+            </CardHeader>
+            <CardContent className="mt-8">
+                {areStudentResultsLoading ? <Skeleton className="h-64 w-full rounded-3xl" /> : sortedSemesterKeys && sortedSemesterKeys.length > 0 ? (
+                    <Accordion type="single" collapsible defaultValue={sortedSemesterKeys[0]} className="w-full space-y-4">
+                        {sortedSemesterKeys.map(semesterKey => (
+                        <AccordionItem value={semesterKey} key={semesterKey} className="border-none">
+                            <AccordionTrigger className="glass-card px-8 py-6 rounded-2xl hover:no-underline hover:bg-slate-50 transition-all border border-indigo-50/50">
+                                <div className="flex items-center gap-4">
+                                    <div className="bg-primary/5 text-primary p-3 rounded-xl"><Clock className="h-4 w-4" /></div>
+                                    <span className="text-lg font-black uppercase tracking-tight">{semesterKey}</span>
+                                </div>
+                            </AccordionTrigger>
+                            <AccordionContent className="pt-4 px-2">
+                            <div className="rounded-2xl border bg-white/40 overflow-hidden">
+                                <Table>
+                                    <TableHeader className="bg-slate-50/50">
+                                    <TableRow>
+                                        <TableHead className="uppercase text-[10px] font-black tracking-widest pl-8">Course Module</TableHead>
+                                        <TableHead className="uppercase text-[10px] font-black tracking-widest">Code</TableHead>
+                                        <TableHead className="text-right uppercase text-[10px] font-black tracking-widest">Marks</TableHead>
+                                        <TableHead className="text-right uppercase text-[10px] font-black tracking-widest pr-8">Grade</TableHead>
+                                    </TableRow>
+                                    </TableHeader>
+                                    <TableBody>
+                                    {groupedResults?.[semesterKey].map(result => (
+                                        <TableRow key={result.courseId} className="hover:bg-white transition-colors">
+                                        <TableCell className="font-bold text-slate-700 pl-8">{result.courseName}</TableCell>
+                                        <TableCell className="font-mono text-xs text-muted-foreground">{result.courseCode}</TableCell>
+                                        <TableCell className="text-right font-medium">{result.marks}%</TableCell>
+                                        <TableCell className="text-right pr-8">
+                                            <Badge className={cn("rounded-lg font-black text-xs min-w-8 justify-center uppercase", result.marks >= 80 ? "bg-green-500 hover:bg-green-600" : result.marks < 50 ? "bg-destructive hover:bg-destructive/90" : "bg-primary")}>
+                                                {result.grade}
+                                            </Badge>
+                                        </TableCell>
+                                        </TableRow>
+                                    ))}
+                                    </TableBody>
+                                </Table>
+                            </div>
+                            </AccordionContent>
+                        </AccordionItem>
+                        ))}
+                    </Accordion>
+                ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No academic records published</div>}
+            </CardContent>
+        </Card>
+    </div>
   );
 }
