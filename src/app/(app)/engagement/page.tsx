@@ -180,15 +180,27 @@ export default function EngagementPage() {
         return events.filter(event => new Date(event.date) >= new Date());
     }, [events]);
 
-    const clubForm = useForm<z.infer<typeof clubSchema>>({ resolver: zodResolver(clubSchema) });
-    const eventForm = useForm<z.infer<typeof eventSchema>>({ resolver: zodResolver(eventSchema) });
-    const forumForm = useForm<z.infer<typeof forumSchema>>({ resolver: zodResolver(forumSchema) });
-    const communityPostForm = useForm<z.infer<typeof communityPostSchema>>({ resolver: zodResolver(communityPostSchema) });
+    const clubForm = useForm<z.infer<typeof clubSchema>>({ 
+        resolver: zodResolver(clubSchema),
+        defaultValues: { name: '', description: '', facultyIncharge: '' }
+    });
+    const eventForm = useForm<z.infer<typeof eventSchema>>({ 
+        resolver: zodResolver(eventSchema),
+        defaultValues: { title: '', description: '', date: '', time: '', location: '', organizer: '' }
+    });
+    const forumForm = useForm<z.infer<typeof forumSchema>>({ 
+        resolver: zodResolver(forumSchema),
+        defaultValues: { courseId: '', title: '', description: '' }
+    });
+    const communityPostForm = useForm<z.infer<typeof communityPostSchema>>({ 
+        resolver: zodResolver(communityPostSchema),
+        defaultValues: { title: '', description: '' }
+    });
 
     const clubImage = PlaceHolderImages.find((img) => img.id === 'club-activity');
     const eventImage = PlaceHolderImages.find((img) => img.id === 'campus-event');
     
-    const handleAddNewClub = () => { setEditingClub(null); clubForm.reset(); setOpenClubDialog(true); };
+    const handleAddNewClub = () => { setEditingClub(null); clubForm.reset({ name: '', description: '', facultyIncharge: '' }); setOpenClubDialog(true); };
     const handleEditClub = (club: Club) => { setEditingClub(club); clubForm.reset({ name: club.name, description: club.description, facultyIncharge: club.facultyIncharge }); setOpenClubDialog(true); };
     const handleDeleteClub = (clubId: string) => { if (!firestore || !confirm('Confirm deletion?')) return; deleteDocumentNonBlocking(doc(firestore, 'clubs', clubId)); toast({ title: 'Success', description: 'Club deleted.' }); };
     
@@ -199,7 +211,7 @@ export default function EngagementPage() {
       setOpenClubDialog(false); setEditingClub(null); clubForm.reset();
     }
     
-    const handleAddNewEvent = () => { setEditingEvent(null); eventForm.reset(); setOpenEventDialog(true); };
+    const handleAddNewEvent = () => { setEditingEvent(null); eventForm.reset({ title: '', description: '', date: '', time: '', location: '', organizer: '' }); setOpenEventDialog(true); };
     const handleEditEvent = (event: Event) => { setEditingEvent(event); eventForm.reset({ ...event, date: format(new Date(event.date), 'yyyy-MM-dd') }); setOpenEventDialog(true); };
     const handleDeleteEvent = (eventId: string) => { if (!firestore || !confirm('Confirm deletion?')) return; deleteDocumentNonBlocking(doc(firestore, 'events', eventId)); toast({ title: 'Success', description: 'Event deleted.' }); };
     const handleViewDetails = (event: Event) => { setSelectedEvent(event); setOpenEventDetailsDialog(true); }
@@ -262,7 +274,7 @@ export default function EngagementPage() {
                         <CardDescription className="text-xs font-medium">A shared space for campus voices and daily updates.</CardDescription>
                     </div>
                     <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
-                        <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button onClick={() => communityPostForm.reset({ title: '', description: '' })} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">New Community Thread</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Share your thoughts with the campus.</DialogDescription></DialogHeader>
                             <Form {...communityPostForm}><form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4 pt-4">
@@ -310,7 +322,7 @@ export default function EngagementPage() {
                 </div>
                 {isFacultyOrAdmin && (
                     <Dialog open={openForumDialog} onOpenChange={setOpenForumDialog}>
-                        <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button onClick={() => forumForm.reset({ courseId: '', title: '', description: '' })} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Establish New Forum</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Set up a specialized discussion space.</DialogDescription></DialogHeader>
                             <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4 pt-4">
@@ -362,7 +374,7 @@ export default function EngagementPage() {
                     </div>
                     {isSuperAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
-                            <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button onClick={handleAddNewClub} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
                             <DialogContent className="rounded-3xl">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Register New Club</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Establish a new institutional student organization.</DialogDescription></DialogHeader>
                                 <Form {...clubForm}><form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4 pt-4">
@@ -413,7 +425,7 @@ export default function EngagementPage() {
                     </div>
                      {isFacultyOrAdmin && (
                         <Dialog open={openEventDialog} onOpenChange={setOpenEventDialog}>
-                            <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-accent/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button onClick={handleAddNewEvent} className="rounded-xl shadow-lg shadow-accent/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
                             <DialogContent className="rounded-3xl">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Publish Campus Event</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Announce a new workshop or seminar.</DialogDescription></DialogHeader>
                                 <Form {...eventForm}><form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4 pt-4">

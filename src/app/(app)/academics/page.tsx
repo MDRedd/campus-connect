@@ -134,7 +134,7 @@ export default function AcademicsPage() {
           });
 
           const materialsQuery = query(collection(firestore, 'courses', course.id, 'study_materials'));
-          const materialsSnapshot = await getDocs(materialsQuery);
+          materialsSnapshot = await getDocs(materialsQuery);
           materialsSnapshot.forEach((doc) => {
             allMaterials.push({ ...(doc.data() as StudyMaterial), id: doc.id, courseName: course.name, courseCode: course.code });
           });
@@ -192,8 +192,14 @@ export default function AcademicsPage() {
     fetchMySubmissions();
   }, [firestore, authUser, isFaculty, assignments]);
 
-  const assignmentForm = useForm<z.infer<typeof assignmentSchema>>({ resolver: zodResolver(assignmentSchema) });
-  const materialForm = useForm<z.infer<typeof materialSchema>>({ resolver: zodResolver(materialSchema) });
+  const assignmentForm = useForm<z.infer<typeof assignmentSchema>>({ 
+    resolver: zodResolver(assignmentSchema),
+    defaultValues: { courseId: '', title: '', description: '', deadline: '' }
+  });
+  const materialForm = useForm<z.infer<typeof materialSchema>>({ 
+    resolver: zodResolver(materialSchema),
+    defaultValues: { courseId: '', title: '', description: '', fileUrl: '' }
+  });
 
   const handleDropCourse = (courseId: string) => {
       if (!firestore || !authUser || !enrollments) return;
@@ -309,7 +315,7 @@ export default function AcademicsPage() {
                 {isFaculty && (
                     <Dialog open={openAssignmentDialog} onOpenChange={setOpenAssignmentDialog}>
                         <DialogTrigger asChild>
-                            <Button className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> New Assignment</Button>
+                            <Button onClick={() => assignmentForm.reset({ courseId: '', title: '', description: '', deadline: '' })} className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> New Assignment</Button>
                         </DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader>
@@ -390,7 +396,7 @@ export default function AcademicsPage() {
                 {isFaculty && (
                     <Dialog open={openMaterialDialog} onOpenChange={setOpenMaterialDialog}>
                         <DialogTrigger asChild>
-                            <Button className="rounded-xl shadow-lg shadow-accent/20"><PlusCircle className="mr-2 h-4 w-4" /> Add Resource</Button>
+                            <Button onClick={() => materialForm.reset({ courseId: '', title: '', description: '', fileUrl: '' })} className="rounded-xl shadow-lg shadow-accent/20"><PlusCircle className="mr-2 h-4 w-4" /> Add Resource</Button>
                         </DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader>

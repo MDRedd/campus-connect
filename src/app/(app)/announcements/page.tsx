@@ -76,6 +76,7 @@ export default function AnnouncementsPage() {
 
   const form = useForm<z.infer<typeof announcementSchema>>({
     resolver: zodResolver(announcementSchema),
+    defaultValues: { title: '', description: '', targetAudience: 'all' }
   });
 
   const handleEditClick = (announcement: Announcement) => {
