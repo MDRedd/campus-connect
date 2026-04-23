@@ -75,6 +75,7 @@ export default function MarkAttendancePage() {
         return;
     }
 
+    // Generate a unique ID for the session immediately on client
     const sessionRef = doc(collection(firestore, 'attendanceSessions'));
     const sessionId = sessionRef.id;
 
