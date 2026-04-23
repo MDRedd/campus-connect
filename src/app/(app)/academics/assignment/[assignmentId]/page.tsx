@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -35,24 +36,25 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText, Pencil, Sparkles, TrendingUp } from 'lucide-react';
+import { ArrowLeft, FileText, Pencil, Sparkles, TrendingUp, Clock, GraduationCap, ClipboardList, Send, ExternalLink } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { generateSubmissionFeedback } from '@/ai/flows/generate-submission-feedback';
 import { generateClassSummary } from '@/ai/flows/generate-class-summary';
+import { cn } from '@/lib/utils';
 
 // Simplified types based on backend.json
 type Course = { id: string; name: string; code: string; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
 type Submission = { id: string; assignmentId: string; studentId: string; submissionDate: string; fileUrl: string; comments?: string; marksAwarded?: number; studentName?: string; courseId: string; facultyFeedback?: string; };
-type UserProfile = { role: 'student' | 'faculty' | 'admin'; id: string; name: string };
+type UserProfile = { role: 'student' | 'faculty' | 'admin' | 'super-admin'; id: string; name: string };
 
 const submissionSchema = z.object({
-  fileUrl: z.string().url({ message: "Please enter a valid URL for your submission." }),
+  fileUrl: z.string().url({ message: "Environmental error: Valid URI required for asset submission." }),
   comments: z.string().optional(),
 });
 
 const gradingSchema = z.object({
-  marksAwarded: z.coerce.number().min(0, "Marks must be at least 0.").max(100, "Marks cannot exceed 100."),
+  marksAwarded: z.coerce.number().min(0, "Index range error: Minimum 0.").max(100, "Index range error: Maximum 100."),
   facultyFeedback: z.string().optional(),
 });
 
@@ -119,7 +121,7 @@ export default function AssignmentDetailPage() {
         const studentMap = new Map(allStudents.map(s => [s.id, s.name]));
         return allSubmissions.map(sub => ({
             ...sub,
-            studentName: studentMap.get(sub.studentId) || 'Unknown Student',
+            studentName: studentMap.get(sub.studentId) || 'Unknown Persona',
         }));
     }, [allSubmissions, allStudents]);
 
@@ -139,7 +141,7 @@ export default function AssignmentDetailPage() {
             courseId: courseId,
         });
 
-        toast({ title: 'Success', description: 'Assignment submitted successfully.' });
+        toast({ title: 'Protocol Success', description: 'Institutional asset submitted for review.' });
         submissionForm.reset();
     }
 
@@ -161,7 +163,7 @@ export default function AssignmentDetailPage() {
             facultyFeedback: values.facultyFeedback,
         });
 
-        toast({ title: 'Grade Saved', description: 'The marks and feedback have been updated.' });
+        toast({ title: 'Ledger Updated', description: 'Grade parameters have been finalized.' });
         setOpenGradingDialog(false);
     }
     
@@ -170,11 +172,7 @@ export default function AssignmentDetailPage() {
     
         const marks = gradingForm.getValues('marksAwarded');
         if (marks === undefined || marks === null) {
-            toast({
-                variant: 'destructive',
-                title: 'Marks required',
-                description: 'Please enter marks before generating feedback.',
-            });
+            toast({ variant: 'destructive', title: 'Data Missing', description: 'Enter marks to synthesize AI feedback.' });
             return;
         }
     
@@ -188,12 +186,7 @@ export default function AssignmentDetailPage() {
             });
             gradingForm.setValue('facultyFeedback', result.feedback);
         } catch (e) {
-            console.error("Error generating AI feedback:", e);
-            toast({
-                variant: 'destructive',
-                title: 'Error',
-                description: 'Could not generate AI feedback.',
-            });
+            toast({ variant: 'destructive', title: 'Flow Error', description: 'AI feedback synthesis failed.' });
         } finally {
             setIsGeneratingFeedback(false);
         }
@@ -202,7 +195,7 @@ export default function AssignmentDetailPage() {
     const handleGenerateClassInsights = async () => {
         if (!assignment || !submissionsWithStudentNames) return;
         if (submissionsWithStudentNames.length === 0) {
-            toast({ title: "No submissions", description: "There are no submissions to analyze yet." });
+            toast({ title: "Null Dataset", description: "No submissions available for analysis." });
             return;
         }
 
@@ -222,257 +215,252 @@ export default function AssignmentDetailPage() {
             });
             setClassSummary(result.summary);
         } catch (e) {
-            console.error("Error generating class insights:", e);
-            setClassSummary("Failed to generate insights. Please ensure there are graded submissions available.");
+            setClassSummary("Analysis Failure: Insufficient graded data or API timeout.");
         } finally {
             setIsGeneratingClassSummary(false);
         }
     };
 
     if (!courseId) {
-        return <div className="p-4"><Card><CardContent className="p-8">Error: Course ID is missing from the URL.</CardContent></Card></div>
+        return <div className="p-8"><Card className="glass-card"><CardContent className="p-12 text-center uppercase font-black tracking-widest text-xs opacity-40">System Error: Course ID required for detail access.</CardContent></Card></div>
     }
     
     const isLoading = isUserLoading || isAssignmentLoading || isCourseLoading;
     
-    const pageTitle = assignment ? `Assignment: ${assignment.title}` : 'Loading Assignment...';
-    const pageDescription = course ? `For course: ${course.name} (${course.code})` : 'Loading course details...';
-
     return (
-        <div className="flex flex-col gap-6">
-             <Button variant="outline" size="sm" className="w-fit" onClick={() => router.back()}>
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back
-            </Button>
-            
-            <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
-                <div className="space-y-1">
-                    {isLoading ? (
-                        <>
-                            <Skeleton className="h-9 w-3/4" />
-                            <Skeleton className="h-5 w-1/2" />
-                        </>
-                    ) : (
-                        <>
-                            <h1 className="text-3xl font-bold tracking-tight">{pageTitle}</h1>
-                            <p className="text-muted-foreground">{pageDescription}</p>
-                        </>
+        <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+             <div className="academic-hero">
+                <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+                    <div className="space-y-4">
+                        <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl" onClick={() => router.back()}>
+                            <ArrowLeft className="mr-2 h-4 w-4" /> Return to Academics
+                        </Button>
+                        <div className="space-y-1">
+                            <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                                <ClipboardList className="h-3 w-3" /> Module Assessment
+                            </div>
+                            <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">
+                                {isLoading ? <Skeleton className="h-12 w-64" /> : assignment?.title}
+                            </h1>
+                            <p className="text-indigo-100/70 font-medium">{course?.name} ({course?.code})</p>
+                        </div>
+                    </div>
+                    {isFaculty && (
+                        <Button onClick={handleGenerateClassInsights} disabled={isLoading || areSubmissionsLoading} className="bg-white text-primary hover:bg-indigo-50 font-black rounded-xl h-12 px-8 shadow-xl shadow-black/20 uppercase tracking-widest text-[10px]">
+                            <TrendingUp className="mr-2 h-4 w-4" /> Class Performance (AI)
+                        </Button>
                     )}
                 </div>
-                {isFaculty && (
-                    <Button onClick={handleGenerateClassInsights} disabled={isLoading || areSubmissionsLoading}>
-                        <TrendingUp className="mr-2 h-4 w-4" /> Class Insights (AI)
-                    </Button>
-                )}
             </div>
             
-            {isLoading ? <Skeleton className="h-48 w-full"/> : (
-                <Card>
-                    <CardHeader>
-                        <CardTitle>Assignment Details</CardTitle>
-                    </CardHeader>
-                    <CardContent>
-                        <p className="text-sm">{assignment?.description}</p>
-                    </CardContent>
-                    <CardFooter>
-                        <p className="text-sm font-medium">Deadline: {assignment ? format(new Date(assignment.deadline), 'PPP') : '...'}</p>
-                    </CardFooter>
-                </Card>
-            )}
-
-            {/* Student View */}
-            {!isFaculty && (
-                isLoading || isMySubmissionLoading ? <Skeleton className="h-64 w-full" /> : (
-                    mySubmission ? (
-                        <Card>
-                             <CardHeader><CardTitle>My Submission</CardTitle></CardHeader>
-                             <CardContent>
-                                <div className="grid gap-4 py-4 text-sm">
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label className="text-right text-muted-foreground">Submitted On</Label>
-                                        <p className="col-span-3 font-medium">{format(new Date(mySubmission.submissionDate), 'Pp')}</p>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label className="text-right text-muted-foreground">File</Label>
-                                        <Button asChild variant="link" className="col-span-3 justify-start p-0 h-auto">
-                                            <a href={mySubmission.fileUrl} target="_blank" rel="noopener noreferrer" className="truncate">{mySubmission.fileUrl}</a>
-                                        </Button>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-start gap-4">
-                                        <Label className="text-right pt-1 text-muted-foreground">Comments</Label>
-                                        <p className="col-span-3">{mySubmission.comments || 'No comments provided.'}</p>
-                                    </div>
-                                    <hr className="col-span-4 my-2" />
-                                    <div className="grid grid-cols-4 items-center gap-4">
-                                        <Label className="text-right text-muted-foreground">Grade</Label>
-                                        <p className="col-span-3 font-bold text-lg">
-                                            {mySubmission.marksAwarded !== undefined ? `${mySubmission.marksAwarded} / 100` : 'Not Graded Yet'}
-                                        </p>
-                                    </div>
-                                    <div className="grid grid-cols-4 items-start gap-4">
-                                        <Label className="text-right pt-1 text-muted-foreground">Feedback</Label>
-                                        <p className="col-span-3">{mySubmission.facultyFeedback || 'No feedback provided yet.'}</p>
-                                    </div>
-                                </div>
-                             </CardContent>
-                        </Card>
-                    ) : (
-                        <Card>
-                            <CardHeader><CardTitle>Submit Your Assignment</CardTitle></CardHeader>
-                            <CardContent>
-                                <Form {...submissionForm}>
-                                    <form onSubmit={submissionForm.handleSubmit(onAddSubmission)} className="space-y-4">
-                                        <FormField control={submissionForm.control} name="fileUrl" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Submission File URL</FormLabel>
-                                                <FormControl><Input type="url" placeholder="https://docs.google.com/document/d/..." {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <FormField control={submissionForm.control} name="comments" render={({ field }) => (
-                                            <FormItem>
-                                                <FormLabel>Comments (Optional)</FormLabel>
-                                                <FormControl><Textarea placeholder="Add any comments for your instructor..." {...field} /></FormControl>
-                                                <FormMessage />
-                                            </FormItem>
-                                        )} />
-                                        <Button type="submit" disabled={submissionForm.formState.isSubmitting}>
-                                            {submissionForm.formState.isSubmitting ? "Submitting..." : "Submit Assignment"}
-                                        </Button>
-                                    </form>
-                                </Form>
-                            </CardContent>
-                        </Card>
-                    )
-                )
-            )}
-
-            {/* Faculty View */}
-            {isFaculty && (
-                <>
-                    <Card>
-                        <CardHeader>
-                            <CardTitle>Student Submissions</CardTitle>
-                            <CardDescription>Review student submissions and award marks.</CardDescription>
-                        </CardHeader>
-                        <CardContent>
-                            {areSubmissionsLoading || areStudentsLoading ? <Skeleton className="h-48 w-full" /> : (
-                                submissionsWithStudentNames && submissionsWithStudentNames.length > 0 ? (
-                                    <Table>
-                                        <TableHeader>
-                                            <TableRow>
-                                                <TableHead>Student</TableHead>
-                                                <TableHead>Date</TableHead>
-                                                <TableHead>Submission</TableHead>
-                                                <TableHead>Grade</TableHead>
-                                                <TableHead className="text-right">Actions</TableHead>
-                                            </TableRow>
-                                        </TableHeader>
-                                        <TableBody>
-                                            {submissionsWithStudentNames.map(sub => (
-                                                <TableRow key={sub.id}>
-                                                    <TableCell>{sub.studentName}</TableCell>
-                                                    <TableCell>{format(new Date(sub.submissionDate), 'Pp')}</TableCell>
-                                                    <TableCell><Button asChild variant="link" size="sm"><a href={sub.fileUrl} target="_blank" rel="noopener noreferrer">View File</a></Button></TableCell>
-                                                    <TableCell>
-                                                        {sub.marksAwarded !== undefined ? (
-                                                            <span className="font-semibold">{`${sub.marksAwarded} / 100`}</span>
-                                                        ) : (
-                                                            <Badge variant="secondary">Not Graded</Badge>
-                                                        )}
-                                                    </TableCell>
-                                                    <TableCell className="text-right">
-                                                        <Button variant="outline" size="sm" onClick={() => handleOpenGradingDialog(sub)}>
-                                                            <Pencil className="mr-2 h-4 w-4" />
-                                                            {sub.marksAwarded !== undefined ? 'Edit Grade' : 'Grade'}
-                                                        </Button>
-                                                    </TableCell>
-                                                </TableRow>
-                                            ))}
-                                        </TableBody>
-                                    </Table>
-                                ) : (
-                                    <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                    <FileText className="h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mt-4 text-lg font-semibold">No Submissions Yet</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">Student submissions will appear here once they are submitted.</p>
-                                    </div>
-                                )
+            <div className="grid gap-8 lg:grid-cols-12">
+                <div className="lg:col-span-8 space-y-8">
+                    <Card className="glass-card border-none">
+                        <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Scope & Requirements</CardTitle></CardHeader>
+                        <CardContent className="space-y-6">
+                            {isLoading ? <Skeleton className="h-32 w-full" /> : (
+                                <p className="text-slate-600 leading-relaxed font-medium">{assignment?.description}</p>
                             )}
+                            <div className="flex items-center gap-6 pt-6 border-t border-indigo-50/50">
+                                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-primary">
+                                    <Clock className="h-4 w-4" />
+                                    <span>Deadline: {assignment ? format(new Date(assignment.deadline), 'PPP') : '...'}</span>
+                                </div>
+                                <div className="flex items-center gap-2 text-xs font-black uppercase tracking-widest text-muted-foreground">
+                                    <GraduationCap className="h-4 w-4" />
+                                    <span>Weight: 100 Points</span>
+                                </div>
+                            </div>
                         </CardContent>
                     </Card>
 
-                    <Dialog open={openGradingDialog} onOpenChange={setOpenGradingDialog}>
-                        <DialogContent>
-                            <DialogHeader>
-                                <DialogTitle>Grade Submission</DialogTitle>
-                                <DialogDescription>
-                                    For student: <span className="font-semibold">{selectedSubmission?.studentName}</span>
-                                </DialogDescription>
-                            </DialogHeader>
-                            <Form {...gradingForm}>
-                                <form onSubmit={gradingForm.handleSubmit(onSaveGrade)} className="space-y-4">
-                                    <FormField control={gradingForm.control} name="marksAwarded" render={({ field }) => (
-                                        <FormItem>
-                                            <FormLabel>Marks (out of 100)</FormLabel>
-                                            <FormControl><Input type="number" {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )} />
-                                    <FormField control={gradingForm.control} name="facultyFeedback" render={({ field }) => (
-                                        <FormItem>
-                                            <div className="flex justify-between items-center">
-                                                <FormLabel>Feedback</FormLabel>
-                                                <Button
-                                                    type="button"
-                                                    variant="outline"
-                                                    size="sm"
-                                                    onClick={handleGenerateFeedback}
-                                                    disabled={isGeneratingFeedback || gradingForm.getValues('marksAwarded') === undefined}
-                                                >
-                                                    <Sparkles className="mr-2 h-4 w-4" />
-                                                    {isGeneratingFeedback ? 'Generating...' : 'Generate with AI'}
-                                                </Button>
-                                            </div>
-                                            <FormControl><Textarea placeholder="Provide constructive feedback for the student..." {...field} /></FormControl>
-                                            <FormMessage />
-                                        </FormItem>
-                                    )} />
-                                    <DialogFooter>
-                                        <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                        <Button type="submit" disabled={gradingForm.formState.isSubmitting}>
-                                            {gradingForm.formState.isSubmitting ? "Saving..." : "Save Grade"}
-                                        </Button>
-                                    </DialogFooter>
-                                </form>
-                            </Form>
-                        </DialogContent>
-                    </Dialog>
-
-                    <Dialog open={showClassSummaryDialog} onOpenChange={setShowClassSummaryDialog}>
-                        <DialogContent className="sm:max-w-2xl">
-                            <DialogHeader>
-                                <DialogTitle>Class Performance Insights</DialogTitle>
-                                <DialogDescription>AI-generated analysis of student submissions for this assignment.</DialogDescription>
-                            </DialogHeader>
-                            <div className="py-4 max-h-[60vh] overflow-y-auto">
-                                {isGeneratingClassSummary ? (
-                                    <div className="flex flex-col items-center justify-center p-8 space-y-4">
-                                        <Sparkles className="h-8 w-8 animate-pulse text-primary" />
-                                        <p className="text-sm text-muted-foreground">Analyzing submissions and generating insights...</p>
-                                    </div>
-                                ) : (
-                                    <div className="prose prose-sm dark:prose-invert">
-                                        <p className="whitespace-pre-wrap">{classSummary}</p>
-                                    </div>
+                    {/* Faculty View: Submissions Table */}
+                    {isFaculty && (
+                        <Card className="glass-card border-none overflow-hidden">
+                            <CardHeader className="bg-white/40 border-b border-white/20">
+                                <CardTitle className="text-xl font-black uppercase tracking-tight">Identity Roster & Work</CardTitle>
+                                <CardDescription className="text-[10px] font-black uppercase tracking-widest">Audit student submissions and finalize grade indices.</CardDescription>
+                            </CardHeader>
+                            <CardContent className="p-0">
+                                {areSubmissionsLoading || areStudentsLoading ? <div className="p-8"><Skeleton className="h-48 w-full rounded-2xl" /></div> : (
+                                    submissionsWithStudentNames && submissionsWithStudentNames.length > 0 ? (
+                                        <Table>
+                                            <TableHeader className="bg-slate-50/50">
+                                                <TableRow>
+                                                    <TableHead className="pl-8 uppercase text-[10px] font-black tracking-widest">Student</TableHead>
+                                                    <TableHead className="uppercase text-[10px] font-black tracking-widest">Submission Date</TableHead>
+                                                    <TableHead className="uppercase text-[10px] font-black tracking-widest">Grade Index</TableHead>
+                                                    <TableHead className="text-right pr-8 uppercase text-[10px] font-black tracking-widest">Action</TableHead>
+                                                </TableRow>
+                                            </TableHeader>
+                                            <TableBody>
+                                                {submissionsWithStudentNames.map(sub => (
+                                                    <TableRow key={sub.id} className="hover:bg-indigo-50/30 group transition-colors">
+                                                        <TableCell className="pl-8 font-bold text-slate-700">{sub.studentName}</TableCell>
+                                                        <TableCell className="text-xs text-muted-foreground">{format(new Date(sub.submissionDate), 'Pp')}</TableCell>
+                                                        <TableCell>
+                                                            {sub.marksAwarded !== undefined ? (
+                                                                <Badge className="bg-primary/10 text-primary border-primary/20 font-black px-3 py-1 rounded-lg">{sub.marksAwarded} / 100</Badge>
+                                                            ) : (
+                                                                <Badge variant="secondary" className="opacity-50 uppercase text-[9px] font-black tracking-widest">Pending</Badge>
+                                                            )}
+                                                        </TableCell>
+                                                        <TableCell className="text-right pr-8">
+                                                            <Button variant="ghost" size="sm" className="rounded-xl opacity-0 group-hover:opacity-100 font-black uppercase text-[10px] tracking-widest" onClick={() => handleOpenGradingDialog(sub)}>
+                                                                <Pencil className="mr-2 h-3 w-3" /> Audit
+                                                            </Button>
+                                                        </TableCell>
+                                                    </TableRow>
+                                                ))}
+                                            </TableBody>
+                                        </Table>
+                                    ) : (
+                                        <div className="flex flex-col items-center justify-center p-20 opacity-20 uppercase font-black tracking-widest text-xs">No active submissions found</div>
+                                    )
                                 )}
+                            </CardContent>
+                        </Card>
+                    )}
+                </div>
+
+                <div className="lg:col-span-4 space-y-8">
+                    {/* Student View: Submission Form or Result */}
+                    {!isFaculty && (
+                        isLoading || isMySubmissionLoading ? <Skeleton className="h-64 w-full rounded-3xl" /> : (
+                            mySubmission ? (
+                                <Card className="glass-card border-none bg-indigo-500 text-white overflow-hidden">
+                                    <CardHeader className="bg-black/10"><CardTitle className="text-xs font-black uppercase tracking-widest opacity-80">Your Work Transcript</CardTitle></CardHeader>
+                                    <CardContent className="pt-6 space-y-6">
+                                        <div className="space-y-1">
+                                            <p className="text-[9px] font-black uppercase tracking-widest opacity-60">Grade Index</p>
+                                            <p className="text-5xl font-black tracking-tighter">
+                                                {mySubmission.marksAwarded !== undefined ? `${mySubmission.marksAwarded}` : '--'}
+                                                <span className="text-xl opacity-40 ml-1">/ 100</span>
+                                            </p>
+                                        </div>
+                                        <div className="space-y-4 pt-4 border-t border-white/10">
+                                            <div className="flex justify-between items-center text-xs">
+                                                <span className="font-black uppercase tracking-widest opacity-60">Status</span>
+                                                <Badge className="bg-white/20 border-none text-white font-black uppercase text-[9px] tracking-widest">Submitted</Badge>
+                                            </div>
+                                            <div className="space-y-1">
+                                                <span className="text-[9px] font-black uppercase tracking-widest opacity-60">Feedback</span>
+                                                <p className="text-xs font-medium italic opacity-90 leading-relaxed">"{mySubmission.facultyFeedback || 'Awaiting instructor evaluation.'}"</p>
+                                            </div>
+                                            <Button asChild className="w-full bg-white text-indigo-600 hover:bg-indigo-50 rounded-xl h-12 font-black uppercase tracking-widest text-[10px] mt-4 shadow-xl shadow-black/20">
+                                                <a href={mySubmission.fileUrl} target="_blank" rel="noopener noreferrer">Access Submission File <ExternalLink className="ml-2 h-3 w-3" /></a>
+                                            </Button>
+                                        </div>
+                                    </CardContent>
+                                </Card>
+                            ) : (
+                                <Card className="glass-card border-none">
+                                    <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Authorize Submission</CardTitle></CardHeader>
+                                    <CardContent>
+                                        <Form {...submissionForm}>
+                                            <form onSubmit={submissionForm.handleSubmit(onAddSubmission)} className="space-y-6">
+                                                <FormField control={submissionForm.control} name="fileUrl" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Asset URI (Google Drive/Share)</FormLabel>
+                                                        <FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl bg-white shadow-inner" /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <FormField control={submissionForm.control} name="comments" render={({ field }) => (
+                                                    <FormItem>
+                                                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Contextual Comments</FormLabel>
+                                                        <FormControl><Textarea placeholder="Notes for instructor..." {...field} className="rounded-xl bg-white shadow-inner min-h-[100px]" /></FormControl>
+                                                        <FormMessage />
+                                                    </FormItem>
+                                                )} />
+                                                <Button type="submit" disabled={submissionForm.formState.isSubmitting} className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">
+                                                    {submissionForm.formState.isSubmitting ? "Transmitting..." : "Finalize Submission"}
+                                                </Button>
+                                            </form>
+                                        </Form>
+                                    </CardContent>
+                                </Card>
+                            )
+                        )
+                    )}
+
+                    <Card className="glass-card border-none">
+                        <CardHeader><CardTitle className="text-sm font-black uppercase tracking-widest text-muted-foreground">Compliance Notice</CardTitle></CardHeader>
+                        <CardContent>
+                            <p className="text-[10px] font-medium text-slate-400 leading-relaxed uppercase tracking-wider">All submissions are archived in the institutional blockchain. Late submissions are automatically flagged and may result in point deductions based on departmental policies.</p>
+                        </CardContent>
+                    </Card>
+                </div>
+            </div>
+
+            {/* Grading Dialog */}
+            <Dialog open={openGradingDialog} onOpenChange={setOpenGradingDialog}>
+                <DialogContent className="rounded-[2.5rem] max-w-xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tight">Submission Audit</DialogTitle>
+                        <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">
+                            Persona: {selectedSubmission?.studentName}
+                        </DialogDescription>
+                    </DialogHeader>
+                    <Form {...gradingForm}>
+                        <form onSubmit={gradingForm.handleSubmit(onSaveGrade)} className="space-y-6 py-4">
+                            <div className="grid grid-cols-1 gap-6">
+                                <FormField control={gradingForm.control} name="marksAwarded" render={({ field }) => (
+                                    <FormItem>
+                                        <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Grade Index (0-100)</FormLabel>
+                                        <FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-xl font-black" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
+                                <FormField control={gradingForm.control} name="facultyFeedback" render={({ field }) => (
+                                    <FormItem>
+                                        <div className="flex justify-between items-center mb-2">
+                                            <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Synthesized Feedback</FormLabel>
+                                            <Button type="button" variant="outline" size="sm" onClick={handleGenerateFeedback} disabled={isGeneratingFeedback} className="rounded-lg h-8 border-primary/20 text-primary font-black uppercase text-[8px] tracking-[0.2em] bg-primary/5">
+                                                <Sparkles className="mr-1.5 h-3 w-3" />
+                                                {isGeneratingFeedback ? 'Synthesizing...' : 'Synthesize with AI'}
+                                            </Button>
+                                        </div>
+                                        <FormControl><Textarea placeholder="Provide evaluative rationale..." {...field} className="rounded-2xl bg-slate-50 border-none shadow-inner min-h-[150px]" /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
+                                )} />
                             </div>
-                            <DialogFooter>
-                                <Button onClick={() => setShowClassSummaryDialog(false)}>Close</Button>
+                            <DialogFooter className="pt-4">
+                                <DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose>
+                                <Button type="submit" disabled={gradingForm.formState.isSubmitting} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">
+                                    {gradingForm.formState.isSubmitting ? "Finalizing..." : "Finalize Audit"}
+                                </Button>
                             </DialogFooter>
-                        </DialogContent>
-                    </Dialog>
-                </>
-            )}
+                        </form>
+                    </Form>
+                </DialogContent>
+            </Dialog>
+
+            {/* Class Summary Dialog */}
+            <Dialog open={showClassSummaryDialog} onOpenChange={setShowClassSummaryDialog}>
+                <DialogContent className="rounded-[2.5rem] max-w-3xl">
+                    <DialogHeader>
+                        <DialogTitle className="text-2xl font-black uppercase tracking-tight">Module Performance Insights</DialogTitle>
+                        <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">AI Synthesis Engine v2.0</DialogDescription>
+                    </DialogHeader>
+                    <div className="py-6 max-h-[60vh] overflow-y-auto">
+                        {isGeneratingClassSummary ? (
+                            <div className="flex flex-col items-center justify-center p-20 space-y-6">
+                                <div className="bg-primary/5 p-10 rounded-full animate-pulse"><Sparkles className="h-12 w-12 text-primary" /></div>
+                                <p className="text-[10px] font-black uppercase tracking-[0.3em] text-primary">Synthesizing Class Performance Metrics...</p>
+                            </div>
+                        ) : (
+                            <div className="prose prose-sm dark:prose-invert max-w-none bg-slate-50 p-8 rounded-3xl border border-indigo-50">
+                                <p className="whitespace-pre-wrap font-medium text-slate-700 leading-relaxed">{classSummary}</p>
+                            </div>
+                        )}
+                    </div>
+                    <DialogFooter>
+                        <Button onClick={() => setShowClassSummaryDialog(false)} className="rounded-xl w-full h-12 font-black uppercase tracking-widest text-[10px]">Close Analysis</Button>
+                    </DialogFooter>
+                </DialogContent>
+            </Dialog>
 
         </div>
     );

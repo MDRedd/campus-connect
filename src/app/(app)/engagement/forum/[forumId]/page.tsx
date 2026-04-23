@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -16,12 +17,13 @@ import { Button } from '@/components/ui/button';
 import { Textarea } from '@/components/ui/textarea';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Send } from 'lucide-react';
+import { ArrowLeft, Send, MessageSquare, Zap, Clock, ShieldCheck } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { format } from 'date-fns';
+import { cn } from '@/lib/utils';
 
 type Forum = { title: string; description: string; courseId: string; };
-type ForumPost = { id: string; userId: string; userName: string; content: string; postedAt: { seconds: number }; };
+type ForumPost = { id: string; userId: string; userName: string; content: string; postedAt: any; };
 
 export default function ForumPage() {
   const params = useParams();
@@ -64,103 +66,118 @@ export default function ForumPage() {
       postedAt: serverTimestamp(),
     });
     
-    // Optimistic UI update
     setNewPostContent('');
     setIsSubmitting(false);
   };
 
   if (!courseId) {
-    return (
-        <div className="flex flex-col gap-6 items-center">
-            <Card className="w-full max-w-4xl">
-                <CardHeader>
-                    <CardTitle>Error</CardTitle>
-                    <CardDescription>Course ID is missing. Please go back and try again.</CardDescription>
-                </CardHeader>
-                <CardContent>
-                    <Button onClick={() => router.back()}>
-                        <ArrowLeft className="mr-2 h-4 w-4" /> Go Back
-                    </Button>
-                </CardContent>
-            </Card>
-        </div>
-    )
+    return <div className="p-12 text-center uppercase font-black text-xs opacity-40">Environmental Error: Module context missing.</div>
   }
 
   const isLoading = isForumLoading || arePostsLoading || isUserLoading;
 
   return (
-    <div className="flex flex-col gap-6">
-       <Button variant="outline" size="sm" className="w-fit" asChild>
-        <Link href="/engagement">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Engagement
-        </Link>
-      </Button>
-      <Card className="w-full">
-        <CardHeader>
-            {isForumLoading ? (
-                <div className="space-y-2">
-                    <Skeleton className="h-8 w-3/4" />
-                    <Skeleton className="h-5 w-1/2" />
-                </div>
-            ) : forum ? (
-                <>
-                    <CardTitle className="text-3xl">{forum.title}</CardTitle>
-                    <CardDescription>{forum.description}</CardDescription>
-                </>
-            ) : (
-                 <CardTitle>Forum not found</CardTitle>
-            )}
-        </CardHeader>
-        <CardContent className="space-y-6">
-            <div className="space-y-4 max-h-[50vh] overflow-y-auto pr-4">
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+       <div className="academic-hero">
+          <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="space-y-4">
+                  <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl" onClick={() => router.back()}>
+                      <ArrowLeft className="mr-2 h-4 w-4" /> Academic Collective
+                  </Button>
+                  <div className="space-y-1">
+                      <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                          <MessageSquare className="h-3 w-3" /> Knowledge Exchange
+                      </div>
+                      <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">
+                        {isForumLoading ? <Skeleton className="h-12 w-80" /> : forum?.title}
+                      </h1>
+                      <p className="text-indigo-100/70 font-medium max-w-2xl">{forum?.description}</p>
+                  </div>
+              </div>
+              <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] flex flex-col items-center gap-2 text-white">
+                  <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Total Discourse</span>
+                  <span className="text-5xl font-black tracking-tighter">{posts?.length ?? 0}</span>
+                  <span className="text-[9px] font-bold opacity-60 uppercase">System Contributions</span>
+              </div>
+          </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-12">
+        <div className="lg:col-span-8 flex flex-col gap-6">
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-4 scroll-smooth">
                 {isLoading ? (
                     <>
-                        <Skeleton className="h-20 w-full" />
-                        <Skeleton className="h-24 w-full" />
+                        <Skeleton className="h-24 w-full rounded-3xl" />
+                        <Skeleton className="h-32 w-full rounded-3xl" />
                     </>
                 ) : posts && posts.length > 0 ? (
                     posts.map(post => (
-                        <div key={post.id} className="flex items-start gap-4">
-                            <Avatar>
-                                {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={post.userName} data-ai-hint="person portrait" />}
-                                <AvatarFallback>{post.userName.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
+                        <div key={post.id} className="flex items-start gap-4 animate-in slide-in-from-bottom-4 duration-500">
+                            <Avatar className="h-10 w-10 border-2 border-white shadow-sm mt-1">
+                                {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={post.userName} />}
+                                <AvatarFallback className="font-black text-[10px] uppercase bg-primary/5 text-primary">{post.userName.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
                             </Avatar>
-                            <div className="flex-1 rounded-lg border p-4">
-                                <div className="flex justify-between items-center">
-                                    <Link href={`/users/${post.userId}`} className="font-semibold hover:underline">
+                            <div className="flex-1 rounded-[2rem] border bg-white/40 p-6 group hover:bg-white hover:shadow-xl transition-all border-indigo-50/50">
+                                <div className="flex justify-between items-center mb-3">
+                                    <Link href={`/users/${post.userId}`} className="text-xs font-black text-slate-800 uppercase tracking-widest hover:underline">
                                         {post.userName}
                                     </Link>
-                                    <p className="text-xs text-muted-foreground">
-                                        {post.postedAt ? format(new Date(post.postedAt.seconds * 1000), 'PPp') : '...'}
-                                    </p>
+                                    <div className="flex items-center gap-2 text-[9px] font-black uppercase tracking-tighter text-muted-foreground opacity-60">
+                                        <Clock className="h-3 w-3" />
+                                        {post.postedAt ? format(new Date(post.postedAt.seconds * 1000), 'Pp') : '...'}
+                                    </div>
                                 </div>
-                                <p className="mt-2 text-sm text-muted-foreground">{post.content}</p>
+                                <p className="text-sm text-slate-600 leading-relaxed font-medium">{post.content}</p>
                             </div>
                         </div>
                     ))
                 ) : (
-                    <div className="text-center text-muted-foreground py-8">
-                        <p>No posts in this forum yet. Be the first to start the conversation!</p>
-                    </div>
+                    <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No entries in current thread</div>
                 )}
             </div>
 
-            <div className="border-t pt-6">
-                <form onSubmit={handlePostSubmit} className="flex flex-col gap-4">
-                     <Textarea
-                        placeholder="Write your reply..."
-                        value={newPostContent}
-                        onChange={(e) => setNewPostContent(e.target.value)}
-                        disabled={isSubmitting || !authUser}
-                    />
-                    <Button type="submit" className="w-fit self-end" disabled={isSubmitting || !newPostContent.trim() || !authUser}>
-                        {isSubmitting ? 'Posting...' : <> <Send className="mr-2 h-4 w-4" /> Post Reply </>}
+            <div className="glass-card border-none p-8 mt-4">
+                <form onSubmit={handlePostSubmit} className="flex flex-col gap-6">
+                    <div className="space-y-2">
+                         <Label className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Draft Response</Label>
+                         <Textarea
+                            placeholder="Contribute to the academic discourse..."
+                            value={newPostContent}
+                            onChange={(e) => setNewPostContent(e.target.value)}
+                            disabled={isSubmitting || !authUser}
+                            className="min-h-[120px] rounded-2xl bg-white shadow-inner focus:ring-primary border-indigo-100"
+                        />
+                    </div>
+                    <Button type="submit" className="w-fit self-end rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20" disabled={isSubmitting || !newPostContent.trim() || !authUser}>
+                        {isSubmitting ? 'Transmitting...' : <> <Send className="mr-2 h-4 w-4" /> Authorize & Post </>}
                     </Button>
                 </form>
             </div>
-        </CardContent>
-      </Card>
+        </div>
+
+        <div className="lg:col-span-4 space-y-8">
+            <Card className="glass-card border-none bg-indigo-50/50">
+                <CardHeader><CardTitle className="text-xs font-black uppercase tracking-widest text-primary">Discourse Rules</CardTitle></CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="flex items-start gap-3">
+                        <ShieldCheck className="h-4 w-4 text-primary shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-medium text-slate-500 leading-relaxed uppercase tracking-wider">Maintain academic integrity and professional conduct in all communications.</p>
+                    </div>
+                    <div className="flex items-start gap-3">
+                        <Zap className="h-4 w-4 text-accent shrink-0 mt-0.5" />
+                        <p className="text-[10px] font-medium text-slate-500 leading-relaxed uppercase tracking-wider">Responses are synchronized in real-time across the institutional ledger.</p>
+                    </div>
+                </CardContent>
+            </Card>
+
+            <Card className="glass-card border-none">
+                <CardHeader><CardTitle className="text-xs font-black uppercase tracking-widest text-muted-foreground">Moderation Index</CardTitle></CardHeader>
+                <CardContent>
+                    <p className="text-[10px] font-medium text-slate-400 leading-relaxed uppercase tracking-wider">All entries are subject to automated content screening and faculty audit. Violations of code of conduct will be flagged to the Registrar.</p>
+                </CardContent>
+            </Card>
+        </div>
+      </div>
     </div>
   );
 }
