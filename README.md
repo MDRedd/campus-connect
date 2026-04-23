@@ -1,4 +1,3 @@
-
 # Campus Connect - Digital College Platform
 
 Campus Connect is a unified digital platform designed to streamline academic and administrative tasks for students, faculty, and administrators.

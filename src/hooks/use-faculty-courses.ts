@@ -44,6 +44,7 @@ export function useFacultyCourses() {
 
                 if (facultyCourseIds.length > 0) {
                     const coursesData: Course[] = [];
+                    // Fetch in chunks of 30 to stay within Firestore 'in' query limits
                     for (let i = 0; i < facultyCourseIds.length; i += 30) {
                         const chunk = facultyCourseIds.slice(i, i + 30);
                         const coursesQuery = query(collection(firestore, 'courses'), where('id', 'in', chunk));

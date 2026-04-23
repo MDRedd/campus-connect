@@ -189,7 +189,7 @@ export default function MarkAttendancePage() {
                   )}
                   {!isLoading && (!displayCourses || displayCourses.length === 0) && (
                       <p className="text-xs text-muted-foreground mt-2">
-                          {isAdmin ? "You need to add courses in the Course Catalog first." : "You haven't been assigned to any classes in the weekly timetable yet."}
+                          {isAdmin ? "You need to add courses in the Course Catalog first." : "You haven't been assigned to any classes in the weekly timetable yet. Go to the Timetable page to add your classes."}
                       </p>
                   )}
                 </div>

@@ -63,11 +63,9 @@ export default function LoginPage() {
           description: 'Redirecting to your dashboard...',
         });
     } catch (error: any) {
-        // Log removed to prevent cluttering the user interface with console errors.
-        // We use descriptive toast messages instead.
         let errorMessage = 'Invalid credentials. Please check your Roll No./ID and password.';
         
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
             errorMessage = 'Account not found or password incorrect. Did you sign up first?';
         }
 
@@ -186,9 +184,9 @@ export default function LoginPage() {
               <p className="mt-1">Password: <code className="bg-background px-1 rounded border">password123</code></p>
               <Alert variant="default" className="mt-4 bg-background border-primary/20 shadow-sm">
                 <AlertCircle className="h-4 w-4 text-primary" />
-                <AlertTitle className="text-primary font-bold text-xs uppercase tracking-tight">Requirement</AlertTitle>
+                <AlertTitle className="text-primary font-bold text-xs uppercase tracking-tight">Important</AlertTitle>
                 <AlertDescription className="text-[11px] leading-tight text-muted-foreground">
-                  Accounts are not pre-created. You <strong>must</strong> use the <Link href="/signup" className="underline font-bold text-primary">Sign up</Link> link first to register these test IDs.
+                  The sample IDs above are not pre-created. You <strong>must</strong> use the <Link href="/signup" className="underline font-bold text-primary">Sign up</Link> page first to register them before logging in.
                 </AlertDescription>
               </Alert>
             </CardContent>
