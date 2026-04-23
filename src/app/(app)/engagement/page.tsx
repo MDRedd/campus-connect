@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -30,6 +29,9 @@ import {
   MessageCircle,
   Sparkles,
   Zap,
+  Globe,
+  Clock,
+  ShieldCheck,
 } from 'lucide-react';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { Skeleton } from '@/components/ui/skeleton';
@@ -54,8 +56,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useFacultyCourses } from '@/hooks/use-faculty-courses';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
+import { Label } from '@/components/ui/label';
 
-// Types based on backend.json
+// Types
 type Course = { id: string; name: string; code: string; };
 type Forum = { id: string; courseId: string; title: string; description: string; courseCode?: string; courseName?: string; };
 type Club = { id: string; name: string; description: string; facultyIncharge: string; members?: string[]; };
@@ -228,7 +231,7 @@ export default function EngagementPage() {
 
   return (
     <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
-      <div className="academic-hero bg-gradient-to-br from-indigo-600 to-purple-600">
+      <div className="academic-hero">
           <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
               <div className="space-y-2">
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
@@ -253,19 +256,19 @@ export default function EngagementPage() {
 
         <TabsContent value="community" className="mt-8">
             <Card className="glass-card border-none">
-                <CardHeader className="flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
+                <CardHeader className="flex flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
                     <div className="space-y-1">
                         <CardTitle className="text-2xl font-black tracking-tight uppercase">COMMUNITY BOARD</CardTitle>
-                        <CardDescription className="text-xs">A shared space for campus voices and daily updates.</CardDescription>
+                        <CardDescription className="text-xs font-medium">A shared space for campus voices and daily updates.</CardDescription>
                     </div>
                     <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
-                        <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
-                            <DialogHeader><DialogTitle>New Community Thread</DialogTitle><DialogDescription>Share your thoughts with the campus.</DialogDescription></DialogHeader>
-                            <Form {...communityPostForm}><form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4">
-                                <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Content</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Publish Now</Button></DialogFooter>
+                            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">New Community Thread</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Share your thoughts with the campus.</DialogDescription></DialogHeader>
+                            <Form {...communityPostForm}><form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4 pt-4">
+                                <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Content</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner min-h-[150px]" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Publish Now</Button></DialogFooter>
                             </form></Form>
                         </DialogContent>
                     </Dialog>
@@ -277,20 +280,23 @@ export default function EngagementPage() {
                                 <CardContent className="p-8">
                                     <div className="flex justify-between items-start mb-4">
                                         <h3 className="text-xl font-black tracking-tight uppercase group-hover:text-primary transition-colors">{post.title}</h3>
-                                        <Badge variant="secondary" className="rounded-lg text-[9px] font-black uppercase tracking-widest">{post.createdAt ? format(post.createdAt.toDate(), 'MMM d') : '...'}</Badge>
+                                        <Badge variant="secondary" className="rounded-lg text-[9px] font-black uppercase tracking-widest bg-primary/5 text-primary border-primary/10 px-2 py-1">{post.createdAt ? format(post.createdAt.toDate(), 'MMM d') : '...'}</Badge>
                                     </div>
-                                    <p className="text-sm text-slate-600 leading-relaxed mb-6">{post.description}</p>
-                                    <div className="flex items-center gap-3 pt-4 border-t border-indigo-50/50">
-                                        <Avatar className="h-8 w-8 border border-white shadow-sm">
+                                    <p className="text-sm text-slate-600 leading-relaxed mb-6 font-medium italic">"{post.description}"</p>
+                                    <div className="flex items-center gap-3 pt-6 border-t border-indigo-50/50">
+                                        <Avatar className="h-9 w-9 border-2 border-white shadow-sm">
                                             {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={post.studentName} />}
                                             <AvatarFallback className="font-black text-[10px] uppercase bg-primary/5 text-primary">{post.studentName.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
                                         </Avatar>
-                                        <Link href={`/users/${post.studentId}`} className="text-xs font-black text-slate-800 uppercase tracking-widest hover:underline">{post.studentName}</Link>
+                                        <div>
+                                            <Link href={`/users/${post.studentId}`} className="text-[10px] font-black text-slate-800 uppercase tracking-widest hover:underline block">{post.studentName}</Link>
+                                            <p className="text-[8px] font-black text-slate-400 uppercase tracking-widest">Authorized Student</p>
+                                        </div>
                                     </div>
                                 </CardContent>
                             </Card>
                         ))
-                    ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No community activity found</div>}
+                    ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No community activity indexed</div>}
                 </CardContent>
             </Card>
         </TabsContent>
@@ -300,23 +306,23 @@ export default function EngagementPage() {
             <CardHeader className="flex flex-row items-center justify-between pb-8 border-b border-indigo-50/50">
                 <div className="space-y-1">
                     <CardTitle className="text-2xl font-black tracking-tight uppercase">ACADEMIC FORUMS</CardTitle>
-                    <CardDescription className="text-xs">Subject-specific knowledge sharing and discourse.</CardDescription>
+                    <CardDescription className="text-xs font-medium">Subject-specific knowledge sharing and discourse.</CardDescription>
                 </div>
                 {isFacultyOrAdmin && (
                     <Dialog open={openForumDialog} onOpenChange={setOpenForumDialog}>
-                        <DialogTrigger asChild><Button size="sm" className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
-                            <DialogHeader><DialogTitle>Establish New Forum</DialogTitle><DialogDescription>Set up a specialized discussion space.</DialogDescription></DialogHeader>
-                            <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4">
+                            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Establish New Forum</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Set up a specialized discussion space.</DialogDescription></DialogHeader>
+                            <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4 pt-4">
                                 <FormField control={forumForm.control} name="courseId" render={({ field }) => (
-                                    <FormItem><FormLabel>Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                    <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
                                         <SelectContent className="rounded-xl">{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Topic Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Launch Forum</Button></DialogFooter>
+                                <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Topic Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Launch Forum</Button></DialogFooter>
                             </form></Form>
                         </DialogContent>
                     </Dialog>
@@ -324,8 +330,8 @@ export default function EngagementPage() {
             </CardHeader>
             <CardContent className="grid gap-4 mt-6">
                 <div className="relative mb-6 px-4">
-                    <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-                    <Input placeholder="Search forum directory..." className="pl-10 h-12 rounded-2xl bg-white/50 border-none shadow-inner" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
+                    <Input placeholder="Search forum directory..." className="pl-10 h-12 rounded-2xl bg-white/50 border-none shadow-inner text-sm font-medium" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 {areForumsLoading ? <Skeleton className="h-24 w-full rounded-2xl" /> : filteredForums && filteredForums.length > 0 ? (
                     filteredForums.map((forum) => (
@@ -333,10 +339,10 @@ export default function EngagementPage() {
                             <CardHeader className="flex flex-row items-center gap-6 p-6">
                                 <div className="bg-primary/5 text-primary p-4 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all duration-500"><MessageSquare className="h-6 w-6" /></div>
                                 <div className="flex-1 min-w-0">
-                                    <CardTitle className="text-lg font-black uppercase tracking-tight truncate">{forum.title}</CardTitle>
-                                    <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60">{forum.courseCode} • {forum.courseName}</CardDescription>
+                                    <CardTitle className="text-lg font-black uppercase tracking-tight truncate leading-none">{forum.title}</CardTitle>
+                                    <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60 mt-1">{forum.courseCode} • {forum.courseName}</CardDescription>
                                 </div>
-                                <Button asChild variant="secondary" className="rounded-xl h-10 px-8 shrink-0">
+                                <Button asChild variant="secondary" className="rounded-xl h-10 px-8 shrink-0 font-black uppercase tracking-widest text-[10px]">
                                     <Link href={`/engagement/forum/${forum.id}?courseId=${forum.courseId}`}>Enter Forum <Zap className="ml-2 h-3 w-3 fill-current" /></Link>
                                 </Button>
                             </CardHeader>
@@ -349,26 +355,26 @@ export default function EngagementPage() {
         
         <TabsContent value="clubs" className="mt-8">
             <Card className="glass-card border-none">
-                <CardHeader className="flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
+                <CardHeader className="flex flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
                     <div className="space-y-1">
                         <CardTitle className="text-2xl font-black tracking-tight uppercase">STUDENT GUILDS</CardTitle>
-                        <CardDescription className="text-xs">Extracurricular organizations and interest groups.</CardDescription>
+                        <CardDescription className="text-xs font-medium">Extracurricular organizations and interest groups.</CardDescription>
                     </div>
                     {isSuperAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
-                            <DialogTrigger asChild><Button size="sm" className="rounded-xl shadow-lg shadow-primary/20"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
                             <DialogContent className="rounded-3xl">
-                                <DialogHeader><DialogTitle>Register New Club</DialogTitle><DialogDescription>Establish a new institutional student organization.</DialogDescription></DialogHeader>
-                                <Form {...clubForm}><form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
-                                    <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel>Club Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Mission Statement</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Register New Club</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Establish a new institutional student organization.</DialogDescription></DialogHeader>
+                                <Form {...clubForm}><form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4 pt-4">
+                                    <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Club Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Mission Statement</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={clubForm.control} name="facultyIncharge" render={({ field }) => (
-                                        <FormItem><FormLabel>Sponsoring Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl>
+                                        <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Sponsoring Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
+                                            <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl>
                                             <SelectContent className="rounded-xl">{allFaculty?.map(f => ( <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem> ))}</SelectContent>
                                         </Select><FormMessage /></FormItem>
                                     )} />
-                                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Authorize Club</Button></DialogFooter>
+                                    <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Authorize Club</Button></DialogFooter>
                                 </form></Form>
                             </DialogContent>
                         </Dialog>
@@ -383,43 +389,43 @@ export default function EngagementPage() {
                                 {clubImage && <div className="h-40 relative"><Image src={clubImage.imageUrl} alt={club.name} fill className="object-cover group-hover:scale-110 transition-transform duration-1000" data-ai-hint={clubImage.imageHint} /><div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent" /></div>}
                                 <CardHeader className="relative -mt-12">
                                     <div className="flex justify-between items-end">
-                                      <CardTitle className="text-xl font-black uppercase text-white tracking-tight">{club.name}</CardTitle>
+                                      <CardTitle className="text-xl font-black uppercase text-white tracking-tight leading-none">{club.name}</CardTitle>
                                       {canManageClub && ( <div className="flex gap-1 bg-white/20 backdrop-blur-md rounded-lg p-1 border border-white/20"><Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:text-primary" onClick={() => handleEditClub(club)}><Edit className="h-4 w-4" /></Button><Button variant="ghost" size="icon" className="h-8 w-8 text-white hover:text-destructive" onClick={() => handleDeleteClub(club.id)}><Trash2 className="h-4 w-4" /></Button></div> )}
                                     </div>
                                 </CardHeader>
                                 <CardContent className="flex-grow pt-4">
-                                    <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-medium">{club.description}</p>
+                                    <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-medium">"{club.description}"</p>
                                 </CardContent>
-                                <CardFooter><Button asChild className="w-full rounded-xl"><Link href={`/engagement/club/${club.id}`}>Membership Details <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardFooter>
+                                <CardFooter><Button asChild className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11"><Link href={`/engagement/club/${club.id}`}>Membership Details <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardFooter>
                             </Card>
                         )})
-                    ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No registered clubs</div>}
+                    ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No registered clubs indexed</div>}
                 </CardContent>
             </Card>
         </TabsContent>
 
         <TabsContent value="events" className="mt-8">
            <Card className="glass-card border-none">
-                <CardHeader className="flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
+                <CardHeader className="flex flex-row justify-between items-center pb-8 border-b border-indigo-50/50">
                     <div className="space-y-1">
                         <CardTitle className="text-2xl font-black tracking-tight uppercase">UPCOMING SPECTACLES</CardTitle>
-                        <CardDescription className="text-xs">Campus seminars, workshops, and festive events.</CardDescription>
+                        <CardDescription className="text-xs font-medium">Campus seminars, workshops, and festive events.</CardDescription>
                     </div>
                      {isFacultyOrAdmin && (
                         <Dialog open={openEventDialog} onOpenChange={setOpenEventDialog}>
-                            <DialogTrigger asChild><Button size="sm" className="rounded-xl shadow-lg shadow-accent/20"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button className="rounded-xl shadow-lg shadow-accent/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
                             <DialogContent className="rounded-3xl">
-                                <DialogHeader><DialogTitle>Publish Campus Event</DialogTitle><DialogDescription>Announce a new workshop or seminar.</DialogDescription></DialogHeader>
-                                <Form {...eventForm}><form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
-                                    <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Agenda/Details</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Publish Campus Event</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Announce a new workshop or seminar.</DialogDescription></DialogHeader>
+                                <Form {...eventForm}><form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4 pt-4">
+                                    <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Agenda/Details</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner min-h-[100px]" /></FormControl><FormMessage /></FormItem> )} />
                                     <div className="grid grid-cols-2 gap-4">
-                                        <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel>Event Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel>Start Time</FormLabel><FormControl><Input type="time" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start Time</FormLabel><FormControl><Input type="time" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
                                     </div>
-                                    <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel>Venue</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel>Hosting Body</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                    <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Announce Event</Button></DialogFooter>
+                                    <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Venue</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Hosting Body</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                    <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Announce Event</Button></DialogFooter>
                                 </form></Form>
                             </DialogContent>
                         </Dialog>
@@ -440,29 +446,42 @@ export default function EngagementPage() {
                                 <CardFooter className="flex gap-2">
                                     {isFacultyOrAdmin ? (
                                         <>
-                                            <Button variant="outline" size="sm" className="w-full rounded-xl" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                                            <Button variant="outline" size="sm" className="w-full rounded-xl font-black uppercase tracking-widest text-[10px]" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
                                             <Button variant="destructive" size="sm" className="rounded-xl" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </>
-                                    ) : <Button variant="secondary" className="w-full rounded-xl" onClick={() => handleViewDetails(event)}>Reserve Access</Button>}
+                                    ) : <Button variant="secondary" className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11" onClick={() => handleViewDetails(event)}>Reserve Access</Button>}
                                 </CardFooter>
                             </Card>
                         ))
-                     ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No upcoming events</div>}
+                     ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No upcoming events indexed</div>}
                 </CardContent>
             </Card>
         </TabsContent>
       </Tabs>
+
+      {/* Global Event Details Dialog */}
       <Dialog open={openEventDetailsDialog} onOpenChange={setOpenEventDetailsDialog}>
-        <DialogContent className="rounded-3xl">
-            <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">{selectedEvent?.title}</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">HOSTED BY {selectedEvent?.organizer}</DialogDescription></DialogHeader>
+        <DialogContent className="rounded-[2.5rem] max-w-lg">
+            <DialogHeader>
+                <DialogTitle className="text-2xl font-black uppercase tracking-tight">{selectedEvent?.title}</DialogTitle>
+                <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">HOSTED BY {selectedEvent?.organizer}</DialogDescription>
+            </DialogHeader>
             <div className="py-6 space-y-4">
-                <p className="text-sm text-slate-600 leading-relaxed font-medium">{selectedEvent?.description}</p>
+                <p className="text-sm text-slate-600 leading-relaxed font-medium italic">"{selectedEvent?.description}"</p>
                 <div className="grid grid-cols-2 gap-4 pt-4">
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-indigo-50"><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Schedule</p><p className="text-sm font-bold text-slate-700">{selectedEvent ? format(new Date(selectedEvent.date), 'PPP') : ''} @ {selectedEvent?.time}</p></div>
-                    <div className="bg-slate-50 p-4 rounded-2xl border border-indigo-50"><p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Venue</p><p className="text-sm font-bold text-slate-700">{selectedEvent?.location}</p></div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-indigo-50">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Schedule</p>
+                        <p className="text-xs font-bold text-slate-700">{selectedEvent ? format(new Date(selectedEvent.date), 'PPP') : ''} @ {selectedEvent?.time}</p>
+                    </div>
+                    <div className="bg-slate-50 p-4 rounded-2xl border border-indigo-50">
+                        <p className="text-[9px] font-black uppercase tracking-widest text-muted-foreground mb-1">Venue</p>
+                        <p className="text-xs font-bold text-slate-700 truncate">{selectedEvent?.location}</p>
+                    </div>
                 </div>
             </div>
-            <DialogFooter><DialogClose asChild><Button className="w-full h-12 rounded-xl font-bold uppercase tracking-widest">Close Entry</Button></DialogClose></DialogFooter>
+            <DialogFooter>
+                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px]">Close Entry</Button></DialogClose>
+            </DialogFooter>
         </DialogContent>
     </Dialog>
     </div>

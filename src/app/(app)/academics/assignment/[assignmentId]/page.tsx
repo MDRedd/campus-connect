@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -36,13 +35,13 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useToast } from '@/hooks/use-toast';
-import { ArrowLeft, FileText, Pencil, Sparkles, TrendingUp, Clock, GraduationCap, ClipboardList, Send, ExternalLink } from 'lucide-react';
+import { ArrowLeft, FileText, Pencil, Sparkles, TrendingUp, Clock, GraduationCap, ClipboardList, Send, ExternalLink, ShieldCheck } from 'lucide-react';
 import { Label } from '@/components/ui/label';
 import { generateSubmissionFeedback } from '@/ai/flows/generate-submission-feedback';
 import { generateClassSummary } from '@/ai/flows/generate-class-summary';
 import { cn } from '@/lib/utils';
 
-// Simplified types based on backend.json
+// Types
 type Course = { id: string; name: string; code: string; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
 type Submission = { id: string; assignmentId: string; studentId: string; submissionDate: string; fileUrl: string; comments?: string; marksAwarded?: number; studentName?: string; courseId: string; facultyFeedback?: string; };

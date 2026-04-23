@@ -19,11 +19,12 @@ import {
   DialogDescription,
   DialogHeader,
   DialogTitle,
+  DialogFooter,
 } from '@/components/ui/dialog';
 import { Button } from '@/components/ui/button';
 import { Skeleton } from '@/components/ui/skeleton';
-import { ArrowLeft, Download, FileText, Users, Sparkles, Lightbulb, GraduationCap, CheckCircle2, XCircle } from 'lucide-react';
-import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+import { ArrowLeft, Download, FileText, Users, Sparkles, Lightbulb, GraduationCap, CheckCircle2, XCircle, BookOpen, Clock, BadgeCheck } from 'lucide-react';
+import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/tabs';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Avatar, AvatarImage, AvatarFallback } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
@@ -33,6 +34,7 @@ import { generateStudyQuestions } from '@/ai/flows/generate-study-questions';
 import { generateQuiz, type GenerateQuizOutput } from '@/ai/flows/generate-quiz';
 import GradeDistributionChart from '../../dashboard/components/grade-distribution-chart';
 import { cn } from '@/lib/utils';
+import { Badge } from '@/components/ui/badge';
 
 type Course = {
   id: string;
@@ -296,161 +298,136 @@ export default function CourseDetailPage() {
   const isDataLoading = areAssignmentsLoading || areMaterialsLoading || (userProfile?.role !== 'student' && (areStudentsLoading || isPerformanceLoading));
 
   return (
-    <div className="flex flex-col gap-6">
-      <div className="flex justify-between items-start">
-        {isCourseLoading ? (
-            <div className="space-y-2">
-                <Skeleton className="h-9 w-64" />
-                <Skeleton className="h-5 w-32" />
+    <div className="flex flex-col gap-8 pb-12 animate-in fade-in duration-700">
+      <div className="academic-hero">
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+            <div className="space-y-4">
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl" onClick={() => router.back()}>
+                    <ArrowLeft className="mr-2 h-4 w-4" /> Back to Catalog
+                </Button>
+                <div className="space-y-1">
+                    <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
+                        <BookOpen className="h-3 w-3" /> Intellectual Node
+                    </div>
+                    <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">
+                        {isCourseLoading ? <Skeleton className="h-12 w-64" /> : course?.name}
+                    </h1>
+                    <p className="text-indigo-100/70 font-medium">{course?.code} • {course?.department}</p>
+                </div>
             </div>
-        ) : course ? (
-            <div>
-                <h1 className="text-3xl font-bold tracking-tight">{course.name}</h1>
-                <p className="text-muted-foreground">{course.code}</p>
+            <div className="bg-white/10 backdrop-blur-xl border border-white/20 p-8 rounded-[2rem] flex flex-col items-center gap-2 text-white">
+                <span className="text-[10px] font-black uppercase tracking-widest opacity-60">Academic Credits</span>
+                <span className="text-5xl font-black tracking-tighter">{course?.credits ?? '--'}</span>
             </div>
-        ) : (
-            <h1 className="text-3xl font-bold tracking-tight">Course Not Found</h1>
-        )}
-        <Button variant="outline" onClick={() => router.back()}>
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back
-        </Button>
+        </div>
       </div>
 
-      {isCourseLoading ? (
-        <Card>
-            <CardHeader>
-                <Skeleton className="h-8 w-3/4" />
-            </CardHeader>
-            <CardContent>
-                <Skeleton className="h-48" />
-            </CardContent>
-        </Card>
-      ) : course ? (
-        <Tabs defaultValue="assignments" className="w-full">
-            <TabsList className="grid w-full grid-cols-2 md:grid-cols-4">
-                <TabsTrigger value="assignments">Assignments</TabsTrigger>
-                <TabsTrigger value="materials">Study Materials</TabsTrigger>
-                {userProfile?.role !== 'student' && <TabsTrigger value="students">Students</TabsTrigger>}
-                {userProfile?.role !== 'student' && <TabsTrigger value="performance">Performance</TabsTrigger>}
+      <Tabs defaultValue="assignments" className="w-full">
+            <TabsList className="grid w-full max-w-2xl grid-cols-2 md:grid-cols-4 h-12 p-1 bg-white/50 backdrop-blur-sm border rounded-xl">
+                <TabsTrigger value="assignments" className="rounded-lg">Assignments</TabsTrigger>
+                <TabsTrigger value="materials" className="rounded-lg">Study HUD</TabsTrigger>
+                {userProfile?.role !== 'student' && <TabsTrigger value="students" className="rounded-lg">Enrolled</TabsTrigger>}
+                {userProfile?.role !== 'student' && <TabsTrigger value="performance" className="rounded-lg">Analytics</TabsTrigger>}
             </TabsList>
-            <TabsContent value="assignments" className="mt-6">
-                <Card>
-                    <CardHeader><CardTitle>Assignments</CardTitle><CardDescription>All assignments for {course.name}.</CardDescription></CardHeader>
+
+            <TabsContent value="assignments" className="mt-8">
+                <Card className="glass-card border-none">
+                    <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Curriculum Milestones</CardTitle><CardDescription className="text-xs font-medium">Core assessments required for module certification.</CardDescription></CardHeader>
                     <CardContent className="space-y-4">
-                        {isDataLoading ? (
-                            <Skeleton className="h-32 w-full" />
-                        ) : assignments && assignments.length > 0 ? (
+                        {isDataLoading ? <Skeleton className="h-32 w-full rounded-2xl" /> : assignments && assignments.length > 0 ? (
                             assignments.map(assignment => (
-                                <Card key={assignment.id}>
-                                    <CardHeader><CardTitle className="text-lg">{assignment.title}</CardTitle></CardHeader>
-                                    <CardContent><p className="text-sm text-muted-foreground">{assignment.description}</p></CardContent>
-                                    <CardFooter className="flex justify-between items-center">
-                                        <p className="text-sm font-medium">Deadline: {format(new Date(assignment.deadline), 'PPP')}</p>
-                                        <Button variant="secondary" size="sm" asChild>
-                                            <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>View Details</Link>
+                                <Card key={assignment.id} className="border border-indigo-50/50 bg-white/40 hover:bg-white/80 transition-all rounded-2xl group overflow-hidden">
+                                    <CardHeader className="flex flex-row items-center gap-4">
+                                        <div className="bg-primary/5 text-primary p-4 rounded-2xl group-hover:bg-primary group-hover:text-white transition-all"><FileText className="h-6 w-6" /></div>
+                                        <div className="flex-1">
+                                            <CardTitle className="text-lg font-black uppercase tracking-tight truncate">{assignment.title}</CardTitle>
+                                            <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60 mt-1 flex items-center gap-2">
+                                                <Clock className="h-3 w-3" /> Deadline: {format(new Date(assignment.deadline), 'PPP')}
+                                            </CardDescription>
+                                        </div>
+                                        <Button asChild variant="secondary" size="sm" className="rounded-xl h-10 px-8 font-black uppercase tracking-widest text-[10px]">
+                                            <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>Access Work Node</Link>
                                         </Button>
-                                    </CardFooter>
+                                    </CardHeader>
                                 </Card>
                             ))
-                        ) : (
-                            <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                <FileText className="h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-4 text-lg font-semibold">No Assignments</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">Assignments for this course will appear here.</p>
-                            </div>
-                        )}
+                        ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No active assignments indexed</div>}
                     </CardContent>
                 </Card>
             </TabsContent>
-            <TabsContent value="materials" className="mt-6">
-                <Card>
-                    <CardHeader><CardTitle>Study Materials</CardTitle><CardDescription>All study materials for {course.name}.</CardDescription></CardHeader>
+
+            <TabsContent value="materials" className="mt-8">
+                <Card className="glass-card border-none">
+                    <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Intellectual Assets</CardTitle><CardDescription className="text-xs font-medium">Course materials enhanced with AI-driven learning tools.</CardDescription></CardHeader>
                     <CardContent className="space-y-4">
-                        {isDataLoading ? (
-                            <Skeleton className="h-20 w-full" />
-                        ) : materials && materials.length > 0 ? (
+                        {isDataLoading ? <Skeleton className="h-24 w-full rounded-2xl" /> : materials && materials.length > 0 ? (
                             materials.map(material => (
-                                <Card key={material.id} className="flex flex-col md:flex-row md:items-center justify-between p-4 gap-4">
-                                    <div className="flex-1">
-                                        <h4 className="font-semibold">{material.title}</h4>
-                                        <p className="text-sm text-muted-foreground">{material.description}</p>
+                                <Card key={material.id} className="flex flex-col md:flex-row md:items-center justify-between p-6 gap-6 border border-indigo-50/50 bg-white/40 rounded-2xl group">
+                                    <div className="flex-1 space-y-1">
+                                        <h4 className="font-black text-slate-800 uppercase tracking-tight leading-none">{material.title}</h4>
+                                        <p className="text-xs text-muted-foreground font-medium italic">"{material.description}"</p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <Button variant="secondary" size="sm" onClick={() => handleSummarize(material)} disabled={isSummarizing}><Sparkles className="mr-2 h-4 w-4" />Summarize</Button>
-                                        <Button variant="secondary" size="sm" onClick={() => handleGenerateQuestions(material)} disabled={isGeneratingQuestions}><Lightbulb className="mr-2 h-4 w-4" />Questions</Button>
-                                        <Button variant="secondary" size="sm" onClick={() => handleStartQuiz(material)} disabled={isGeneratingQuiz}><GraduationCap className="mr-2 h-4 w-4" />Practice Quiz</Button>
-                                        <Button variant="outline" size="sm" asChild><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-2 h-4 w-4" />Download</a></Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleSummarize(material)} disabled={isSummarizing} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50"><Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />Summary</Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleGenerateQuestions(material)} disabled={isGeneratingQuestions} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-500" />Questions</Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleStartQuiz(material)} disabled={isGeneratingQuiz} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50"><BadgeCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />Quiz</Button>
+                                        <Button size="sm" asChild className="rounded-xl h-9 px-6 font-black uppercase text-[9px] tracking-widest"><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-1.5 h-3.5 w-3.5" />Download</a></Button>
                                     </div>
                                 </Card>
                             ))
-                        ) : (
-                             <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                <Download className="h-12 w-12 text-muted-foreground" />
-                                <h3 className="mt-4 text-lg font-semibold">No Materials</h3>
-                                <p className="mt-1 text-sm text-muted-foreground">Study materials for this course will appear here.</p>
-                            </div>
-                        )}
+                        ) : <div className="text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No repository assets found</div>}
                     </CardContent>
                 </Card>
             </TabsContent>
+
              {userProfile?.role !== 'student' && (
-                <TabsContent value="students" className="mt-6">
-                    <Card>
-                        <CardHeader><CardTitle>Enrolled Students</CardTitle><CardDescription>Students enrolled in {course.name}.</CardDescription></CardHeader>
-                        <CardContent className="space-y-4">
-                            {isDataLoading ? (
-                                 <Skeleton className="h-48 w-full" />
-                            ) : enrolledStudents && enrolledStudents.length > 0 ? (
-                                <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-                                {enrolledStudents.map(student => (
-                                    <div key={student.id} className="flex items-center gap-4 rounded-lg border p-3">
-                                        <Avatar className="h-10 w-10">
-                                            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={student.name} data-ai-hint="person portrait" />}
-                                            <AvatarFallback>{student.name.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
+                <TabsContent value="students" className="mt-8">
+                    <Card className="glass-card border-none">
+                        <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Verified Persona Roster</CardTitle><CardDescription className="text-xs font-medium">Students currently authorized for this academic node.</CardDescription></CardHeader>
+                        <CardContent className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+                            {isDataLoading ? [...Array(3)].map((_, i) => <Skeleton key={i} className="h-20 w-full rounded-2xl" />) : enrolledStudents && enrolledStudents.length > 0 ? (
+                                enrolledStudents.map(student => (
+                                    <div key={student.id} className="flex items-center gap-4 rounded-2xl border border-indigo-50/50 bg-white/40 p-4 hover:bg-white transition-all group">
+                                        <Avatar className="h-11 w-11 border-2 border-white shadow-sm">
+                                            {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={student.name} />}
+                                            <AvatarFallback className="font-black text-xs uppercase bg-primary/5 text-primary">{student.name.split(' ').map(n=>n[0]).join('')}</AvatarFallback>
                                         </Avatar>
-                                        <div>
-                                            <p className="font-semibold">{student.name}</p>
-                                            <p className="text-xs text-muted-foreground">{student.email}</p>
+                                        <div className="flex-1 min-w-0">
+                                            <p className="font-black text-slate-800 uppercase tracking-tight truncate">{student.name}</p>
+                                            <p className="text-[9px] font-black text-slate-400 uppercase tracking-widest truncate">{student.email.split('@')[0]}</p>
                                         </div>
                                     </div>
-                                ))}
-                                </div>
-                            ) : (
-                                <div className="flex flex-col items-center justify-center text-center p-8 border-2 border-dashed rounded-lg">
-                                    <Users className="h-12 w-12 text-muted-foreground" />
-                                    <h3 className="mt-4 text-lg font-semibold">No Students Enrolled</h3>
-                                    <p className="mt-1 text-sm text-muted-foreground">No students are currently enrolled in this course.</p>
-                                </div>
-                            )}
+                                ))
+                            ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">Awaiting student enrollment</div>}
                         </CardContent>
                     </Card>
                 </TabsContent>
              )}
+
              {userProfile?.role !== 'student' && (
-                <TabsContent value="performance" className="mt-6">
-                    {isPerformanceLoading ? <Skeleton className="h-96 w-full"/> : performanceData && (
-                        <div className="grid gap-6 lg:grid-cols-2">
-                            <GradeDistributionChart data={performanceData.gradeCounts} />
-                            <Card>
-                                <CardHeader>
-                                    <CardTitle>Student Grades</CardTitle>
-                                    <CardDescription>Individual student marks and grades for this course.</CardDescription>
-                                </CardHeader>
-                                <CardContent>
+                <TabsContent value="performance" className="mt-8">
+                    {isPerformanceLoading ? <Skeleton className="h-96 w-full rounded-3xl"/> : performanceData && (
+                        <div className="grid gap-8 lg:grid-cols-12">
+                            <div className="lg:col-span-5"><GradeDistributionChart data={performanceData.gradeCounts} /></div>
+                            <Card className="lg:col-span-7 glass-card border-none overflow-hidden">
+                                <CardHeader className="bg-white/40 border-b border-white/20"><CardTitle className="text-xl font-black uppercase tracking-tight">Performance Ledger</CardTitle><CardDescription className="text-[10px] font-black uppercase tracking-widest">Authorized student marks and grade distribution.</CardDescription></CardHeader>
+                                <CardContent className="p-0">
                                     <Table>
-                                        <TableHeader>
+                                        <TableHeader className="bg-slate-50/50">
                                             <TableRow>
-                                                <TableHead>Student</TableHead>
-                                                <TableHead>Marks</TableHead>
-                                                <TableHead>Grade</TableHead>
+                                                <TableHead className="pl-8 uppercase text-[9px] font-black tracking-widest">Student</TableHead>
+                                                <TableHead className="uppercase text-[9px] font-black tracking-widest text-center">Marks</TableHead>
+                                                <TableHead className="text-right pr-8 uppercase text-[9px] font-black tracking-widest">Grade</TableHead>
                                             </TableRow>
                                         </TableHeader>
                                         <TableBody>
                                             {performanceData.studentResults.map((res: any) => (
-                                                <TableRow key={res.studentId}>
-                                                    <TableCell>{res.studentName}</TableCell>
-                                                    <TableCell>{res.marks}</TableCell>
-                                                    <TableCell className="font-bold">{res.grade}</TableCell>
+                                                <TableRow key={res.studentId} className="hover:bg-indigo-50/30 group transition-colors">
+                                                    <TableCell className="pl-8 font-bold text-slate-700">{res.studentName}</TableCell>
+                                                    <TableCell className="text-center font-black text-primary">{res.marks}%</TableCell>
+                                                    <TableCell className="text-right pr-8">
+                                                        <Badge className={cn("rounded-lg font-black text-[10px] min-w-8 justify-center uppercase", res.marks >= 80 ? "bg-green-500" : "bg-primary")}>{res.grade}</Badge>
+                                                    </TableCell>
                                                 </TableRow>
                                             ))}
                                         </TableBody>
@@ -462,137 +439,119 @@ export default function CourseDetailPage() {
                 </TabsContent>
              )}
         </Tabs>
-      ) : (
-         <Card>
-            <CardContent className="p-8 text-center">
-                <p className="text-muted-foreground">The course you are looking for does not exist or you do not have permission to view it.</p>
-            </CardContent>
-        </Card>
-      )}
 
-    <Dialog open={showSummaryDialog} onOpenChange={setShowSummaryDialog}>
-        <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-            <DialogTitle>Summary for &quot;{summaryTitle}&quot;</DialogTitle>
-            <DialogDescription>This summary was generated by AI. It may not be perfect, so please use it as a guide.</DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-            {isSummarizing ? (
-                <div className="flex items-center space-x-2 text-muted-foreground">
-                    <Sparkles className="h-4 w-4 animate-spin" />
-                    <span>Generating summary...</span>
+        {/* AI Dialogs */}
+        <Dialog open={showSummaryDialog} onOpenChange={setShowSummaryDialog}>
+            <DialogContent className="rounded-[2.5rem] max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle className="text-2xl font-black uppercase tracking-tight">Asset Synthesis: {summaryTitle}</DialogTitle>
+                    <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">AI Intelligence Layer v1.0</DialogDescription>
+                </DialogHeader>
+                <div className="py-6 max-h-[60vh] overflow-y-auto">
+                {isSummarizing ? (
+                    <div className="flex flex-col items-center justify-center p-20 gap-4">
+                        <Sparkles className="h-10 w-10 text-primary animate-spin" />
+                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-primary">Synthesizing Core Concepts...</p>
+                    </div>
+                ) : <p className="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap p-6 bg-slate-50 rounded-2xl border border-indigo-50">{summary}</p>}
                 </div>
-            ) : (
-                <p className="text-sm whitespace-pre-wrap">{summary}</p>
-            )}
-            </div>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+        </Dialog>
       
-      <Dialog open={showQuestionsDialog} onOpenChange={setShowQuestionsDialog}>
-        <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-            <DialogTitle>Study Questions for &quot;{questionsTitle}&quot;</DialogTitle>
-            <DialogDescription>These questions were generated by AI to help you study. Use them as a starting point.</DialogDescription>
-            </DialogHeader>
-            <div className="py-4 space-y-4 max-h-[60vh] overflow-y-auto">
-            {isGeneratingQuestions ? (
-                <div className="flex items-center space-x-2 text-muted-foreground">
-                    <Lightbulb className="h-4 w-4 animate-spin" />
-                    <span>Generating questions...</span>
+        <Dialog open={showQuestionsDialog} onOpenChange={setShowQuestionsDialog}>
+            <DialogContent className="rounded-[2.5rem] max-w-2xl">
+                <DialogHeader>
+                    <DialogTitle className="text-2xl font-black uppercase tracking-tight">Cognitive Drills: {questionsTitle}</DialogTitle>
+                    <DialogDescription className="font-bold text-amber-500 uppercase text-[10px] tracking-widest">AI Practice Protocol</DialogDescription>
+                </DialogHeader>
+                <div className="py-6 max-h-[60vh] overflow-y-auto">
+                {isGeneratingQuestions ? (
+                    <div className="flex flex-col items-center justify-center p-20 gap-4">
+                        <Lightbulb className="h-10 w-10 text-amber-500 animate-pulse" />
+                        <p className="text-[9px] font-black uppercase tracking-[0.3em] text-amber-500">Generating Inquisitive Nodes...</p>
+                    </div>
+                ) : <p className="text-sm font-medium text-slate-700 leading-relaxed whitespace-pre-wrap p-6 bg-slate-50 rounded-2xl border border-indigo-50">{questions}</p>}
                 </div>
-            ) : (
-                <p className="text-sm whitespace-pre-wrap">{questions}</p>
-            )}
-            </div>
-        </DialogContent>
-      </Dialog>
+            </DialogContent>
+        </Dialog>
 
-      <Dialog open={showQuizDialog} onOpenChange={setShowQuizDialog}>
-        <DialogContent className="sm:max-w-2xl">
-            <DialogHeader>
-                <DialogTitle>Interactive Practice Quiz: {quizTitle}</DialogTitle>
-                <DialogDescription>Test your knowledge on the study material. Generated by AI.</DialogDescription>
-            </DialogHeader>
-            <div className="py-6 min-h-[300px]">
-                {isGeneratingQuiz ? (
-                    <div className="flex flex-col items-center justify-center gap-4 py-12">
-                        <GraduationCap className="h-12 w-12 animate-bounce text-primary" />
-                        <p className="text-sm text-muted-foreground font-medium">Creating your quiz questions...</p>
-                    </div>
-                ) : quizSubmitted ? (
-                    <div className="flex flex-col items-center justify-center gap-6 py-8">
-                        <div className="bg-primary/10 p-6 rounded-full">
-                            <GraduationCap className="h-16 w-16 text-primary" />
+        <Dialog open={showQuizDialog} onOpenChange={setShowQuizDialog}>
+            <DialogContent className="rounded-[2.5rem] max-w-2xl overflow-hidden">
+                <DialogHeader>
+                    <DialogTitle className="text-2xl font-black uppercase tracking-tight">Knowledge Challenge: {quizTitle}</DialogTitle>
+                    <DialogDescription className="font-bold text-green-600 uppercase text-[10px] tracking-widest">Interactive Evaluation HUD</DialogDescription>
+                </DialogHeader>
+                <div className="py-6 min-h-[400px] flex flex-col">
+                    {isGeneratingQuiz ? (
+                        <div className="flex-1 flex flex-col items-center justify-center gap-6">
+                            <div className="p-8 bg-green-50 rounded-full animate-bounce"><GraduationCap className="h-12 w-12 text-green-600" /></div>
+                            <p className="text-[10px] font-black uppercase tracking-[0.3em] text-green-600">Compiling Evaluation Matrix...</p>
                         </div>
-                        <div className="text-center">
-                            <h3 className="text-2xl font-bold">Quiz Completed!</h3>
-                            <p className="text-muted-foreground mt-1">You scored {quizScore} out of {quizData?.length}.</p>
-                        </div>
-                        <Button onClick={() => setShowQuizDialog(false)}>Close</Button>
-                    </div>
-                ) : quizData ? (
-                    <div className="space-y-6">
-                        <div className="flex justify-between items-center text-xs text-muted-foreground uppercase tracking-wider font-semibold">
-                            <span>Question {currentQuizIndex + 1} of {quizData.length}</span>
-                            <span>Score: {quizScore}</span>
-                        </div>
-                        
-                        <div className="space-y-4">
-                            <h3 className="text-lg font-semibold leading-tight">{quizData[currentQuizIndex].question}</h3>
-                            <div className="grid gap-3">
-                                {quizData[currentQuizIndex].options.map((option, idx) => {
-                                    const isCorrect = idx === quizData[currentQuizIndex].correctAnswerIndex;
-                                    const isSelected = selectedOption === idx;
-                                    
-                                    return (
-                                        <button
-                                            key={idx}
-                                            disabled={showExplanation}
-                                            onClick={() => handleOptionSelect(idx)}
-                                            className={cn(
-                                                "flex items-center justify-between p-4 rounded-xl border text-left transition-all text-sm",
-                                                isSelected && !showExplanation && "border-primary bg-primary/5 ring-1 ring-primary",
-                                                showExplanation && isCorrect && "border-green-500 bg-green-50 text-green-900",
-                                                showExplanation && isSelected && !isCorrect && "border-red-500 bg-red-50 text-red-900",
-                                                !isSelected && !showExplanation && "hover:bg-muted/50"
-                                            )}
-                                        >
-                                            <span>{option}</span>
-                                            {showExplanation && isCorrect && <CheckCircle2 className="h-5 w-5 text-green-600" />}
-                                            {showExplanation && isSelected && !isCorrect && <XCircle className="h-5 w-5 text-red-600" />}
-                                        </button>
-                                    );
-                                })}
+                    ) : quizSubmitted ? (
+                        <div className="flex-1 flex flex-col items-center justify-center text-center gap-8 py-10 animate-in zoom-in duration-500">
+                            <div className="relative">
+                                <div className="h-32 w-32 rounded-full border-8 border-green-100 flex items-center justify-center">
+                                    <span className="text-4xl font-black text-green-600 tracking-tighter">{quizScore} / 5</span>
+                                </div>
+                                <Sparkles className="absolute -top-4 -right-4 h-8 w-8 text-amber-400" />
                             </div>
-                        </div>
-
-                        {showExplanation && (
-                            <div className="p-4 bg-muted/50 rounded-lg animate-in fade-in slide-in-from-top-2 duration-300">
-                                <p className="text-sm font-semibold">Explanation:</p>
-                                <p className="text-sm text-muted-foreground mt-1">{quizData[currentQuizIndex].explanation}</p>
+                            <div className="space-y-2">
+                                <h3 className="text-3xl font-black uppercase tracking-tight">Challenge Finalized</h3>
+                                <p className="text-sm text-slate-500 font-medium">Performance index synchronized with session history.</p>
                             </div>
-                        )}
+                            <Button onClick={() => setShowQuizDialog(false)} className="rounded-xl h-12 px-12 font-black uppercase tracking-widest text-[10px]">Close Node</Button>
+                        </div>
+                    ) : quizData ? (
+                        <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
+                            <div className="flex justify-between items-center text-[10px] font-black uppercase tracking-[0.2em] text-muted-foreground/60 border-b border-slate-100 pb-4">
+                                <span>Session Progress: {currentQuizIndex + 1} / 5</span>
+                                <span className="text-primary">Current Score: {quizScore}</span>
+                            </div>
+                            
+                            <div className="space-y-6">
+                                <h3 className="text-xl font-black text-slate-800 tracking-tight leading-tight">"{quizData[currentQuizIndex].question}"</h3>
+                                <div className="grid gap-3">
+                                    {quizData[currentQuizIndex].options.map((option, idx) => {
+                                        const isCorrect = idx === quizData[currentQuizIndex].correctAnswerIndex;
+                                        const isSelected = selectedOption === idx;
+                                        return (
+                                            <button key={idx} disabled={showExplanation} onClick={() => handleOptionSelect(idx)} className={cn(
+                                                "flex items-center justify-between p-5 rounded-2xl border-2 text-left transition-all text-sm font-bold uppercase tracking-tight group",
+                                                isSelected && !showExplanation && "border-primary bg-primary/5 text-primary",
+                                                showExplanation && isCorrect && "border-green-500 bg-green-50 text-green-700",
+                                                showExplanation && isSelected && !isCorrect && "border-red-500 bg-red-50 text-red-700",
+                                                !isSelected && !showExplanation && "border-transparent bg-slate-50 hover:bg-slate-100 text-slate-500"
+                                            )}>
+                                                <span>{option}</span>
+                                                {showExplanation && isCorrect && <CheckCircle2 className="h-5 w-5 text-green-600" />}
+                                                {showExplanation && isSelected && !isCorrect && <XCircle className="h-5 w-5 text-red-600" />}
+                                            </button>
+                                        );
+                                    })}
+                                </div>
+                            </div>
 
-                        <div className="flex justify-end gap-3 pt-4">
-                            {!showExplanation ? (
-                                <Button onClick={handleSubmitAnswer} disabled={selectedOption === null}>Submit Answer</Button>
-                            ) : (
-                                <Button onClick={handleNextQuestion}>
-                                    {currentQuizIndex === quizData.length - 1 ? 'Finish Quiz' : 'Next Question'}
-                                </Button>
+                            {showExplanation && (
+                                <div className="p-6 bg-slate-900 text-white rounded-3xl animate-in fade-in slide-in-from-bottom-2 duration-300 shadow-2xl">
+                                    <p className="text-[10px] font-black uppercase tracking-[0.2em] text-primary-foreground/60 mb-2">Evaluative Rationale</p>
+                                    <p className="text-xs font-medium leading-relaxed italic">"{quizData[currentQuizIndex].explanation}"</p>
+                                </div>
                             )}
+
+                            <div className="flex justify-end gap-3 pt-6">
+                                {!showExplanation ? (
+                                    <Button onClick={handleSubmitAnswer} disabled={selectedOption === null} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px]">Authorize Response</Button>
+                                ) : (
+                                    <Button onClick={handleNextQuestion} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px]">
+                                        {currentQuizIndex === quizData.length - 1 ? 'Finalize Challenge' : 'Next Node'}
+                                    </Button>
+                                )}
+                            </div>
                         </div>
-                    </div>
-                ) : (
-                    <div className="text-center py-12">
-                        <p className="text-destructive font-medium">Failed to load quiz. Please try again.</p>
-                        <Button variant="outline" className="mt-4" onClick={() => setShowQuizDialog(false)}>Close</Button>
-                    </div>
-                )}
-            </div>
-        </DialogContent>
-      </Dialog>
+                    ) : null}
+                </div>
+            </DialogContent>
+        </Dialog>
     </div>
   );
 }

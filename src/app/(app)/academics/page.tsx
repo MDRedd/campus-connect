@@ -25,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BookCopy, FileText, Download, PlusCircle, Trash2, GraduationCap, Library, Sparkles, Clock, ArrowRight } from 'lucide-react';
+import { BookCopy, FileText, Download, PlusCircle, Trash2, Library, Sparkles, Clock, ArrowRight, ClipboardList, GraduationCap } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,7 +42,6 @@ import { cn } from '@/lib/utils';
 type Enrollment = { id: string; courseId: string; };
 type Course = { id: string; name: string; code: string; credits: number; };
 type Assignment = { id: string; courseId: string; title: string; description: string; deadline: string; facultyId: string; };
-type Submission = { id: string; assignmentId: string; studentId: string; };
 type StudyMaterial = { id: string; courseId: string; title: string; description: string; fileUrl: string; };
 
 const assignmentSchema = z.object({
@@ -155,7 +154,7 @@ export default function AcademicsPage() {
     fetchData();
   }, [firestore, displayCourses]);
 
-  const [mySubmissions, setMySubmissions] = useState<{[assignmentId: string]: Submission} | null>(null);
+  const [mySubmissions, setMySubmissions] = useState<{[assignmentId: string]: any} | null>(null);
   const [areMySubmissionsLoading, setAreMySubmissionsLoading] = useState(true);
 
   useEffect(() => {
@@ -168,7 +167,7 @@ export default function AcademicsPage() {
 
     const fetchMySubmissions = async () => {
         setAreMySubmissionsLoading(true);
-        const subsMap: {[assignmentId: string]: Submission} = {};
+        const subsMap: {[assignmentId: string]: any} = {};
         try {
             for (const assignment of assignments) {
                 const submissionsQuery = query(
@@ -179,7 +178,7 @@ export default function AcademicsPage() {
                 const querySnapshot = await getDocs(submissionsQuery);
                 if (!querySnapshot.empty) {
                     const doc = querySnapshot.docs[0];
-                    subsMap[assignment.id] = { ...(doc.data() as Submission), id: doc.id };
+                    subsMap[assignment.id] = { ...(doc.data()), id: doc.id };
                 }
             }
             setMySubmissions(subsMap);
@@ -198,12 +197,12 @@ export default function AcademicsPage() {
 
   const handleDropCourse = (courseId: string) => {
       if (!firestore || !authUser || !enrollments) return;
-      if (!confirm('Are you sure you want to drop this course? All your submissions and records will be preserved, but you will no longer see it in your list.')) return;
+      if (!confirm('Are you sure you want to drop this course? All your submissions and records will be preserved.')) return;
 
       const enrollment = enrollments.find(e => e.courseId === courseId);
       if (enrollment) {
           deleteDocumentNonBlocking(doc(firestore, 'users', authUser.uid, 'enrollments', enrollment.id));
-          toast({ title: 'Course Dropped', description: 'You have been un-enrolled.' });
+          toast({ title: 'Course Dropped', description: 'You have been un-enrolled from this academic module.' });
       }
   };
 
@@ -214,7 +213,7 @@ export default function AcademicsPage() {
         deadline: new Date(values.deadline).toISOString(),
         facultyId: authUser.uid,
     });
-    toast({ title: 'Success', description: 'Assignment posted.' });
+    toast({ title: 'System Authorized', description: 'Institutional assignment has been published.' });
     setOpenAssignmentDialog(false);
     assignmentForm.reset();
   }
@@ -226,7 +225,7 @@ export default function AcademicsPage() {
           uploadedBy: authUser.uid,
           uploadDate: new Date().toISOString()
       });
-      toast({ title: 'Success', description: 'Study material added.' });
+      toast({ title: 'Resource Synced', description: 'Study material is now available to authorized students.' });
       setOpenMaterialDialog(false);
       materialForm.reset();
   }
@@ -241,7 +240,7 @@ export default function AcademicsPage() {
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
                       <Library className="h-3 w-3" /> Academic Ledger
                   </div>
-                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase">ACADEMICS</h1>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">ACADEMICS</h1>
                   <p className="text-indigo-100/70 font-medium max-w-lg">
                       {isFaculty ? 'Manage institutional learning assets, assignments, and curriculum progress.' : 'Your centralized academic repository for courses, assignments, and study materials.'}
                   </p>
@@ -314,24 +313,24 @@ export default function AcademicsPage() {
                         </DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader>
-                                <DialogTitle>Post New Assignment</DialogTitle>
-                                <DialogDescription>Define assignment scope and submission deadline.</DialogDescription>
+                                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Post New Assignment</DialogTitle>
+                                <DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Define assignment scope and submission deadline.</DialogDescription>
                             </DialogHeader>
                             <Form {...assignmentForm}>
-                                <form onSubmit={assignmentForm.handleSubmit(onAddAssignment)} className="space-y-4">
+                                <form onSubmit={assignmentForm.handleSubmit(onAddAssignment)} className="space-y-4 pt-4">
                                 <FormField control={assignmentForm.control} name="courseId" render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Target Course</FormLabel>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
                                         <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Assignment Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={assignmentForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Scope/Description</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={assignmentForm.control} name="deadline" render={({ field }) => ( <FormItem><FormLabel>Deadline</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Publish Assignment</Button></DialogFooter>
+                                <FormField control={assignmentForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Assignment Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={assignmentForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Scope/Description</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={assignmentForm.control} name="deadline" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Deadline</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Publish Assignment</Button></DialogFooter>
                                 </form>
                             </Form>
                         </DialogContent>
@@ -346,14 +345,14 @@ export default function AcademicsPage() {
                       const mySubmission = mySubmissions?.[assignment.id];
                       const buttonText = isFaculty ? 'Manage Submissions' : mySubmission ? 'View Submission' : 'Submit Work';
                       return (
-                        <Card key={assignment.id} className="border border-indigo-50/50 hover:border-primary/20 transition-all group overflow-hidden bg-white/40">
+                        <Card key={assignment.id} className="border border-indigo-50/50 hover:border-primary/20 transition-all group overflow-hidden bg-white/40 rounded-2xl">
                             <CardHeader className="flex flex-row items-center gap-4">
                                 <div className="bg-white p-4 rounded-2xl shadow-sm border border-indigo-50">
                                     <FileText className="h-6 w-6 text-primary" />
                                 </div>
                                 <div className="flex-1 min-w-0">
-                                    <CardTitle className="text-lg font-bold truncate group-hover:text-primary transition-colors uppercase tracking-tight">{assignment.title}</CardTitle>
-                                    <CardDescription className="font-bold text-[10px] text-muted-foreground uppercase tracking-widest">{assignment.courseName} ({assignment.courseCode})</CardDescription>
+                                    <CardTitle className="text-lg font-black truncate group-hover:text-primary transition-colors uppercase tracking-tight">{assignment.title}</CardTitle>
+                                    <CardDescription className="font-black text-[10px] text-muted-foreground uppercase tracking-widest">{assignment.courseName} ({assignment.courseCode})</CardDescription>
                                 </div>
                                 <div className="hidden md:flex flex-col items-end gap-1">
                                     <p className="text-[10px] font-black uppercase tracking-tighter text-muted-foreground flex items-center gap-1.5"><Clock className="h-3 w-3" /> Deadline</p>
@@ -361,8 +360,8 @@ export default function AcademicsPage() {
                                 </div>
                             </CardHeader>
                             <CardFooter className="bg-slate-50/30 px-6 py-4 flex justify-between items-center">
-                                <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4">{assignment.description}</p>
-                                <Button asChild variant={mySubmission ? "outline" : "default"} className="rounded-xl h-10 px-6 shrink-0">
+                                <p className="text-xs text-muted-foreground line-clamp-1 flex-1 mr-4 font-medium italic">"{assignment.description}"</p>
+                                <Button asChild variant={mySubmission ? "outline" : "default"} className="rounded-xl h-10 px-8 shrink-0 font-black uppercase tracking-widest text-[10px]">
                                     <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>
                                         {buttonText}
                                     </Link>
@@ -372,9 +371,9 @@ export default function AcademicsPage() {
                       )
                     })
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                    <div className="flex flex-col items-center justify-center py-20 opacity-20">
                         <FileText className="h-16 w-16 mb-4" />
-                        <p className="font-black uppercase tracking-tighter">No Active Assignments</p>
+                        <p className="font-black uppercase tracking-widest text-xs">No Active Assignments Found</p>
                     </div>
                 )}
               </CardContent>
@@ -395,24 +394,24 @@ export default function AcademicsPage() {
                         </DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader>
-                                <DialogTitle>Upload Study Material</DialogTitle>
-                                <DialogDescription>Host a new resource for your students.</DialogDescription>
+                                <DialogTitle className="text-2xl font-black uppercase tracking-tight">Upload Study Material</DialogTitle>
+                                <DialogDescription className="font-bold text-accent uppercase text-[10px] tracking-widest">Host a new resource for your students.</DialogDescription>
                             </DialogHeader>
                             <Form {...materialForm}>
-                                <form onSubmit={materialForm.handleSubmit(onAddMaterial)} className="space-y-4">
+                                <form onSubmit={materialForm.handleSubmit(onAddMaterial)} className="space-y-4 pt-4">
                                 <FormField control={materialForm.control} name="courseId" render={({ field }) => (
                                     <FormItem>
-                                    <FormLabel>Course</FormLabel>
+                                    <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger className="h-12 rounded-xl"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
                                         <SelectContent className="rounded-xl">{displayCourses?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage />
                                     </FormItem>
                                 )} />
-                                <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Resource Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={materialForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Brief Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={materialForm.control} name="fileUrl" render={({ field }) => ( <FormItem><FormLabel>Resource Link (Drive/URL)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl" /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8">Save Material</Button></DialogFooter>
+                                <FormField control={materialForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Resource Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={materialForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Brief Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={materialForm.control} name="fileUrl" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Resource Link (Drive/URL)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Save Material</Button></DialogFooter>
                                 </form>
                             </Form>
                         </DialogContent>
@@ -431,18 +430,18 @@ export default function AcademicsPage() {
                             </div>
                             <div className="flex-1 space-y-1">
                                 <h4 className="font-black text-slate-800 uppercase tracking-tight">{material.title}</h4>
-                                <p className="text-xs text-muted-foreground font-medium">{material.description} • <span className="text-accent">{material.courseCode}</span></p>
+                                <p className="text-xs text-muted-foreground font-medium">{material.description} • <span className="text-accent font-black uppercase text-[10px] tracking-widest">{material.courseCode}</span></p>
                             </div>
                         </div>
-                        <Button variant="outline" size="sm" asChild className="rounded-xl h-10 px-6 border-indigo-100 hover:bg-white">
-                            <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">Download <Download className="ml-2 h-4 w-4" /></a>
+                        <Button variant="outline" size="sm" asChild className="rounded-xl h-10 px-8 border-indigo-100 hover:bg-white font-black uppercase tracking-widest text-[10px]">
+                            <a href={material.fileUrl} target="_blank" rel="noopener noreferrer">Download <Download className="ml-2 h-3 w-3" /></a>
                         </Button>
                     </Card>
                     ))
                 ) : (
-                    <div className="flex flex-col items-center justify-center py-20 opacity-40">
+                    <div className="flex flex-col items-center justify-center py-20 opacity-20">
                         <Download className="h-16 w-16 mb-4" />
-                        <p className="font-black uppercase tracking-tighter text-xs">Repository Empty</p>
+                        <p className="font-black uppercase tracking-widest text-xs">Repository Empty</p>
                     </div>
                 )}
               </CardContent>
