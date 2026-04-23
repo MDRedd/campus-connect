@@ -48,12 +48,14 @@ export default function MarkAttendancePage() {
     return role.includes('admin');
   }, [userProfile]);
 
+  // If Admin: fetch all courses
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null;
     return collection(firestore, 'courses');
   }, [firestore, isAdmin]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
+  // If Faculty: fetch assigned courses
   const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
   
   const displayCourses = useMemo(() => {
@@ -152,10 +154,10 @@ export default function MarkAttendancePage() {
       </div>
 
       {isIndexError && (
-          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20">
+          <Alert variant="destructive" className="bg-destructive/5 border-destructive/20 shadow-sm">
               <AlertCircle className="h-4 w-4" />
-              <AlertTitle>Database Index Required</AlertTitle>
-              <AlertDescription>
+              <AlertTitle className="font-bold">Database Index Required</AlertTitle>
+              <AlertDescription className="text-sm">
                   Cannot load assigned courses because a Firestore index is missing. Please <strong>check the browser console (F12)</strong> and click the link to create the required index for the <code>timetables</code> collection group.
               </AlertDescription>
           </Alert>
@@ -169,13 +171,13 @@ export default function MarkAttendancePage() {
             </CardHeader>
             <CardContent className="grid gap-6 md:grid-cols-2">
               <div className="space-y-4">
-                <div className="space-y-2">
-                  <Label htmlFor="course-select">Select Course</Label>
+                <div className="space-y-3">
+                  <Label htmlFor="course-select" className="text-base">Select Course</Label>
                   {areCoursesLoading ? (
                     <Skeleton className="h-10 w-full" />
                   ) : (
                     <Select onValueChange={handleCourseSelect} disabled={!displayCourses || displayCourses.length === 0 || isGenerating}>
-                      <SelectTrigger id="course-select">
+                      <SelectTrigger id="course-select" className="w-full">
                         <SelectValue placeholder={placeholderText} />
                       </SelectTrigger>
                       <SelectContent>
@@ -188,40 +190,44 @@ export default function MarkAttendancePage() {
                     </Select>
                   )}
                   {!areCoursesLoading && (!displayCourses || displayCourses.length === 0) && (
-                      <p className="text-xs text-muted-foreground mt-2">
+                      <p className="text-xs text-muted-foreground mt-2 border-l-2 border-primary/20 pl-2 py-1 bg-primary/5 rounded-r-md">
                           {isAdmin ? "You need to add courses in the Course Catalog first." : "You haven't been assigned to any classes in the weekly timetable yet. Go to the Timetable page to add your classes."}
                       </p>
                   )}
                 </div>
               </div>
-              <div className="flex items-center justify-center rounded-lg border border-dashed bg-muted/50 p-8">
+              <div className="flex items-center justify-center rounded-xl border-2 border-dashed bg-muted/30 p-8 min-h-[300px]">
                 {isGenerating && !activeSession ? (
                    <div className="text-center flex flex-col items-center gap-4 text-muted-foreground">
                         <Skeleton className="h-16 w-16" />
-                        <p>Generating session...</p>
+                        <p className="animate-pulse">Generating session...</p>
                     </div>
                 ) : qrImageUrl ? (
-                    <div className="text-center flex flex-col items-center gap-4">
-                        <div className="bg-white p-2 rounded-lg shadow-sm border">
+                    <div className="text-center flex flex-col items-center gap-6">
+                        <div className="bg-white p-3 rounded-2xl shadow-md border border-border">
                             <Image
                                 src={qrImageUrl}
                                 alt="Attendance QR Code"
                                 width={250}
                                 height={250}
                                 key={qrImageUrl}
+                                className="rounded-lg"
                             />
                         </div>
-                         <div className="w-full max-w-[250px] space-y-2">
+                         <div className="w-full max-w-[250px] space-y-3">
+                            <div className="flex justify-between text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+                                <span>Refreshing...</span>
+                                <span>{countdown}s</span>
+                            </div>
                             <Progress value={(countdown / 60) * 100} className="h-2" />
-                            <p className="text-sm font-medium text-muted-foreground">
-                                {countdown > 0 ? `Code refreshes in ${countdown}s` : 'Refreshing...'}
-                            </p>
                         </div>
                     </div>
                 ) : (
                     <div className="text-center flex flex-col items-center gap-4 text-muted-foreground">
-                        <QrCode className="h-16 w-16" />
-                        <p>Select a course to display the QR code</p>
+                        <div className="bg-muted p-6 rounded-full">
+                            <QrCode className="h-12 w-12" />
+                        </div>
+                        <p className="max-w-[200px] text-sm font-medium">Select a course from the menu to display the QR code</p>
                     </div>
                 )}
               </div>
@@ -234,34 +240,37 @@ export default function MarkAttendancePage() {
                 <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="text-2xl font-bold">
-                    {isSessionLoading ? <Skeleton className="h-8 w-12" /> : attendeeIds?.length ?? 0}
+                <div className="text-3xl font-bold">
+                    {isSessionLoading ? <Skeleton className="h-10 w-16" /> : attendeeIds?.length ?? 0}
                 </div>
-                <p className="text-xs text-muted-foreground">
+                <p className="text-xs text-muted-foreground mt-1">
                   students have checked in for this session.
                 </p>
               </CardContent>
-              <CardFooter className="flex flex-col items-start gap-4 h-80 overflow-y-auto p-4">
+              <CardFooter className="flex flex-col items-start gap-4 h-[340px] overflow-y-auto p-4 border-t">
                  {isSessionLoading || areAttendeesLoading ? (
-                    <div className="w-full space-y-2">
-                        {[...Array(3)].map((_, i) => <Skeleton key={i} className="h-10 w-full" />)}
+                    <div className="w-full space-y-3">
+                        {[...Array(5)].map((_, i) => <Skeleton key={i} className="h-12 w-full rounded-lg" />)}
                     </div>
                 ) : attendees && attendees.length > 0 ? (
-                    attendees.map(attendee => (
-                        <div key={attendee.id} className="flex items-center gap-3 w-full">
-                            <Avatar className="h-8 w-8 text-xs">
+                    <div className="w-full space-y-3">
+                    {attendees.map(attendee => (
+                        <div key={attendee.id} className="flex items-center gap-3 w-full p-2 hover:bg-muted/50 rounded-lg transition-colors border border-transparent hover:border-border">
+                            <Avatar className="h-10 w-10 text-xs border shadow-sm">
                                 {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={attendee.name} data-ai-hint="person portrait" />}
-                                <AvatarFallback>{attendee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
+                                <AvatarFallback className="bg-primary/10 text-primary">{attendee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                             </Avatar>
                             <div className="flex-1 min-w-0">
-                                <p className="text-sm font-medium truncate">{attendee.name}</p>
-                                <p className="text-xs text-muted-foreground truncate">{attendee.email}</p>
+                                <p className="text-sm font-semibold truncate">{attendee.name}</p>
+                                <p className="text-[10px] text-muted-foreground truncate uppercase tracking-tight">{attendee.email}</p>
                             </div>
                         </div>
-                    ))
+                    ))}
+                    </div>
                 ) : (
-                    <div className="flex-1 flex w-full items-center justify-center text-sm text-center text-muted-foreground">
-                        <p>Waiting for students to check in...</p>
+                    <div className="flex-1 flex w-full flex-col items-center justify-center text-sm text-center text-muted-foreground gap-3">
+                        <Users className="h-8 w-8 opacity-20" />
+                        <p>Waiting for students to scan the code...</p>
                     </div>
                 )}
               </CardFooter>

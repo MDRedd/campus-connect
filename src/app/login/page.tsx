@@ -105,24 +105,24 @@ export default function LoginPage() {
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
-            <p className="text-lg">
+            <p className="text-lg italic">
               &ldquo;An investment in knowledge pays the best interest.&rdquo;
             </p>
-            <footer className="text-sm">Benjamin Franklin</footer>
+            <footer className="text-sm font-semibold">— Benjamin Franklin</footer>
           </blockquote>
         </div>
       </div>
-      <div className="flex items-center justify-center py-12">
-        <div className="mx-auto grid w-[350px] gap-6">
-          <Card className="w-full shadow-lg">
-            <CardHeader>
-              <CardTitle className="text-2xl font-bold">Login</CardTitle>
+      <div className="flex items-center justify-center py-12 px-4">
+        <div className="mx-auto grid w-full max-w-sm gap-6">
+          <Card className="w-full shadow-2xl border-primary/10">
+            <CardHeader className="space-y-1">
+              <CardTitle className="text-3xl font-bold tracking-tight">Login</CardTitle>
               <CardDescription>
-                Enter your Roll Number, Faculty ID, or Email to login.
+                Enter your Roll Number, Faculty ID, or Email to access your account.
               </CardDescription>
             </CardHeader>
             <CardContent>
-              <form onSubmit={handleLogin} className="grid gap-4">
+              <form onSubmit={handleLogin} className="grid gap-5">
                 <div className="grid gap-2">
                   <Label htmlFor="identifier">Roll No. / Faculty ID / Email</Label>
                   <Input
@@ -133,11 +133,13 @@ export default function LoginPage() {
                     value={identifier}
                     onChange={(e) => setIdentifier(e.target.value)}
                     disabled={isDisabled}
+                    className="h-11"
                   />
                 </div>
                 <div className="grid gap-2">
-                  <div className="flex items-center">
+                  <div className="flex items-center justify-between">
                     <Label htmlFor="password">Password</Label>
+                    <Link href="#" className="text-xs text-primary hover:underline font-medium">Forgot password?</Link>
                   </div>
                   <Input
                     id="password"
@@ -146,48 +148,64 @@ export default function LoginPage() {
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
                     disabled={isDisabled}
+                    className="h-11"
                   />
                 </div>
-                <Button type="submit" className="w-full" disabled={isDisabled}>
-                  {isLoggingIn ? 'Logging in...' : 'Login'}
+                <Button type="submit" className="w-full h-11 text-base font-semibold" disabled={isDisabled}>
+                  {isLoggingIn ? 'Signing in...' : 'Sign In'}
                 </Button>
-                <div className="relative">
+                <div className="relative my-2">
                     <div className="absolute inset-0 flex items-center">
                         <span className="w-full border-t"></span>
                     </div>
                     <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground">Or continue with</span>
+                        <span className="bg-background px-2 text-muted-foreground font-medium">Or continue with</span>
                     </div>
                 </div>
-                <Button variant="outline" type="button" className="w-full" onClick={handleGoogleLogin} disabled={isDisabled}>
-                  Login with Google
+                <Button variant="outline" type="button" className="w-full h-11" onClick={handleGoogleLogin} disabled={isDisabled}>
+                  <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
+                    <path d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" fill="#4285F4" />
+                    <path d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z" fill="#34A853" />
+                    <path d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l3.66-2.84z" fill="#FBBC05" />
+                    <path d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z" fill="#EA4335" />
+                  </svg>
+                  Google
                 </Button>
               </form>
-               <div className="mt-6 text-center text-sm">
+               <div className="mt-8 text-center text-sm">
                 Don&apos;t have an account?{' '}
-                <Link href="/signup" className="underline font-bold text-primary">
+                <Link href="/signup" className="underline font-bold text-primary hover:text-primary/80 transition-colors">
                   Sign up now
                 </Link>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-primary/20 bg-primary/5">
+          <Card className="border-primary/20 bg-primary/5 shadow-sm">
             <CardHeader className="pb-2">
-              <CardTitle className="text-base flex items-center gap-2 text-primary">
+              <CardTitle className="text-base flex items-center gap-2 text-primary font-bold">
                 <KeyRound className="h-4 w-4" /> Sample Credentials
               </CardTitle>
             </CardHeader>
-            <CardContent className="text-sm grid gap-2">
-              <p>1. Student: <code className="bg-background px-1 rounded border">2024001</code></p>
-              <p>2. Faculty: <code className="bg-background px-1 rounded border">FAC1001</code></p>
-              <p>3. Admin: <code className="bg-background px-1 rounded border text-xs">super.admin@college.edu</code></p>
-              <p className="mt-1">Password: <code className="bg-background px-1 rounded border">password123</code></p>
-              <Alert variant="default" className="mt-4 bg-background border-primary/20 shadow-sm">
+            <CardContent className="text-sm grid gap-3">
+              <div className="space-y-1">
+                <p className="font-medium text-muted-foreground">Student:</p>
+                <code className="bg-background px-2 py-1 rounded border shadow-sm block text-center font-mono">2024001</code>
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium text-muted-foreground">Faculty:</p>
+                <code className="bg-background px-2 py-1 rounded border shadow-sm block text-center font-mono">FAC1001</code>
+              </div>
+              <div className="space-y-1">
+                <p className="font-medium text-muted-foreground">Password:</p>
+                <code className="bg-background px-2 py-1 rounded border shadow-sm block text-center font-mono">password123</code>
+              </div>
+              
+              <Alert variant="default" className="mt-2 bg-background/50 border-primary/20">
                 <AlertCircle className="h-4 w-4 text-primary" />
-                <AlertTitle className="text-primary font-bold text-xs uppercase tracking-tight">Important</AlertTitle>
-                <AlertDescription className="text-[11px] leading-tight text-muted-foreground">
-                  The sample IDs above are not pre-created. You <strong>must</strong> use the <Link href="/signup" className="underline font-bold text-primary">Sign up</Link> page first to register them before logging in.
+                <AlertTitle className="text-primary font-bold text-xs uppercase tracking-tighter">Action Required</AlertTitle>
+                <AlertDescription className="text-[11px] leading-relaxed text-muted-foreground font-medium">
+                  The IDs above must be registered on the <Link href="/signup" className="underline font-bold text-primary">Sign up</Link> page before you can log in with them.
                 </AlertDescription>
               </Alert>
             </CardContent>

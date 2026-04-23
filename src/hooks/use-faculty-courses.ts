@@ -10,7 +10,7 @@ import type { Course } from '@/lib/data';
  * It uses a collection group query on 'timetables' to find associated course IDs.
  */
 export function useFacultyCourses() {
-    const { user: authUser, isUserLoading } = useUser();
+    const { user: authUser, profile: userProfile, isUserLoading } = useUser();
     const firestore = useFirestore();
 
     const [facultyCourses, setFacultyCourses] = useState<Course[] | null>(null);
@@ -23,6 +23,16 @@ export function useFacultyCourses() {
                 setIsLoading(false);
                 setFacultyCourses([]);
              }
+            return;
+        }
+
+        // Optimization: If the user is an admin, we don't need to run this 
+        // collection group query because they will see all courses anyway.
+        // This avoids unnecessary index errors for admin accounts.
+        const role = userProfile?.role?.toLowerCase() || '';
+        if (role.includes('admin')) {
+            setIsLoading(false);
+            setFacultyCourses(null);
             return;
         }
 
@@ -66,7 +76,7 @@ export function useFacultyCourses() {
         }
         fetchCourses();
         
-    }, [firestore, authUser, isUserLoading]);
+    }, [firestore, authUser?.uid, isUserLoading, userProfile?.role]);
 
     return { facultyCourses, isLoading, error };
 }
