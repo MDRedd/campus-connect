@@ -9,11 +9,11 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { BookOpen } from 'lucide-react';
-import { useAuth, useUser, useFirestore, setDocumentNonBlocking } from '@/firebase';
+import { useAuth, useUser, useFirestore, setDocumentNonBlocking, addDocumentNonBlocking } from '@/firebase';
 import { useEffect, useState } from 'react';
 import { useToast } from '@/hooks/use-toast';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc } from 'firebase/firestore';
+import { doc, collection, query, where, getDocs } from 'firebase/firestore';
 
 export default function SignUpPage() {
   const router = useRouter();
@@ -86,12 +86,24 @@ export default function SignUpPage() {
         
         setDocumentNonBlocking(userDocRef, userData, {});
 
+        // Notify Admin of new signup
+        const adminsQuery = query(collection(firestore, 'users'), where('role', '==', 'super-admin'));
+        getDocs(adminsQuery).then(snap => {
+            snap.docs.forEach(adminDoc => {
+                addDocumentNonBlocking(collection(firestore, 'users', adminDoc.id, 'notifications'), {
+                    userId: adminDoc.id,
+                    message: `New Identity Provisioned: ${name} (${role}) has joined the platform. Action required for department synchronization.`,
+                    read: false,
+                    createdAt: new Date().toISOString(),
+                    link: '/users',
+                });
+            });
+        }).catch(err => console.error("Admin notification sync failure:", err));
+
         toast({
             title: 'Account Created',
             description: 'Welcome! You are now being redirected to your dashboard.',
         });
-        // The onAuthStateChanged listener in FirebaseProvider will now detect the new user
-        // and handle the redirect to the dashboard.
     } catch (error: any) {
         console.error("Error signing up:", error);
         toast({

@@ -141,7 +141,7 @@
 }
 
 .glass-input {
-  @apply bg-white/40 dark:bg-slate-900/40 border-white/40 dark:border-slate-800/40 backdrop-blur-md focus:bg-white/60 transition-all rounded-xl;
+  @apply bg-white/80 dark:bg-slate-900/80 border-slate-200 dark:border-slate-800/40 backdrop-blur-md focus:bg-white dark:focus:bg-slate-900 transition-all rounded-xl text-slate-900 dark:text-slate-100 placeholder:text-slate-400;
 }
 
 @keyframes pulse-slow {

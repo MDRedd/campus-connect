@@ -115,6 +115,10 @@ export default function UsersPage() {
 
   const editForm = useForm<z.infer<typeof userEditSchema>>({
     resolver: zodResolver(userEditSchema),
+    defaultValues: {
+      role: 'student',
+      department: '',
+    }
   });
 
   const createForm = useForm<z.infer<typeof userCreationSchema>>({
@@ -233,26 +237,26 @@ export default function UsersPage() {
                             <FormField control={createForm.control} name="name" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Legal Name</FormLabel>
-                                    <FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                                    <FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                                 </FormItem>
                             )} />
                             <FormField control={createForm.control} name="email" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Email Address</FormLabel>
-                                    <FormControl><Input {...field} type="email" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                                    <FormControl><Input {...field} type="email" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                                 </FormItem>
                             )} />
                             <FormField control={createForm.control} name="password" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Initial Keyphrase</FormLabel>
-                                    <FormControl><Input {...field} type="password" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                                    <FormControl><Input {...field} type="password" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                                 </FormItem>
                             )} />
                             <FormField control={createForm.control} name="role" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Institutional Role</FormLabel>
                                     <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
                                         <SelectContent className="rounded-xl">
                                             <SelectItem value="student">Student</SelectItem>
                                             <SelectItem value="faculty">Faculty</SelectItem>
@@ -268,7 +272,7 @@ export default function UsersPage() {
                                 <FormField control={createForm.control} name="rollNumber" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Enrollment Index (Roll No)</FormLabel>
-                                        <FormControl><Input {...field} placeholder="e.g., 2024001" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                                        <FormControl><Input {...field} placeholder="e.g., 2024001" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                                     </FormItem>
                                 )} />
                             )}
@@ -276,14 +280,14 @@ export default function UsersPage() {
                                 <FormField control={createForm.control} name="facultyCode" render={({ field }) => (
                                     <FormItem>
                                         <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Staff Index (Faculty ID)</FormLabel>
-                                        <FormControl><Input {...field} placeholder="e.g., FAC1001" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                                        <FormControl><Input {...field} placeholder="e.g., FAC1001" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                                     </FormItem>
                                 )} />
                             )}
                             <FormField control={createForm.control} name="department" render={({ field }) => (
                                 <FormItem>
                                     <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Academic Department</FormLabel>
-                                    <FormControl><Input {...field} placeholder="e.g., Computer Science" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                                    <FormControl><Input {...field} placeholder="e.g., Computer Science" className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                                 </FormItem>
                             )} />
                             <DialogFooter className="pt-6">
@@ -308,10 +312,10 @@ export default function UsersPage() {
             <div className="flex flex-wrap items-center gap-3">
                 <div className="relative">
                     <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                    <Input placeholder="Search directory..." className="pl-10 h-11 rounded-xl bg-white border-white/50 shadow-inner w-[240px] text-sm font-medium" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Input placeholder="Search directory..." className="pl-10 h-11 rounded-xl bg-white border-slate-200 shadow-sm w-[240px] text-sm font-medium text-slate-900 placeholder:text-slate-400" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 <Select value={roleFilter} onValueChange={setRoleFilter}>
-                    <SelectTrigger className="w-[160px] h-11 rounded-xl border-white/50 bg-white shadow-inner text-xs font-black uppercase tracking-widest"><SelectValue placeholder="Role Filter" /></SelectTrigger>
+                    <SelectTrigger className="w-[160px] h-11 rounded-xl border-slate-200 bg-white shadow-sm text-xs font-black uppercase tracking-widest text-slate-900"><SelectValue placeholder="Role Filter" /></SelectTrigger>
                     <SelectContent className="rounded-xl">
                         <SelectItem value="all">All Roles</SelectItem>
                         <SelectItem value="student">Students</SelectItem>
@@ -390,7 +394,7 @@ export default function UsersPage() {
                         <FormItem>
                             <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Access Tier</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select a role" /></SelectTrigger></FormControl>
                                 <SelectContent className="rounded-xl">
                                     <SelectItem value="student">Student</SelectItem>
                                     <SelectItem value="faculty">Faculty</SelectItem>
@@ -405,7 +409,7 @@ export default function UsersPage() {
                     <FormField control={editForm.control} name="department" render={({ field }) => (
                         <FormItem>
                             <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Departmental Alignment</FormLabel>
-                            <FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl>
+                            <FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl>
                         </FormItem>
                     )} />
                     <DialogFooter>
