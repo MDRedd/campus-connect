@@ -22,6 +22,7 @@ import {
     DialogTrigger,
     DialogFooter,
     DialogClose,
+    DialogDescription,
 } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -285,6 +286,7 @@ export default function TimetablePage() {
                 </DialogTrigger>
                 <DialogContent>
                     <DialogHeader><DialogTitle>{editingSlot ? 'Edit Timetable Slot' : 'Add New Timetable Slot'}</DialogTitle></DialogHeader>
+                    <DialogDescription>Define when and where a class session takes place.</DialogDescription>
                     { (areFacultyCoursesLoading || areFacultyUsersLoading) ? <Skeleton className="h-96" /> : (
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onTimetableSubmit)} className="space-y-4">

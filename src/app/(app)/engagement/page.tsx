@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -381,6 +380,7 @@ export default function EngagementPage() {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader><DialogTitle>Create New Forum</DialogTitle></DialogHeader>
+                                <DialogDescription>Start a new discussion board for a specific course.</DialogDescription>
                                 {isForumCreationLoading ? <Skeleton className="h-64" /> : (
                                 <Form {...forumForm}>
                                     <form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4">
@@ -472,6 +472,7 @@ export default function EngagementPage() {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader><DialogTitle>Create New Community Post</DialogTitle></DialogHeader>
+                                <DialogDescription>Share something with the campus community.</DialogDescription>
                                 <Form {...communityPostForm}>
                                     <form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4">
                                         <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
@@ -539,6 +540,7 @@ export default function EngagementPage() {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader><DialogTitle>{editingClub ? 'Edit Club' : 'Create New Club'}</DialogTitle></DialogHeader>
+                                <DialogDescription>Set up a new student organization and assign a faculty in-charge.</DialogDescription>
                                 {areFacultyLoading ? <Skeleton className="h-64"/> : (
                                 <Form {...clubForm}>
                                     <form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4">
@@ -643,6 +645,7 @@ export default function EngagementPage() {
                             </DialogTrigger>
                             <DialogContent>
                                 <DialogHeader><DialogTitle>{editingEvent ? 'Edit Event' : 'Create New Event'}</DialogTitle></DialogHeader>
+                                <DialogDescription>Publicize a campus event or workshop.</DialogDescription>
                                 <Form {...eventForm}>
                                     <form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4">
                                         <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Event Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
