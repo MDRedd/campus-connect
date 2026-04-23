@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -301,7 +300,7 @@ export default function CourseResultsPage() {
                             <FormItem>
                                 <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Enrolled Persona</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value} disabled={!!editingResult}>
-                                    <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner"><SelectValue placeholder="Select student" /></SelectTrigger></FormControl>
+                                    <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select student" /></SelectTrigger></FormControl>
                                     <SelectContent className="rounded-xl">
                                         {enrolledStudents?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}
                                     </SelectContent>
@@ -309,12 +308,12 @@ export default function CourseResultsPage() {
                             </FormItem>
                         )} />
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={resultForm.control} name="semester" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Academic Semester</FormLabel><FormControl><Input placeholder="Fall" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
-                            <FormField control={resultForm.control} name="year" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Year</FormLabel><FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl></FormItem> )} />
+                            <FormField control={resultForm.control} name="semester" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Academic Semester</FormLabel><FormControl><Input placeholder="Fall" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl></FormItem> )} />
+                            <FormField control={resultForm.control} name="year" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Year</FormLabel><FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl></FormItem> )} />
                         </div>
                         <div className="grid grid-cols-2 gap-4">
-                            <FormField control={resultForm.control} name="marks" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Points (0-100)</FormLabel><FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black" /></FormControl></FormItem> )} />
-                            <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Letter Index</FormLabel><FormControl><Input placeholder="A+" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black" /></FormControl></FormItem> )} />
+                            <FormField control={resultForm.control} name="marks" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Points (0-100)</FormLabel><FormControl><Input type="number" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black text-slate-900" /></FormControl></FormItem> )} />
+                            <FormField control={resultForm.control} name="grade" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Letter Index</FormLabel><FormControl><Input placeholder="A+" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner font-black text-slate-900" /></FormControl></FormItem> )} />
                         </div>
                         <FormField control={resultForm.control} name="published" render={({ field }) => (
                             <FormItem className="flex flex-row items-center justify-between rounded-2xl border border-indigo-50 p-6 bg-indigo-50/20">

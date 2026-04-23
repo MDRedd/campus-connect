@@ -134,8 +134,8 @@ export default function AcademicsPage() {
           });
 
           const materialsQuery = query(collection(firestore, 'courses', course.id, 'study_materials'));
-          const materialsSnapshot = await getDocs(materialsQuery);
-          materialsSnapshot.forEach((doc) => {
+          const materialsSnapshotResult = await getDocs(materialsQuery);
+          materialsSnapshotResult.forEach((doc) => {
             allMaterials.push({ ...(doc.data() as StudyMaterial), id: doc.id, courseName: course.name, courseCode: course.code });
           });
         }

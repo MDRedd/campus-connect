@@ -1,9 +1,8 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs, query, where, collectionGroup, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
   Card,
@@ -12,7 +11,7 @@ import {
   CardContent,
   CardDescription
 } from '@/components/ui/card';
-import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle, Calendar as CalendarIcon, Sparkles } from 'lucide-react';
+import { Clock, MapPin, PlusCircle, Pencil, Trash2, Video, AlertCircle, Calendar as CalendarIcon } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,7 +19,6 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
-    DialogTrigger,
     DialogFooter,
     DialogClose,
     DialogDescription,

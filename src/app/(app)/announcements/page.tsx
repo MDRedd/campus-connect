@@ -97,7 +97,7 @@ export default function AnnouncementsPage() {
         targetAudience: 'all',
     });
     setOpenDialog(true);
-  }
+  };
 
   const handleDelete = (announcementId: string) => {
     if (!firestore) return;
@@ -105,7 +105,7 @@ export default function AnnouncementsPage() {
     const announcementRef = doc(firestore, 'announcements', announcementId);
     deleteDocumentNonBlocking(announcementRef);
     toast({ title: 'Success', description: 'Announcement deleted.' });
-  }
+  };
 
   const handleAIDraft = async () => {
       const currentDesc = form.getValues('description');
@@ -130,7 +130,7 @@ export default function AnnouncementsPage() {
       } finally {
           setIsDrafting(false);
       }
-  }
+  };
 
   async function onSubmit(values: z.infer<typeof announcementSchema>) {
     if (!firestore || !authUser) return;
@@ -194,15 +194,15 @@ export default function AnnouncementsPage() {
                             <FormItem>
                             <FormLabel>Target Audience</FormLabel>
                             <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                <FormControl><SelectTrigger><SelectValue placeholder="Select audience" /></SelectTrigger></FormControl>
+                                <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select audience" /></SelectTrigger></FormControl>
                                 <SelectContent><SelectItem value="all">All Users</SelectItem><SelectItem value="students">Students Only</SelectItem><SelectItem value="faculty">Faculty Only</SelectItem></SelectContent>
                             </Select><FormMessage /></FormItem>
                         )} />
-                        <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
+                        <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel>Title</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
                         <FormField control={form.control} name="description" render={({ field }) => (
                             <FormItem>
                                 <div className="flex justify-between items-center"><FormLabel>Description</FormLabel><Button type="button" variant="outline" size="sm" onClick={handleAIDraft} disabled={isDrafting} className="border-primary/20 bg-primary/5 text-primary"><Sparkles className="mr-2 h-4 w-4" />AI Smart Draft</Button></div>
-                                <FormControl><Textarea rows={8} {...field} placeholder="Enter key points and let AI help you draft..." /></FormControl><FormMessage /></FormItem>
+                                <FormControl><Textarea rows={8} {...field} className="glass-input" placeholder="Enter key points and let AI help you draft..." /></FormControl><FormMessage /></FormItem>
                         )} />
                         <DialogFooter><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit">Publish Now</Button></DialogFooter>
                     </form>
