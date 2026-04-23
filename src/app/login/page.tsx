@@ -58,10 +58,9 @@ export default function LoginPage() {
     try {
         await signInWithEmailAndPassword(auth, email, password);
     } catch (error: any) {
-        let errorMessage = 'Invalid credentials. Please check your Roll No./ID and password.';
-        
-        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found' || error.code === 'auth/invalid-email') {
-            errorMessage = 'Account not found or password incorrect. Did you sign up first?';
+        let errorMessage = 'Invalid credentials. Please check your credentials and try again.';
+        if (error.code === 'auth/invalid-credential' || error.code === 'auth/user-not-found') {
+            errorMessage = 'Account not found or password incorrect. Please ensure you have signed up first.';
         }
 
         toast({
@@ -77,10 +76,7 @@ export default function LoginPage() {
   const handleGoogleLogin = () => {
     if (!auth) return;
     initiateGoogleSignIn(auth);
-    toast({
-      title: 'Redirecting to Google...',
-      description: 'Please follow the prompts to sign in.',
-    });
+    toast({ title: 'Redirecting to Google...' });
   };
 
   const isDisabled = !mounted || isLoggingIn || isUserLoading;
@@ -105,9 +101,7 @@ export default function LoginPage() {
         </div>
         <div className="relative z-20 mt-auto">
           <blockquote className="space-y-2">
-            <p className="text-lg italic">
-              &ldquo;An investment in knowledge pays the best interest.&rdquo;
-            </p>
+            <p className="text-lg italic">&ldquo;An investment in knowledge pays the best interest.&rdquo;</p>
             <footer className="text-sm font-semibold">— Benjamin Franklin</footer>
           </blockquote>
         </div>
@@ -117,9 +111,7 @@ export default function LoginPage() {
           <Card className="w-full shadow-2xl border-primary/10">
             <CardHeader className="space-y-1">
               <CardTitle className="text-3xl font-bold tracking-tight">Login</CardTitle>
-              <CardDescription>
-                Enter your Roll Number, Faculty ID, or Email to access your account.
-              </CardDescription>
+              <CardDescription>Enter your Roll No, Faculty ID, or Email to sign in.</CardDescription>
             </CardHeader>
             <CardContent>
               <form onSubmit={handleLogin} className="grid gap-5">
@@ -155,12 +147,8 @@ export default function LoginPage() {
                   {isLoggingIn ? 'Signing in...' : 'Sign In'}
                 </Button>
                 <div className="relative my-2">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t"></span>
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-background px-2 text-muted-foreground font-medium">Or continue with</span>
-                    </div>
+                    <div className="absolute inset-0 flex items-center"><span className="w-full border-t"></span></div>
+                    <div className="relative flex justify-center text-xs uppercase"><span className="bg-background px-2 text-muted-foreground font-medium">Or</span></div>
                 </div>
                 <Button variant="outline" type="button" className="w-full h-11" onClick={handleGoogleLogin} disabled={isDisabled}>
                   <svg className="mr-2 h-4 w-4" viewBox="0 0 24 24">
@@ -174,14 +162,12 @@ export default function LoginPage() {
               </form>
                <div className="mt-8 text-center text-sm">
                 Don&apos;t have an account?{' '}
-                <Link href="/signup" className="underline font-bold text-primary hover:text-primary/80 transition-colors">
-                  Sign up now
-                </Link>
+                <Link href="/signup" className="underline font-bold text-primary">Sign up now</Link>
               </div>
             </CardContent>
           </Card>
           
-          <Card className="border-primary/20 bg-primary/5 shadow-sm">
+          <Card className="border-primary/20 bg-primary/5">
             <CardHeader className="pb-2">
               <CardTitle className="text-base flex items-center gap-2 text-primary font-bold">
                 <KeyRound className="h-4 w-4" /> Sample Credentials
@@ -189,23 +175,18 @@ export default function LoginPage() {
             </CardHeader>
             <CardContent className="text-sm grid gap-3">
               <div className="space-y-1">
-                <p className="font-medium text-muted-foreground">Student:</p>
-                <code className="bg-background px-2 py-1 rounded border shadow-sm block text-center font-mono">2024001</code>
+                <p className="font-medium text-muted-foreground">Student: <code className="bg-background px-1 font-mono">2024001</code></p>
               </div>
               <div className="space-y-1">
-                <p className="font-medium text-muted-foreground">Faculty:</p>
-                <code className="bg-background px-2 py-1 rounded border shadow-sm block text-center font-mono">FAC1001</code>
+                <p className="font-medium text-muted-foreground">Faculty: <code className="bg-background px-1 font-mono">FAC1001</code></p>
               </div>
               <div className="space-y-1">
-                <p className="font-medium text-muted-foreground">Password:</p>
-                <code className="bg-background px-2 py-1 rounded border shadow-sm block text-center font-mono">password123</code>
+                <p className="font-medium text-muted-foreground">Password: <code className="bg-background px-1 font-mono">password123</code></p>
               </div>
-              
-              <Alert variant="default" className="mt-2 bg-background/50 border-primary/20">
-                <AlertCircle className="h-4 w-4 text-primary" />
-                <AlertTitle className="text-primary font-bold text-xs uppercase tracking-tighter">Action Required</AlertTitle>
-                <AlertDescription className="text-[11px] leading-relaxed text-muted-foreground font-medium">
-                  The IDs above must be registered on the <Link href="/signup" className="underline font-bold text-primary">Sign up</Link> page before you can log in with them.
+              <Alert variant="default" className="mt-2 bg-background/50 py-2">
+                <AlertCircle className="h-3 w-3 text-primary" />
+                <AlertDescription className="text-[10px] leading-tight text-muted-foreground">
+                  Register these on the <Link href="/signup" className="underline font-bold">Sign up</Link> page first.
                 </AlertDescription>
               </Alert>
             </CardContent>

@@ -43,12 +43,11 @@ export default function MarkAttendancePage() {
   const [countdown, setCountdown] = useState(60);
 
   const isAdmin = useMemo(() => {
-    if (!userProfile?.role) return false;
-    const role = userProfile.role.toLowerCase();
+    const role = userProfile?.role?.toLowerCase() || '';
     return role.includes('admin');
   }, [userProfile]);
 
-  // If Admin: fetch all courses
+  // If Admin: fetch all courses directly to avoid indexing issues on faculty assignments
   const allCoursesQuery = useMemoFirebase(() => {
     if (!firestore || !isAdmin) return null;
     return collection(firestore, 'courses');
@@ -76,7 +75,6 @@ export default function MarkAttendancePage() {
         return;
     }
 
-    // Generate reference and ID first for non-blocking QR code generation
     const sessionRef = doc(collection(firestore, 'attendanceSessions'));
     const sessionId = sessionRef.id;
 
@@ -88,10 +86,7 @@ export default function MarkAttendancePage() {
       attendees: [],
     };
     
-    // Non-blocking write
     setDocumentNonBlocking(sessionRef, sessionData, {});
-    
-    // Instantly set active session for QR generation
     setActiveSession({ ...sessionData, createdAt: new Date() } as AttendanceSession);
     setIsGenerating(false);
   }, [firestore, authUser]);
@@ -126,7 +121,6 @@ export default function MarkAttendancePage() {
 
   const attendeesQuery = useMemoFirebase(() => {
     if (!firestore || attendeeIds.length === 0) return null;
-    // Limit to 30 for 'in' query safety
     return query(collection(firestore, 'users'), where('id', 'in', attendeeIds.slice(0, 30)));
   }, [firestore, attendeeIds]);
   const { data: attendees, isLoading: areAttendeesLoading } = useCollection<UserProfile>(attendeesQuery);
@@ -271,7 +265,7 @@ export default function MarkAttendancePage() {
                 ) : (
                     <div className="flex-1 flex w-full flex-col items-center justify-center text-sm text-center text-muted-foreground gap-3">
                         <Users className="h-8 w-8 opacity-20" />
-                        <p>Waiting for students to scan the code...</p>
+                        <p>Waiting for students...</p>
                     </div>
                 )}
               </CardFooter>

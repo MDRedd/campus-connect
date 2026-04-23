@@ -63,7 +63,7 @@ type Fee = {
   description: string;
   totalAmount: number;
   amountPaid: number;
-  dueDate: any; // Firestore timestamp
+  dueDate: any;
   status: 'Paid' | 'Unpaid' | 'Overdue';
 };
 
@@ -106,7 +106,7 @@ export default function FeesPage() {
   }, [firestore, authUser, userProfile]);
   const { data: fees, isLoading: areFeesLoading } = useCollection<Fee>(studentFeesQuery);
 
-  const isFeeAdmin = userProfile?.role === 'super-admin' || userProfile?.role === 'user-admin';
+  const isFeeAdmin = userProfile?.role?.includes('admin');
 
   const studentsQuery = useMemoFirebase(() => {
       if (!firestore || !isFeeAdmin) return null;
@@ -224,7 +224,7 @@ export default function FeesPage() {
       toast({ title: 'Payment Successful', description: 'Your outstanding dues have been marked as paid.' });
     } catch (error) {
       console.error("Error paying dues:", error);
-      toast({ variant: 'destructive', title: 'Payment Failed', description: 'There was an error processing your payment.' });
+      toast({ variant: 'destructive', title: 'Payment Failed', description: 'Error processing your payment.' });
     } finally {
       setIsPaying(false);
     }
@@ -238,7 +238,7 @@ export default function FeesPage() {
         dueDate: new Date(values.dueDate),
         amountPaid: 0,
     });
-    toast({ title: 'Fee Created', description: 'The new fee record has been added.'});
+    toast({ title: 'Fee Created', description: 'New fee record added.'});
     setOpenNewFeeDialog(false);
     newFeeForm.reset();
   }
@@ -285,26 +285,26 @@ export default function FeesPage() {
             <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
                 <div>
                     <h1 className="text-3xl font-bold tracking-tight">Fee Management</h1>
-                    <p className="text-muted-foreground">Global overview of student fees and payments.</p>
+                    <p className="text-muted-foreground">System-wide fee and payment administration.</p>
                 </div>
                 <div className="flex gap-2">
                     <Dialog open={openBulkDialog} onOpenChange={setOpenBulkDialog}>
                         <DialogTrigger asChild>
-                            <Button variant="outline"><HandCoins className="mr-2 h-4 w-4" /> Bulk Assign Fee</Button>
+                            <Button variant="outline"><HandCoins className="mr-2 h-4 w-4" /> Bulk Assign</Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
                                 <DialogTitle>Bulk Assign Fee</DialogTitle>
-                                <DialogDescription>This will create a new fee record for EVERY student on campus.</DialogDescription>
+                                <DialogDescription>This creates a new fee record for ALL students.</DialogDescription>
                             </DialogHeader>
                             <Form {...bulkFeeForm}>
                                 <form onSubmit={bulkFeeForm.handleSubmit(onBulkFeeSubmit)} className="space-y-4">
-                                    <FormField control={bulkFeeForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} placeholder="e.g., Tuition Fee - Spring 2025" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={bulkFeeForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} placeholder="e.g., Tuition Fee" /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={bulkFeeForm.control} name="totalAmount" render={({ field }) => ( <FormItem><FormLabel>Total Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={bulkFeeForm.control} name="dueDate" render={({ field }) => ( <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                        <Button type="submit" disabled={isBulkCreating}>{isBulkCreating ? 'Processing...' : 'Assign to All Students'}</Button>
+                                        <Button type="submit" disabled={isBulkCreating}>{isBulkCreating ? 'Processing...' : 'Assign to All'}</Button>
                                     </DialogFooter>
                                 </form>
                             </Form>
@@ -313,7 +313,7 @@ export default function FeesPage() {
 
                     <Dialog open={openNewFeeDialog} onOpenChange={setOpenNewFeeDialog}>
                         <DialogTrigger asChild>
-                            <Button><PlusCircle className="mr-2 h-4 w-4" /> Individual Fee</Button>
+                            <Button><PlusCircle className="mr-2 h-4 w-4" /> New Individual Fee</Button>
                         </DialogTrigger>
                         <DialogContent>
                             <DialogHeader>
@@ -326,32 +326,18 @@ export default function FeesPage() {
                                         <FormItem>
                                         <FormLabel>Student</FormLabel>
                                         <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select a student" /></SelectTrigger></FormControl>
+                                            <FormControl><SelectTrigger><SelectValue placeholder="Select student" /></SelectTrigger></FormControl>
                                             <SelectContent>{allStudents?.map(s => <SelectItem key={s.id} value={s.id}>{s.name}</SelectItem>)}</SelectContent>
                                         </Select>
                                         <FormMessage />
                                         </FormItem>
                                     )} />
-                                    <FormField control={newFeeForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} placeholder="e.g., Library Fine" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={newFeeForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={newFeeForm.control} name="totalAmount" render={({ field }) => ( <FormItem><FormLabel>Total Amount</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={newFeeForm.control} name="dueDate" render={({ field }) => ( <FormItem><FormLabel>Due Date</FormLabel><FormControl><Input type="date" {...field} /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={newFeeForm.control} name="status" render={({ field }) => (
-                                        <FormItem>
-                                        <FormLabel>Status</FormLabel>
-                                        <Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl><SelectTrigger><SelectValue placeholder="Select a status" /></SelectTrigger></FormControl>
-                                            <SelectContent>
-                                                <SelectItem value="Unpaid">Unpaid</SelectItem>
-                                                <SelectItem value="Paid">Paid</SelectItem>
-                                                <SelectItem value="Overdue">Overdue</SelectItem>
-                                            </SelectContent>
-                                        </Select>
-                                        <FormMessage />
-                                        </FormItem>
-                                    )} />
                                     <DialogFooter>
                                         <DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose>
-                                        <Button type="submit" disabled={newFeeForm.formState.isSubmitting}>{newFeeForm.formState.isSubmitting ? 'Creating...' : 'Assign Fee'}</Button>
+                                        <Button type="submit" disabled={newFeeForm.formState.isSubmitting}>Assign Fee</Button>
                                     </DialogFooter>
                                 </form>
                             </Form>
@@ -370,7 +356,7 @@ export default function FeesPage() {
                 </Card>
                 <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                        <CardTitle className="text-sm font-medium">Total Paid</CardTitle>
+                        <CardTitle className="text-sm font-medium">Total Collected</CardTitle>
                         <CreditCard className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent><div className="text-2xl font-bold">${adminStats.totalPaid.toLocaleString()}</div></CardContent>
@@ -384,10 +370,10 @@ export default function FeesPage() {
                 </Card>
             </div>
             
-            <Card className="mt-6">
+            <Card>
                 <CardHeader>
-                    <CardTitle>Fee Balances by Student</CardTitle>
-                    <CardDescription>Click a student to manage their individual fee records.</CardDescription>
+                    <CardTitle>Fee Balances</CardTitle>
+                    <CardDescription>Individual student balances and management.</CardDescription>
                 </CardHeader>
                 <CardContent>
                     <Table>
@@ -395,8 +381,8 @@ export default function FeesPage() {
                             <TableRow>
                                 <TableHead>Student</TableHead>
                                 <TableHead>Roll Number</TableHead>
-                                <TableHead>Total Due</TableHead>
-                                <TableHead className="text-right">Actions</TableHead>
+                                <TableHead>Due</TableHead>
+                                <TableHead className="text-right">Action</TableHead>
                             </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -405,8 +391,8 @@ export default function FeesPage() {
                                 <TableRow key={profile.id}>
                                     <TableCell>
                                         <div className="flex items-center gap-3">
-                                            <Avatar className="h-9 w-9">
-                                                {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={profile.name} data-ai-hint="person portrait" />}
+                                            <Avatar className="h-8 w-8">
+                                                {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={profile.name} />}
                                                 <AvatarFallback>{profile.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                                             </Avatar>
                                             <div className="font-medium">{profile.name}</div>
@@ -416,13 +402,13 @@ export default function FeesPage() {
                                     <TableCell className="font-semibold text-destructive">${totalDue.toFixed(2)}</TableCell>
                                     <TableCell className="text-right">
                                         <Button asChild size="sm" variant="outline">
-                                            <Link href={`/fees/${profile.id}`}>Manage Records</Link>
+                                            <Link href={`/fees/${profile.id}`}>Manage</Link>
                                         </Button>
                                     </TableCell>
                                 </TableRow>
                             ))
                         ) : (
-                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No students with outstanding dues found.</TableCell></TableRow>
+                            <TableRow><TableCell colSpan={4} className="h-24 text-center">No outstanding dues.</TableCell></TableRow>
                         )}
                         </TableBody>
                     </Table>
@@ -432,8 +418,7 @@ export default function FeesPage() {
     )
   }
   
-  if (userProfile?.role === 'student') {
-    return (
+  return (
         <div className="flex flex-col gap-6">
         <div>
             <h1 className="text-3xl font-bold tracking-tight">Fee Status</h1>
@@ -458,11 +443,11 @@ export default function FeesPage() {
                 <AlertDialogContent>
                 <AlertDialogHeader>
                     <AlertDialogTitle>Confirm Payment</AlertDialogTitle>
-                    <AlertDialogDescription>You are about to pay ${totalDue.toFixed(2)}. This will clear all outstanding dues from your account.</AlertDialogDescription>
+                    <AlertDialogDescription>You are about to pay ${totalDue.toFixed(2)}.</AlertDialogDescription>
                 </AlertDialogHeader>
                 <AlertDialogFooter>
                     <AlertDialogCancel>Cancel</AlertDialogCancel>
-                    <AlertDialogAction onClick={handlePayDues}>Confirm and Pay</AlertDialogAction>
+                    <AlertDialogAction onClick={handlePayDues}>Confirm</AlertDialogAction>
                 </AlertDialogFooter>
                 </AlertDialogContent>
             </AlertDialog>
@@ -477,12 +462,12 @@ export default function FeesPage() {
                         <div className="flex justify-between items-start">
                             <div>
                                 <h3 className="font-semibold">{fee.description}</h3>
-                                <p className="text-sm text-muted-foreground">Due by: {fee.dueDate ? format(fee.dueDate.toDate(), 'PPP') : 'N/A'}</p>
+                                <p className="text-sm text-muted-foreground">Due: {fee.dueDate ? format(fee.dueDate.toDate(), 'PPP') : 'N/A'}</p>
                             </div>
                             <Badge variant={getStatusVariant(fee.status)}>{fee.status}</Badge>
                         </div>
                         <Separator />
-                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                        <div className="grid grid-cols-3 gap-4 text-sm">
                             <div><p className="text-muted-foreground">Total</p><p className="font-medium">${fee.totalAmount.toFixed(2)}</p></div>
                             <div><p className="text-muted-foreground">Paid</p><p className="font-medium">${fee.amountPaid.toFixed(2)}</p></div>
                             <div><p className="text-muted-foreground">Due</p><p className="font-medium text-destructive">${(fee.totalAmount - fee.amountPaid).toFixed(2)}</p></div>
@@ -499,19 +484,4 @@ export default function FeesPage() {
         </Card>
         </div>
     );
-  }
-
-  return (
-    <div className="flex items-center justify-center p-8">
-        <Card className="max-w-md w-full">
-            <CardHeader>
-                <CardTitle>Access Denied</CardTitle>
-                <CardDescription>You do not have permission to access the fee management system.</CardDescription>
-            </CardHeader>
-            <CardFooter>
-                <Button variant="outline" className="w-full" asChild><Link href="/dashboard">Go to Dashboard</Link></Button>
-            </CardFooter>
-        </Card>
-    </div>
-  )
 }

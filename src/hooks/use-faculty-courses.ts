@@ -26,13 +26,13 @@ export function useFacultyCourses() {
             return;
         }
 
-        // Optimization: If the user is an admin, we don't need to run this 
-        // collection group query because they will see all courses anyway.
-        // This avoids unnecessary index errors for admin accounts.
+        // Check if user is an admin. Admins should see all courses.
         const role = userProfile?.role?.toLowerCase() || '';
-        if (role.includes('admin')) {
+        const isAdmin = role.includes('admin');
+        
+        if (isAdmin) {
             setIsLoading(false);
-            setFacultyCourses(null); // Signal that caller should use 'allCourses'
+            setFacultyCourses(null); // Signal that caller should fetch/use all courses
             return;
         }
 
@@ -40,6 +40,7 @@ export function useFacultyCourses() {
             setIsLoading(true);
             setError(null);
             try {
+                // This query requires a COLLECTION_GROUP_ASC index for collection 'timetables' and field 'facultyId'
                 const timetablesQuery = query(collectionGroup(firestore, 'timetables'), where('facultyId', '==', authUser.uid));
                 const timetableSnapshot = await getDocs(timetablesQuery);
 

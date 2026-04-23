@@ -26,28 +26,36 @@ export default function DashboardPage() {
           </div>
           <Skeleton className="h-80" />
         </div>
-        <Skeleton className="h-64" />
       </div>
     );
   }
 
   if (!userProfile) {
-    return <div>Could not load user profile. Please try logging in again.</div>;
+    return (
+      <div className="flex items-center justify-center h-[50vh]">
+        <p className="text-muted-foreground">Could not load user profile. Please try logging in again.</p>
+      </div>
+    );
   }
   
-  const isAdmin = userProfile.role.includes('admin');
+  const role = userProfile.role?.toLowerCase() || '';
+  const isAdmin = role.includes('admin');
 
   if (isAdmin) {
     return <AdminDashboard userProfile={userProfile as UserProfileData} />;
   }
 
-  if (userProfile.role === 'faculty') {
+  if (role === 'faculty') {
     return <FacultyDashboard userProfile={userProfile as UserProfileData} />;
   }
   
-  if (userProfile.role === 'student') {
+  if (role === 'student') {
     return <StudentDashboard userProfile={userProfile as UserProfileData} />;
   }
   
-  return <div>Invalid user role.</div>;
+  return (
+    <div className="flex items-center justify-center h-[50vh]">
+      <p className="text-muted-foreground">Invalid user role detected. Please contact support.</p>
+    </div>
+  );
 }
