@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -26,7 +25,7 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { Button } from '@/components/ui/button';
-import { BookCopy, FileText, Download, PlusCircle, Trash2, GraduationCap, Library, Sparkles, Clock } from 'lucide-react';
+import { BookCopy, FileText, Download, PlusCircle, Trash2, GraduationCap, Library, Sparkles, Clock, ArrowRight } from 'lucide-react';
 import { Skeleton } from '@/components/ui/skeleton';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -242,7 +241,7 @@ export default function AcademicsPage() {
                   <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-white/10 border border-white/20 text-white/90 text-[10px] font-black uppercase tracking-widest backdrop-blur-sm">
                       <Library className="h-3 w-3" /> Academic Ledger
                   </div>
-                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter">ACADEMICS</h1>
+                  <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase">ACADEMICS</h1>
                   <p className="text-indigo-100/70 font-medium max-w-lg">
                       {isFaculty ? 'Manage institutional learning assets, assignments, and curriculum progress.' : 'Your centralized academic repository for courses, assignments, and study materials.'}
                   </p>

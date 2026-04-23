@@ -143,3 +143,12 @@
 .glass-input {
   @apply bg-white/40 dark:bg-slate-900/40 border-white/40 dark:border-slate-800/40 backdrop-blur-md focus:bg-white/60 transition-all rounded-xl;
 }
+
+@keyframes pulse-slow {
+    0%, 100% { opacity: 0.15; transform: scale(1); }
+    50% { opacity: 0.25; transform: scale(1.05); }
+}
+
+.animate-pulse-slow {
+    animation: pulse-slow 15s ease-in-out infinite;
+}
