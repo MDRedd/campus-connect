@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useCollection, useFirestore, useMemoFirebase, updateDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, limit, doc, where } from 'firebase/firestore';
-import { User, Users, Activity, BarChart3, Database, ShieldAlert, CheckCircle, ArrowRight } from 'lucide-react';
+import { User, Users, Activity, BarChart3, Database, ShieldAlert, CheckCircle, ArrowRight, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 
@@ -164,7 +164,7 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
                                                 </div>
                                                 <div className="flex items-center gap-3">
                                                     <Badge variant="outline" className="font-black uppercase text-[8px] tracking-widest px-2 py-1">{user.role}</Badge>
-                                                    <Button size="sm" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-9 font-black uppercase tracking-widest text-[9px] bg-green-600 hover:bg-green-700">
+                                                    <Button size="sm" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-9 font-black uppercase tracking-widest text-[9px] bg-green-600 hover:bg-green-700 shadow-lg shadow-green-500/20">
                                                         <CheckCircle className="mr-1.5 h-3.5 w-3.5" /> Authorize Persona
                                                     </Button>
                                                 </div>
@@ -220,14 +220,23 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
                             <CardDescription>Direct access to master controls.</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-3">
-                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
-                                <Link href="/users">Manage All Users</Link>
+                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl group transition-all" asChild>
+                                <Link href="/users" className="flex justify-between items-center w-full">
+                                    Manage All Users
+                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                </Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
-                                <Link href="/courses">Master Course Catalog</Link>
+                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl group transition-all" asChild>
+                                <Link href="/courses" className="flex justify-between items-center w-full">
+                                    Master Course Catalog
+                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                </Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl" asChild>
-                                <Link href="/fees">System-wide Fees</Link>
+                            <Button variant="secondary" className="w-full justify-start h-12 rounded-xl group transition-all" asChild>
+                                <Link href="/fees" className="flex justify-between items-center w-full">
+                                    System-wide Fees
+                                    <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" />
+                                </Link>
                             </Button>
                         </CardContent>
                     </Card>
