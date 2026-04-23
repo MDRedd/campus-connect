@@ -2,7 +2,28 @@
 
 Campus Connect is a unified digital platform designed to streamline academic and administrative tasks for students, faculty, and administrators.
 
-## 🚀 Tech Stack
+## 🚀 Getting Started
+
+To run the platform locally, follow these steps:
+
+1. **Install Dependencies**:
+   ```bash
+   npm install
+   ```
+
+2. **Run Development Server**:
+   ```bash
+   npm run dev
+   ```
+   Access the app at [http://localhost:3000](http://localhost:3000).
+
+3. **Run Genkit UI** (for AI features):
+   ```bash
+   npm run genkit:dev
+   ```
+   Access the AI debugger at [http://localhost:4000](http://localhost:4000).
+
+## 🛠️ Tech Stack
 
 ### Frontend & Framework
 - **Next.js 15 (App Router)**: High-performance React framework.
@@ -21,7 +42,7 @@ Campus Connect is a unified digital platform designed to streamline academic and
 - **Google Genkit**: Orchestration layer for AI operations.
 - **Gemini 2.5 Flash**: Multi-modal LLM powering features like AI Feedback, Quiz Gen, and Announcement drafting.
 
-## 🛠️ Key Features
+## 🌟 Key Features
 - **Real-time Attendance**: QR-code based live check-in system.
 - **Academic Management**: Course materials, assignments, and automated grading loops.
 - **Interactive Engagement**: Discussion forums, club memberships, and community boards.
