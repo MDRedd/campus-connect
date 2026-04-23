@@ -58,18 +58,18 @@ export default function SettingsPage() {
     });
 
     toast({
-      title: 'Settings Saved',
-      description: 'Your notification preferences have been updated.',
+      title: 'Protocol Saved',
+      description: 'Your notification transmission parameters have been synchronized.',
     });
   };
 
   const handleUpdatePassword = async () => {
     if (!password || !confirmPassword) {
-        toast({ variant: 'destructive', title: 'Data Missing', description: 'Please fill in both password fields.' });
+        toast({ variant: 'destructive', title: 'Data Missing', description: 'Please fill in both keyphrase fields.' });
         return;
     }
     if (password !== confirmPassword) {
-        toast({ variant: 'destructive', title: 'Protocol Mismatch', description: 'Keyphrases do not match.' });
+        toast({ variant: 'destructive', title: 'Protocol Mismatch', description: 'Security keyphrases do not match.' });
         return;
     }
     if (password.length < 6) {

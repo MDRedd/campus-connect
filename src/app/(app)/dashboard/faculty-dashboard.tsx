@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, addDocumentNonBlocking } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup, doc } from 'firebase/firestore';
-import { BookOpen, Users, CheckCircle, AlertCircle, PlusCircle, Megaphone } from 'lucide-react';
+import { BookOpen, Users, CheckCircle, AlertCircle, PlusCircle, Megaphone, ShieldAlert, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 import Link from 'next/link';
@@ -28,7 +28,7 @@ type QuickStat = {
   value: string;
   icon: React.ElementType;
 };
-type UserProfileData = { name: string; role: 'faculty'; id: string; };
+type UserProfileData = { name: string; role: 'faculty'; id: string; auditStatus?: string };
 type Announcement = { id: string; title: string; description: string; date: any; targetAudience: 'all' | 'students' | 'faculty'; };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
 type FullUserProfile = { name: string; role: string; id: string; department?: string };
@@ -338,6 +338,18 @@ export default function FacultyDashboard({ userProfile }: { userProfile: UserPro
     return (
         <div className="flex flex-col gap-8 pb-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
             <WelcomeBanner user={userProfile} />
+            
+            {userProfile?.auditStatus === 'pending' && (
+                <Alert className="glass-card bg-primary/5 border-primary/20 shadow-2xl overflow-hidden animate-pulse">
+                    <ShieldAlert className="h-5 w-5 text-primary" />
+                    <AlertTitle className="font-black uppercase tracking-tight text-primary">Identity Audit Underway</AlertTitle>
+                    <AlertDescription className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                        Your professional staff persona is awaiting Registrar verification. Some management ledgers may be read-only until authorized.
+                        <Sparkles className="h-3 w-3 text-amber-500" />
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <PlatformGuide role={userProfile.role} />
 
             {isIndexError && (

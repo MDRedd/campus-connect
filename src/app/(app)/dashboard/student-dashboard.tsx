@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useCollection, useFirestore, useMemoFirebase, errorEmitter, FirestorePermissionError } from '@/firebase';
 import { collection, query, orderBy, limit, where, getDocs, collectionGroup } from 'firebase/firestore';
-import { BookOpen, Percent, FileWarning, ArrowRight } from 'lucide-react';
+import { BookOpen, Percent, FileWarning, ArrowRight, ShieldAlert, Sparkles } from 'lucide-react';
 import { format } from 'date-fns';
 import type { Course } from '@/lib/data';
 import Link from 'next/link';
@@ -18,13 +18,14 @@ import UpcomingDeadlines, { UpcomingAssignment } from './components/upcoming-dea
 import { Card, CardHeader, CardTitle, CardDescription, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import PlatformGuide from './components/platform-guide';
+import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
 
 type QuickStat = {
   title: string;
   value: string;
   icon: React.ElementType;
 };
-type UserProfileData = { name: string; role: 'student'; id: string; };
+type UserProfileData = { name: string; role: 'student'; id: string; auditStatus?: string };
 type Enrollment = { courseId: string };
 type FullAssignment = { id: string; courseId: string; deadline: string; title: string; };
 type AttendanceRecord = { courseId: string; status: 'present' | 'absent'; };
@@ -226,6 +227,18 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
     return (
         <div className="flex flex-col gap-8 pb-12 animate-in fade-in zoom-in-95 duration-700">
             <WelcomeBanner user={userProfile} />
+            
+            {userProfile?.auditStatus === 'pending' && (
+                <Alert className="glass-card bg-primary/5 border-primary/20 shadow-2xl overflow-hidden animate-pulse">
+                    <ShieldAlert className="h-5 w-5 text-primary" />
+                    <AlertTitle className="font-black uppercase tracking-tight text-primary">Identity Audit Underway</AlertTitle>
+                    <AlertDescription className="text-sm font-medium text-slate-600 flex items-center gap-2">
+                        Your persona is currently in the verification queue. Some academic ledgers may be read-only until the Registrar completes your audit.
+                        <Sparkles className="h-3 w-3 text-amber-500" />
+                    </AlertDescription>
+                </Alert>
+            )}
+
             <PlatformGuide role={userProfile.role} />
             <QuickStats stats={quickStats} isLoading={areStatsLoading} />
             
