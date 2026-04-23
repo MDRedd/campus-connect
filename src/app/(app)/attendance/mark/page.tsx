@@ -188,7 +188,7 @@ export default function MarkAttendancePage() {
                     </Select>
                   )}
                   {!isLoading && (!displayCourses || displayCourses.length === 0) && (
-                      <p className="text-xs text-muted-foreground">
+                      <p className="text-xs text-muted-foreground mt-2">
                           {isAdmin ? "You need to add courses in the Course Management tab first." : "You haven't been assigned to any classes in the weekly timetable yet."}
                       </p>
                   )}
@@ -246,14 +246,14 @@ export default function MarkAttendancePage() {
                     </div>
                 ) : attendees && attendees.length > 0 ? (
                     attendees.map(attendee => (
-                        <div key={attendee.id} className="flex items-center gap-3">
+                        <div key={attendee.id} className="flex items-center gap-3 w-full">
                             <Avatar className="h-8 w-8 text-xs">
                                 {userAvatar && <AvatarImage src={userAvatar.imageUrl} alt={attendee.name} data-ai-hint="person portrait" />}
                                 <AvatarFallback>{attendee.name.split(' ').map(n => n[0]).join('')}</AvatarFallback>
                             </Avatar>
-                            <div>
-                                <p className="text-sm font-medium">{attendee.name}</p>
-                                <p className="text-xs text-muted-foreground">{attendee.email}</p>
+                            <div className="flex-1 min-w-0">
+                                <p className="text-sm font-medium truncate">{attendee.name}</p>
+                                <p className="text-xs text-muted-foreground truncate">{attendee.email}</p>
                             </div>
                         </div>
                     ))
