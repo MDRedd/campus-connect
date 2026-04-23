@@ -9,6 +9,7 @@ import {
   Check,
   ChevronDown,
   LayoutGrid,
+  ShieldCheck,
 } from 'lucide-react';
 import {
   DropdownMenu,
@@ -38,6 +39,7 @@ import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { formatDistanceToNow } from 'date-fns';
 import { cn } from '@/lib/utils';
 import { ThemeToggle } from './theme-toggle';
+import { Badge } from '@/components/ui/badge';
 
 type Notification = {
   id: string;
@@ -126,6 +128,11 @@ export default function AppHeader() {
       </div>
 
       <div className="relative ml-auto flex items-center gap-4">
+        <div className="hidden xl:flex items-center gap-2 px-3 py-1 bg-green-500/5 rounded-full border border-green-500/10">
+            <div className="h-1.5 w-1.5 rounded-full bg-green-500 animate-pulse shadow-[0_0_8px_rgba(34,197,94,0.6)]" />
+            <span className="text-[8px] font-black uppercase tracking-widest text-green-600/70">Cloud Sync Active</span>
+        </div>
+
         <div className="relative hidden lg:block">
             <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-muted-foreground/60" />
             <Input
