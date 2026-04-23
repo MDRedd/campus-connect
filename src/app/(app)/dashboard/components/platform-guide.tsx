@@ -27,19 +27,19 @@ export default function PlatformGuide({ role }: PlatformGuideProps) {
       { 
         title: 'IDENTITY SYNC', 
         description: 'Set up your digital persona.', 
-        instruction: 'Go to "Profile" to verify your details and department.',
+        instruction: 'Go to "Profile" to verify your details and alignment.',
         icon: Users 
       },
       { 
         title: 'SECURE CHECK-IN', 
         description: 'Authorize your presence.', 
-        instruction: 'Use the "Scan Terminal" to scan faculty QR codes during class.',
+        instruction: 'Use the "Scan Terminal" to scan faculty QR tokens during class sessions.',
         icon: Smartphone 
       },
       { 
         title: 'ACADEMIC GROWTH', 
         description: 'Engage with AI-enhanced tools.', 
-        instruction: 'Access "Academics" for AI material summaries and practice quizzes.',
+        instruction: 'Access "Academics" for AI material summaries and practice evaluation nodes.',
         icon: Zap 
       }
     );
@@ -47,20 +47,20 @@ export default function PlatformGuide({ role }: PlatformGuideProps) {
     steps.push(
       { 
         title: 'TEMPORAL ALLOCATION', 
-        description: 'Set your teaching schedule.', 
-        instruction: 'Assign your sessions in the "Timetable" to populate your dashboard.',
+        description: 'Define your teaching schedule.', 
+        instruction: 'Assign your sessions in the "Timetable" to populate your management HUD.',
         icon: Laptop 
       },
       { 
         title: 'PRESENCE MASTER', 
         description: 'Generate dynamic QR tokens.', 
-        instruction: 'Open "Mark Attendance" to start a live session for your students.',
+        instruction: 'Open "Mark Attendance" to launch a live session for your students.',
         icon: Sparkles 
       },
       { 
         title: 'AI AUDIT LOOP', 
         description: 'Automate feedback delivery.', 
-        instruction: 'Review assignments and use the AI layer to synthesize grading feedback.',
+        instruction: 'Audit submissions and use the AI layer to synthesize evaluative grading feedback.',
         icon: Compass 
       }
     );
@@ -69,19 +69,19 @@ export default function PlatformGuide({ role }: PlatformGuideProps) {
       { 
         title: 'IDENTITY PROVISION', 
         description: 'Manage institutional personas.', 
-        instruction: 'Use the "Users" directory to onboard new students and faculty.',
+        instruction: 'Use the "Users" directory to onboard and authorize new students and staff.',
         icon: Users 
       },
       { 
         title: 'CATALOG GOVERNANCE', 
         description: 'Configure academic nodes.', 
-        instruction: 'Update the "Course Management" ledger to reflect the current term.',
+        instruction: 'Update the "Course Catalog" ledger to reflect current term offerings.',
         icon: Database 
       },
       { 
         title: 'SYSTEM BROADCAST', 
         description: 'Disseminate critical alerts.', 
-        instruction: 'Use "Announcements" to reach specific roles via the AI-drafting engine.',
+        instruction: 'Use "Announcements" to reach target audiences via the AI-drafting engine.',
         icon: ShieldCheck 
       }
     );
@@ -91,13 +91,13 @@ export default function PlatformGuide({ role }: PlatformGuideProps) {
     <Card className="glass-card border-neon border-none overflow-hidden mb-8 animate-in fade-in slide-in-from-bottom-4 duration-700">
       <CardHeader className="bg-primary/5 p-8 md:p-10 border-b border-white/10">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
-          <div className="space-y-3">
+          <div className="space-y-3 text-left">
              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest">
                 <GraduationCap className="h-3 w-3" /> Mission Protocol
              </div>
              <CardTitle className="text-3xl md:text-4xl font-black uppercase tracking-tight">PLATFORM ORIENTATION</CardTitle>
              <CardDescription className="text-base md:text-lg font-medium max-w-2xl leading-relaxed text-slate-500">
-                Campus Connect is a unified digital ecosystem designed to bridge the gap between academic and administrative layers. We prioritize transparency, AI-driven efficiency, and secure data distribution across the student body.
+                Campus Connect is a high-fidelity digital ecosystem designed to bridge academic and administrative layers. We prioritize transparency, AI-driven efficiency, and secure data distribution across the student body.
              </CardDescription>
           </div>
           <div className="hidden sm:flex gap-3 opacity-20">
@@ -121,7 +121,7 @@ export default function PlatformGuide({ role }: PlatformGuideProps) {
                <p className="text-sm text-slate-600 font-bold mb-4 leading-snug">"{step.description}"</p>
                <div className="pt-4 border-t border-slate-100">
                   <p className="text-[10px] font-black uppercase tracking-widest text-primary mb-1 flex items-center gap-1.5">
-                    <ArrowRight className="h-3 w-3" /> Instruction
+                    <ArrowRight className="h-3 w-3" /> Quick Start
                   </p>
                   <p className="text-xs text-slate-500 font-medium leading-relaxed italic">{step.instruction}</p>
                </div>

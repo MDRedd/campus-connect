@@ -13,6 +13,7 @@ import {
     Megaphone,
     CreditCard,
     LifeBuoy,
+    BookText,
   } from 'lucide-react';
 
 type UserRole = 'student' | 'faculty' | 'super-admin' | 'user-admin' | 'course-admin' | 'attendance-admin';
@@ -27,6 +28,7 @@ const studentNavItems = [
     { href: '/engagement', icon: Users, label: 'Engagement' },
     { href: '/fees', icon: CreditCard, label: 'Fees' },
     { href: '/helpdesk', icon: LifeBuoy, label: 'Helpdesk' },
+    { href: '/manual', icon: BookText, label: 'System Manual' },
 ];
 
 const facultyNavItems = [
@@ -38,6 +40,7 @@ const facultyNavItems = [
     { href: '/engagement', icon: Users, label: 'Engagement' },
     { href: '/announcements', icon: Megaphone, label: 'Announcements' },
     { href: '/helpdesk', icon: LifeBuoy, label: 'Helpdesk' },
+    { href: '/manual', icon: BookText, label: 'System Manual' },
 ];
 
 export const getNavItems = (role: UserRole) => {
@@ -73,7 +76,7 @@ export const getNavItems = (role: UserRole) => {
         items.push({ href: '/fees', icon: CreditCard, label: 'Fee Management' });
     }
 
-    // A super-admin gets all faculty privileges as well, for simplicity.
+    // A super-admin gets all faculty privileges as well
     if (role === 'super-admin') {
         items.push(
             ...[
@@ -83,6 +86,8 @@ export const getNavItems = (role: UserRole) => {
             ]
         );
     }
+    
+    items.push({ href: '/manual', icon: BookText, label: 'System Manual' });
     
     return items;
 }
