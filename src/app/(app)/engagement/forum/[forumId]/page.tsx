@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState } from 'react';
@@ -21,6 +20,7 @@ import { ArrowLeft, Send, MessageSquare, Zap, Clock, ShieldCheck } from 'lucide-
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { format } from 'date-fns';
 import { cn } from '@/lib/utils';
+import { Label } from '@/components/ui/label';
 
 type Forum = { title: string; description: string; courseId: string; };
 type ForumPost = { id: string; userId: string; userName: string; content: string; postedAt: any; };
