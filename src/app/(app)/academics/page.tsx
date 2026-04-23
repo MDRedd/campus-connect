@@ -429,7 +429,7 @@ export default function AcademicsPage() {
                                 <Download className="h-6 w-6" />
                             </div>
                             <div className="flex-1 space-y-1">
-                                <h4 className="font-black text-slate-800 uppercase tracking-tight">{material.title}</h4>
+                                <h4 className="font-black text-slate-800 uppercase tracking-tight"> {material.title}</h4>
                                 <p className="text-xs text-muted-foreground font-medium">{material.description} • <span className="text-accent font-black uppercase text-[10px] tracking-widest">{material.courseCode}</span></p>
                             </div>
                         </div>
