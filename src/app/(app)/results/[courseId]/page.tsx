@@ -30,6 +30,7 @@ import {
     DialogTrigger,
     DialogFooter,
     DialogClose,
+    DialogDescription,
 } from '@/components/ui/dialog';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -211,7 +212,10 @@ export default function CourseResultsPage() {
                     <Button onClick={handleAddNewClick} disabled={isLoading}><PlusCircle className="mr-2 h-4 w-4" /> {editingResult ? 'Edit Result' : 'Add Result'}</Button>
                 </DialogTrigger>
                 <DialogContent className="sm:max-md">
-                    <DialogHeader><DialogTitle>{editingResult ? 'Edit Result' : 'Add New Result'}</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>{editingResult ? 'Edit Result' : 'Add New Result'}</DialogTitle>
+                        <DialogDescription>Assign a grade and marks to the selected student.</DialogDescription>
+                    </DialogHeader>
                     {areStudentsLoading ? <Skeleton className="h-96"/> : (
                     <Form {...resultForm}>
                         <form onSubmit={resultForm.handleSubmit(onResultSubmit)} className="space-y-4">

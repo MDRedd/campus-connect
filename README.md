@@ -32,10 +32,10 @@ Campus Connect is a unified digital platform designed to streamline academic and
 ## 🔧 Troubleshooting
 
 ### Missing Firestore Indexes (Critical)
-Firestore requires specific indexes for "Collection Group" queries used by faculty to see data across all students. If the app displays a "Database Index Required" message:
+Firestore requires specific indexes for "Collection Group" queries used by faculty and admins to see data across all courses. If the app displays a "Database Index Required" message:
 1.  **Open your browser's developer console** (Press F12).
 2.  **Locate the FirebaseError** message.
-3.  **Click the link** provided in the error text.
+3.  **Click the link** provided in the error text (e.g., https://console.firebase.google.com/...).
 4.  In the Firebase Console, click **"Create Index"**. 
 5.  Wait until the status is **"Active"** (approx. 2 mins).
 
@@ -45,3 +45,9 @@ Common collections requiring manual indexes:
 - `attendance` (field `courseId`)
 - `results` (field `courseId`)
 - `submissions` (field `courseId`)
+
+### Sample Credentials
+To use roll numbers like `2024001` or faculty IDs like `FAC1001`, you **must** use the **Sign Up** page first and register an account using an email in the format:
+- Student: `[roll_number]@student.college.edu`
+- Faculty: `[faculty_id]@faculty.college.edu`
+- Admin: `super.admin@college.edu`

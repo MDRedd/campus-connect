@@ -30,6 +30,7 @@ import {
     DialogContent,
     DialogHeader,
     DialogTitle,
+    DialogDescription,
     DialogTrigger,
     DialogFooter,
     DialogClose,
@@ -181,7 +182,10 @@ export default function ManageStudentFeesPage() {
                     <Button onClick={handleAddNew}><PlusCircle className="mr-2 h-4 w-4" /> Add Fee</Button>
                 </DialogTrigger>
                 <DialogContent>
-                    <DialogHeader><DialogTitle>{editingFee ? 'Edit Fee Record' : 'Add New Fee'}</DialogTitle></DialogHeader>
+                    <DialogHeader>
+                        <DialogTitle>{editingFee ? 'Edit Fee Record' : 'Add New Fee'}</DialogTitle>
+                        <DialogDescription>Enter the fee details and deadline below.</DialogDescription>
+                    </DialogHeader>
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
                             <FormField control={form.control} name="description" render={({ field }) => ( <FormItem><FormLabel>Description</FormLabel><FormControl><Input {...field} placeholder="e.g., Tuition Fee - Fall 2024" /></FormControl><FormMessage /></FormItem> )} />

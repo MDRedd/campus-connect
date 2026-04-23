@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -167,7 +166,10 @@ const NewTicketForm = () => {
                 <Button><PlusCircle className="mr-2 h-4 w-4" /> New Ticket</Button>
             </DialogTrigger>
             <DialogContent className="sm:max-w-2xl">
-                <DialogHeader><DialogTitle>Create a New Support Ticket</DialogTitle></DialogHeader>
+                <DialogHeader>
+                    <DialogTitle>Create a New Support Ticket</DialogTitle>
+                    <DialogDescription>Submit your issue and our team will get back to you.</DialogDescription>
+                </DialogHeader>
                 <Form {...form}>
                     <form onSubmit={form.handleSubmit(onNewTicketSubmit)} className="space-y-4">
                         <FormField control={form.control} name="category" render={({ field }) => (
