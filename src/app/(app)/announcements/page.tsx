@@ -41,6 +41,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { useToast } from '@/hooks/use-toast';
 import { format } from 'date-fns';
 import { generateAnnouncementDraft } from '@/ai/flows/generate-announcement-draft';
+import Link from 'next/link';
 
 type Announcement = {
   id: string;
@@ -163,9 +164,9 @@ export default function AnnouncementsPage() {
                     <CardTitle>Access Denied</CardTitle>
                     <CardDescription>You do not have the required permissions to manage platform-wide announcements.</CardDescription>
                 </CardHeader>
-                <CardFooter>
+                <CardContent className="flex justify-center">
                     <Button variant="outline" className="w-full" asChild><Link href="/dashboard">Return to Dashboard</Link></Button>
-                </CardFooter>
+                </CardContent>
             </Card>
         </div>
     )
