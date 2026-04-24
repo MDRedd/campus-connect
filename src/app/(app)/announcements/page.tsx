@@ -198,7 +198,11 @@ export default function AnnouncementsPage() {
                                 <FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Persona Tier</FormLabel>
                                 <Select onValueChange={field.onChange} defaultValue={field.value}>
                                     <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select audience" /></SelectTrigger></FormControl>
-                                    <SelectContent className="rounded-xl"><SelectItem value="all">All Participants</SelectItem><SelectItem value="students">Students Only</SelectItem><SelectItem value="faculty">Faculty Only</SelectItem></SelectContent>
+                                    <SelectContent className="rounded-xl">
+                                        <SelectItem value="all" className="rounded-lg py-2 font-bold">All Participants</SelectItem>
+                                        <SelectItem value="students" className="rounded-lg py-2 font-bold">Students Only</SelectItem>
+                                        <SelectItem value="faculty" className="rounded-lg py-2 font-bold">Faculty Only</SelectItem>
+                                    </SelectContent>
                                 </Select></FormItem>
                             )} />
                             <FormField control={form.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Headline</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl></FormItem> )} />

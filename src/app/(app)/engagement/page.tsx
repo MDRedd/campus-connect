@@ -273,9 +273,9 @@ export default function EngagementPage() {
                         <DialogContent className="rounded-3xl">
                             <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">New Community Thread</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Share your thoughts with the campus.</DialogDescription></DialogHeader>
                             <Form {...communityPostForm}><form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4 pt-4">
-                                <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Content</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner min-h-[150px]" /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Publish Now</Button></DialogFooter>
+                                <FormField control={communityPostForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Headline</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={communityPostForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Content</FormLabel><FormControl><Textarea {...field} className="glass-input min-h-[150px]" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px] h-12 shadow-lg shadow-primary/20">Publish Now</Button></DialogFooter>
                             </form></Form>
                         </DialogContent>
                     </Dialog>
@@ -323,13 +323,13 @@ export default function EngagementPage() {
                             <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4 pt-4">
                                 <FormField control={forumForm.control} name="courseId" render={({ field }) => (
                                     <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Target Course</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
-                                        <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
-                                        <SelectContent className="rounded-xl">{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>)}</SelectContent>
+                                        <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select course" /></SelectTrigger></FormControl>
+                                        <SelectContent className="rounded-xl">{coursesForForum?.map(c => <SelectItem key={c.id} value={c.id} className="rounded-lg py-2 font-bold">{c.name}</SelectItem>)}</SelectContent>
                                     </Select><FormMessage /></FormItem>
                                 )} />
-                                <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Title</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Topic Overview</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Launch Forum</Button></DialogFooter>
+                                <FormField control={forumForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Title</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                <FormField control={forumForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Topic Overview</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Launch Forum</Button></DialogFooter>
                             </form></Form>
                         </DialogContent>
                     </Dialog>
@@ -338,7 +338,7 @@ export default function EngagementPage() {
             <CardContent className="grid gap-4 mt-6">
                 <div className="relative mb-6 px-4">
                     <Search className="absolute left-7 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground/60" />
-                    <Input placeholder="Search forum directory..." className="pl-10 h-12 rounded-xl bg-white border-slate-200 shadow-sm font-bold text-slate-900" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
+                    <Input placeholder="Search forum directory..." className="glass-input pl-10" value={searchQuery} onChange={(e) => setSearchQuery(e.target.value)} />
                 </div>
                 {areForumsLoading ? <Skeleton className="h-24 w-full rounded-2xl" /> : filteredForums && filteredForums.length > 0 ? (
                     filteredForums.map((forum) => (
@@ -373,15 +373,15 @@ export default function EngagementPage() {
                             <DialogContent className="rounded-3xl">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Register New Club</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Establish a new institutional student organization.</DialogDescription></DialogHeader>
                                 <Form {...clubForm}><form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4 pt-4">
-                                    <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Club Name</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Mission Statement</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={clubForm.control} name="name" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Club Name</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={clubForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Mission Statement</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
                                     <FormField control={clubForm.control} name="facultyIncharge" render={({ field }) => (
                                         <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Sponsoring Faculty</FormLabel><Select onValueChange={field.onChange} defaultValue={field.value}>
-                                            <FormControl><SelectTrigger className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl>
-                                            <SelectContent className="rounded-xl">{allFaculty?.map(f => ( <SelectItem key={f.id} value={f.id}>{f.name}</SelectItem> ))}</SelectContent>
+                                            <FormControl><SelectTrigger className="glass-input"><SelectValue placeholder="Select faculty" /></SelectTrigger></FormControl>
+                                            <SelectContent className="rounded-xl">{allFaculty?.map(f => ( <SelectItem key={f.id} value={f.id} className="rounded-lg py-2 font-bold">{f.name}</SelectItem> ))}</SelectContent>
                                         </Select><FormMessage /></FormItem>
                                     )} />
-                                    <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Authorize Club</Button></DialogFooter>
+                                    <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Authorize Club</Button></DialogFooter>
                                 </form></Form>
                             </DialogContent>
                         </Dialog>
@@ -424,15 +424,15 @@ export default function EngagementPage() {
                             <DialogContent className="rounded-3xl">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Publish Campus Event</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Announce a new workshop or seminar.</DialogDescription></DialogHeader>
                                 <Form {...eventForm}><form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4 pt-4">
-                                    <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Headline</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Agenda/Details</FormLabel><FormControl><Textarea {...field} className="rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="title" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Headline</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="description" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Agenda/Details</FormLabel><FormControl><Textarea {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
                                     <div className="grid grid-cols-2 gap-4">
-                                        <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Date</FormLabel><FormControl><Input type="date" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                        <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start Time</FormLabel><FormControl><Input type="time" {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="date" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Event Date</FormLabel><FormControl><Input type="date" {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                        <FormField control={eventForm.control} name="time" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Start Time</FormLabel><FormControl><Input type="time" {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
                                     </div>
-                                    <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Venue</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                    <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Hosting Body</FormLabel><FormControl><Input {...field} className="h-12 rounded-xl bg-slate-50 border-none shadow-inner text-slate-900" /></FormControl><FormMessage /></FormItem> )} />
-                                    <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 font-black uppercase tracking-widest text-[10px]">Announce Event</Button></DialogFooter>
+                                    <FormField control={eventForm.control} name="location" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Venue</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                    <FormField control={eventForm.control} name="organizer" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Hosting Body</FormLabel><FormControl><Input {...field} className="glass-input" /></FormControl><FormMessage /></FormItem> )} />
+                                    <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Cancel</Button></DialogClose><Button type="submit" className="rounded-xl px-8 h-12 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Announce Event</Button></DialogFooter>
                                 </form></Form>
                             </DialogContent>
                         </Dialog>
@@ -487,7 +487,7 @@ export default function EngagementPage() {
                 </div>
             </div>
             <DialogFooter>
-                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px]">Close Entry</Button></DialogClose>
+                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Close Entry</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
     </Dialog>

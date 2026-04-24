@@ -73,9 +73,9 @@ export default function AcademicsPage() {
   const { data: enrollments, isLoading: areEnrollmentsLoading } = useCollection<Enrollment>(enrollmentsQuery);
 
   const allCoursesQuery = useMemoFirebase(() => {
-    if (!firestore || isFaculty) return null;
+    if (!firestore) return null;
     return collection(firestore, 'courses');
-  }, [firestore, isFaculty]);
+  }, [firestore]);
   const { data: allCourses, isLoading: areAllCoursesLoading } = useCollection<Course>(allCoursesQuery);
 
   const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
