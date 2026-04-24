@@ -102,7 +102,6 @@ export default function TimetablePage() {
     const allFacultyQuery = useMemoFirebase(() => { if (!firestore || !isAdmin) return null; return query(collection(firestore, 'users'), where('role', '==', 'faculty')); }, [firestore, isAdmin]);
     const { data: allFaculty, isLoading: areFacultyUsersLoading } = useCollection<UserProfile>(allFacultyQuery);
 
-    // FIX: Explicitly scoped courses list for the form to resolve ReferenceErrors and shadowing
     const coursesAvailableForAllocation = useMemo(() => {
         if (isAdmin) return allCourses || [];
         return facultyCourses || [];

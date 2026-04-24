@@ -130,7 +130,6 @@ export default function AcademicsPage() {
             allAssignments.push({ ...(doc.data() as Assignment), id: doc.id, courseName: course.name, courseCode: course.code });
           });
 
-          // FIX: Explicitly defined const for materialsSnapshot to resolve ReferenceError
           const materialsQuery = query(collection(firestore, 'courses', course.id, 'study_materials'));
           const materialsSnapshot = await getDocs(materialsQuery);
           materialsSnapshot.forEach((doc) => {

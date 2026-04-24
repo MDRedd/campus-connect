@@ -21,6 +21,7 @@ import PlatformGuide from './components/platform-guide';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { PlaceHolderImages } from '@/lib/placeholder-images';
 import { useToast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 type QuickStat = {
   title: string;
