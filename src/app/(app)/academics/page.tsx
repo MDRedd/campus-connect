@@ -3,7 +3,7 @@
 import { useMemo, useState, useEffect } from 'react';
 import Link from 'next/link';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, deleteDocumentNonBlocking } from '@/firebase';
-import { collection, getDocs, query, where, doc, limit } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, limit, collectionGroup } from 'firebase/firestore';
 import { format } from 'date-fns';
 import {
   Card,
@@ -120,23 +120,28 @@ export default function AcademicsPage() {
       setAreAssignmentsLoading(true);
       setAreStudyMaterialsLoading(true);
       try {
-        const allAssignments: (Assignment & { courseName: string; courseCode: string; })[] = [];
-        const allMaterials: (StudyMaterial & { courseName: string; courseCode: string; })[] = [];
+        const courseIds = displayCourses.map(c => c.id);
+        const courseMap = new Map(displayCourses.map(c => [c.id, c]));
         
-        for (const course of displayCourses) {
-          const assignmentsQuery = query(collection(firestore, 'courses', course.id, 'assignments'));
-          const assignmentsSnapshot = await getDocs(assignmentsQuery);
-          assignmentsSnapshot.forEach((doc) => {
-            allAssignments.push({ ...(doc.data() as Assignment), id: doc.id, courseName: course.name, courseCode: course.code });
-          });
+        // Optimizing: Use collectionGroup with 'in' operator instead of individual loops
+        // This is significantly faster for 10+ courses
+        const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', courseIds));
+        const materialsQuery = query(collectionGroup(firestore, 'study_materials'), where('courseId', 'in', courseIds));
 
-          const materialsQuery = query(collection(firestore, 'courses', course.id, 'study_materials'));
-          const materialsSnapshot = await getDocs(materialsQuery);
-          materialsSnapshot.forEach((doc) => {
-            allMaterials.push({ ...(doc.data() as StudyMaterial), id: doc.id, courseName: course.name, courseCode: course.code });
-          });
-        }
-        allAssignments.sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+        const [assSnap, matSnap] = await Promise.all([getDocs(assignmentsQuery), getDocs(materialsQuery)]);
+
+        const allAssignments = assSnap.docs.map(doc => {
+            const data = doc.data() as Assignment;
+            const course = courseMap.get(data.courseId);
+            return { ...data, id: doc.id, courseName: course?.name || 'Unknown', courseCode: course?.code || 'N/A' };
+        }).sort((a, b) => new Date(a.deadline).getTime() - new Date(b.deadline).getTime());
+
+        const allMaterials = matSnap.docs.map(doc => {
+            const data = doc.data() as StudyMaterial;
+            const course = courseMap.get(data.courseId);
+            return { ...data, id: doc.id, courseName: course?.name || 'Unknown', courseCode: course?.code || 'N/A' };
+        });
+
         setAssignments(allAssignments);
         setStudyMaterials(allMaterials);
       } catch (error) {
@@ -150,44 +155,6 @@ export default function AcademicsPage() {
     };
     fetchData();
   }, [firestore, displayCourses]);
-
-  const [mySubmissions, setMySubmissions] = useState<{[assignmentId: string]: any} | null>(null);
-  const [areMySubmissionsLoading, setAreMySubmissionsLoading] = useState(true);
-
-  useEffect(() => {
-    if (!firestore || !authUser || isFaculty || !assignments) return;
-    if (assignments.length === 0) {
-        setMySubmissions({});
-        setAreMySubmissionsLoading(false);
-        return;
-    }
-
-    const fetchMySubmissions = async () => {
-        setAreMySubmissionsLoading(true);
-        const subsMap: {[assignmentId: string]: any} = {};
-        try {
-            for (const assignment of assignments) {
-                const submissionsQuery = query(
-                    collection(firestore, 'courses', assignment.courseId, 'assignments', assignment.id, 'submissions'),
-                    where('studentId', '==', authUser.uid),
-                    limit(1)
-                );
-                const querySnapshot = await getDocs(submissionsQuery);
-                if (!querySnapshot.empty) {
-                    const doc = querySnapshot.docs[0];
-                    subsMap[assignment.id] = { ...(doc.data()), id: doc.id };
-                }
-            }
-            setMySubmissions(subsMap);
-        } catch (error) {
-            console.error("Error fetching student submissions:", error);
-            setMySubmissions({});
-        } finally {
-            setAreMySubmissionsLoading(false);
-        }
-    };
-    fetchMySubmissions();
-  }, [firestore, authUser, isFaculty, assignments]);
 
   const assignmentForm = useForm<z.infer<typeof assignmentSchema>>({ 
     resolver: zodResolver(assignmentSchema),

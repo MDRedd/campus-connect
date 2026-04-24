@@ -84,13 +84,14 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             setAreStatsLoading(true);
             setAreAssignmentsLoading(true);
             try {
-                const enrolledCourseIds = new Set(studentEnrollments.map(e => e.courseId));
-                const enrolledCourses = allCourses.filter(c => enrolledCourseIds.has(c.id));
+                const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
+                const enrolledCourseIdsSet = new Set(enrolledCourseIds);
+                const enrolledCourses = allCourses.filter(c => enrolledCourseIdsSet.has(c.id));
     
                 // Overall Attendance
                 const attendanceStats: { [key: string]: { attended: number, total: number } } = {};
                 studentAttendance?.forEach(rec => {
-                    if (enrolledCourseIds.has(rec.courseId)) {
+                    if (enrolledCourseIdsSet.has(rec.courseId)) {
                         if (!attendanceStats[rec.courseId]) attendanceStats[rec.courseId] = { attended: 0, total: 0 };
                         attendanceStats[rec.courseId].total++;
                         if (rec.status === 'present') attendanceStats[rec.courseId].attended++;
@@ -103,9 +104,10 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                 let dueAssignmentsCount = 0;
                 let upcoming: UpcomingAssignment[] = [];
                 if (enrolledCourses.length > 0) {
-                    const courseIds = enrolledCourses.map(c => c.id);
-                    const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', courseIds));
-                    const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('studentId', '==', authUser.uid), where('courseId', 'in', courseIds));
+                    // Optimization: Use collectionGroup with 'in' operator to avoid massive waterfalls
+                    const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', enrolledCourseIds));
+                    const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('studentId', '==', authUser.uid), where('courseId', 'in', enrolledCourseIds));
+                    
                     const [assignmentsSnapshot, submissionsSnapshot] = await Promise.all([getDocs(assignmentsQuery), getDocs(submissionsQuery)]);
     
                     const submittedAssignmentIds = new Set(submissionsSnapshot.docs.map(doc => doc.data().assignmentId));
@@ -139,7 +141,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                 ]);
 
             } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'assignments or submissions', operation: 'list' }));
+                console.error("Dashboard calculation error:", error);
                 setQuickStats([]);
                 setUpcomingAssignments([]);
             } finally {
@@ -167,26 +169,24 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
             try {
                 const enrolledCourseIds = studentEnrollments.map(e => e.courseId);
                 const courseMap = new Map(allCourses.map(c => [c.id, c]));
-                const allClasses: UpcomingClass[] = [];
+                
+                // Optimized fetch: use collectionGroup for timetables
+                const timetablesQuery = query(
+                    collectionGroup(firestore, 'timetables'),
+                    where('courseId', 'in', enrolledCourseIds),
+                    where('dayOfWeek', '==', today)
+                );
+                
+                const querySnapshot = await getDocs(timetablesQuery);
+                const allClasses: UpcomingClass[] = querySnapshot.docs.map(doc => {
+                    const data = doc.data();
+                    const course = courseMap.get(data.courseId);
+                    return { id: doc.id, ...data, course: { name: course?.name || 'Unknown' } } as UpcomingClass;
+                }).sort((a, b) => a.startTime.localeCompare(b.startTime));
 
-                for (const courseId of enrolledCourseIds) {
-                    const timetablesQuery = query(
-                        collection(firestore, 'courses', courseId, 'timetables'),
-                        where('dayOfWeek', '==', today)
-                    );
-                    const querySnapshot = await getDocs(timetablesQuery);
-                    const course = courseMap.get(courseId);
-                    if (course) {
-                        querySnapshot.forEach(doc => {
-                             allClasses.push({ id: doc.id, ...doc.data(), course: { name: course.name } } as UpcomingClass);
-                        });
-                    }
-                }
-
-                allClasses.sort((a, b) => a.startTime.localeCompare(b.startTime));
                 setTodaysClasses(allClasses);
             } catch (error) {
-                errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
+                console.error("Timetable fetch error:", error);
                 setTodaysClasses([]);
             } finally {
                 setAreTodaysClassesLoading(false);
@@ -197,11 +197,11 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
 
     const attendanceData = useMemo(() => {
         if (isStudentAttendanceLoading || areAllCoursesLoading || !studentAttendance || !allCourses || !studentEnrollments) return null;
-        const enrolledCourseIds = new Set(studentEnrollments.map(e => e.courseId) ?? []);
+        const enrolledCourseIdsSet = new Set(studentEnrollments.map(e => e.courseId) ?? []);
         const stats: { [key: string]: { attended: number, total: number } } = {};
 
         studentAttendance.forEach(rec => {
-            if (enrolledCourseIds.has(rec.courseId)) {
+            if (enrolledCourseIdsSet.has(rec.courseId)) {
                 if (!stats[rec.courseId]) stats[rec.courseId] = { attended: 0, total: 0 };
                 stats[rec.courseId].total++;
                 if (rec.status === 'present') stats[rec.courseId].attended++;
