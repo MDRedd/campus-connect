@@ -156,3 +156,8 @@
 .border-neon {
   @apply border-primary/40 shadow-[0_0_15px_-5px_rgba(79,70,229,0.5)];
 }
+
+/* Tactile HUD Feedback */
+.btn-tactile {
+  @apply transition-all active:scale-95;
+}
