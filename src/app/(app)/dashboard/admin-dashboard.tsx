@@ -168,7 +168,7 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
                                                     </div>
                                                 </div>
                                                 <div className="flex items-center gap-4">
-                                                    <Button size="lg" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-11 px-8 font-black uppercase tracking-widest text-[10px] bg-green-600 hover:bg-green-700 shadow-xl shadow-green-500/20">
+                                                    <Button size="lg" onClick={() => handleVerifyUser(user.id)} className="rounded-xl h-11 px-8 font-black uppercase tracking-widest text-[10px] bg-green-600 hover:bg-green-700 shadow-xl shadow-green-500/20 active:scale-95 transition-all">
                                                         <CheckCircle className="mr-2 h-4 w-4" /> Authorize Persona
                                                     </Button>
                                                 </div>
@@ -184,7 +184,7 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
                             )}
                         </CardContent>
                         <CardFooter className="bg-slate-50/50 p-6 justify-center border-t border-indigo-50/50">
-                            <Button asChild variant="ghost" className="text-[10px] font-black uppercase tracking-[0.3em] w-full hover:bg-white transition-all">
+                            <Button asChild variant="ghost" className="text-[10px] font-black uppercase tracking-[0.3em] w-full hover:bg-white transition-all active:scale-95">
                                 <Link href="/users">Launch Master Directory HUD <ArrowRight className="ml-2 h-4 w-4" /></Link>
                             </Button>
                         </CardFooter>
@@ -224,19 +224,19 @@ export default function AdminDashboard({ userProfile }: { userProfile: UserProfi
                             <CardDescription className="text-xs font-medium">Direct access to institutional master controls.</CardDescription>
                         </CardHeader>
                         <CardContent className="grid gap-4 p-8">
-                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl" asChild>
+                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl active:scale-95" asChild>
                                 <Link href="/users" className="flex justify-between items-center w-full px-2">
                                     <span className="font-black uppercase tracking-widest text-[10px]">Persona Directory</span>
                                     <ArrowRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-primary" />
                                 </Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl" asChild>
+                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl active:scale-95" asChild>
                                 <Link href="/courses" className="flex justify-between items-center w-full px-2">
                                     <span className="font-black uppercase tracking-widest text-[10px]">Master Course Catalog</span>
                                     <ArrowRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-primary" />
                                 </Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl" asChild>
+                            <Button variant="secondary" className="w-full justify-between h-14 rounded-2xl group transition-all hover:bg-white hover:shadow-xl active:scale-95" asChild>
                                 <Link href="/fees" className="flex justify-between items-center w-full px-2">
                                     <span className="font-black uppercase tracking-widest text-[10px]">Financial Settlement Ledger</span>
                                     <ArrowRight className="h-4 w-4 opacity-30 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0 text-primary" />

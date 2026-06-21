@@ -104,15 +104,15 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                 let dueAssignmentsCount = 0;
                 let upcoming: UpcomingAssignment[] = [];
                 if (enrolledCourses.length > 0) {
-                    // Optimization: Use collectionGroup with 'in' operator to avoid massive waterfalls
-                    const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', enrolledCourseIds));
-                    const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('studentId', '==', authUser.uid), where('courseId', 'in', enrolledCourseIds));
+                    // PERFORMANCE FIX: Consolidate fetching using collectionGroup and 'in' operator
+                    const assignmentsQuery = query(collectionGroup(firestore, 'assignments'), where('courseId', 'in', enrolledCourseIds.slice(0, 30)));
+                    const submissionsQuery = query(collectionGroup(firestore, 'submissions'), where('studentId', '==', authUser.uid), where('courseId', 'in', enrolledCourseIds.slice(0, 30)));
                     
                     const [assignmentsSnapshot, submissionsSnapshot] = await Promise.all([getDocs(assignmentsQuery), getDocs(submissionsQuery)]);
     
                     const submittedAssignmentIds = new Set(submissionsSnapshot.docs.map(doc => doc.data().assignmentId));
                     const now = new Date();
-                    const courseMap = new Map(allCourses.map(c => [c.id, c.code]));
+                    const courseMap = new Map(allCourses.map(c => [c.id, c]));
 
                     const allDueAssignments = assignmentsSnapshot.docs
                         .map(doc => ({ id: doc.id, ...(doc.data() as Omit<FullAssignment, 'id'>) }))
@@ -173,7 +173,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                 // Optimized fetch: use collectionGroup for timetables
                 const timetablesQuery = query(
                     collectionGroup(firestore, 'timetables'),
-                    where('courseId', 'in', enrolledCourseIds),
+                    where('courseId', 'in', enrolledCourseIds.slice(0, 30)),
                     where('dayOfWeek', '==', today)
                 );
                 
@@ -269,7 +269,7 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                                         <Clock className="h-3.5 w-3.5 text-primary" />
                                         Due: {format(new Date(nextMilestone.deadline), 'PPP')}
                                     </div>
-                                    <Button asChild variant="link" className="text-primary font-black uppercase tracking-widest text-[9px] h-auto p-0">
+                                    <Button asChild variant="link" className="text-primary font-black uppercase tracking-widest text-[9px] h-auto p-0 active:scale-95 transition-all">
                                         <Link href={`/academics/assignment/${nextMilestone.id}?courseId=${nextMilestone.courseId}`}>Access Module HUD <ArrowRight className="ml-1 h-3 w-3" /></Link>
                                     </Button>
                                 </div>
@@ -288,13 +288,13 @@ export default function StudentDashboard({ userProfile }: { userProfile: UserPro
                     <Card className="glass-card border-none shadow-indigo-50/10">
                         <CardHeader><CardTitle className="text-xl font-black uppercase tracking-tight">Quick Links</CardTitle><CardDescription className="text-xs font-medium">Common academic actions.</CardDescription></CardHeader>
                         <CardContent className="grid gap-3">
-                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all" asChild>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all active:scale-95" asChild>
                                 <Link href="/attendance/scan">Mark Presence (Scan HUD) <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" /></Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all" asChild>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all active:scale-95" asChild>
                                 <Link href="/results">Official Results <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" /></Link>
                             </Button>
-                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all" asChild>
+                            <Button variant="secondary" className="w-full justify-between h-12 rounded-xl group transition-all active:scale-95" asChild>
                                 <Link href="/helpdesk">Support Node <ArrowRight className="h-4 w-4 opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0" /></Link>
                             </Button>
                         </CardContent>

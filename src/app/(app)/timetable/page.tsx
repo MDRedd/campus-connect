@@ -2,7 +2,7 @@
 
 import { useMemo, useState, useEffect } from 'react';
 import { useUser, useFirestore, useCollection, useMemoFirebase, addDocumentNonBlocking, updateDocumentNonBlocking, deleteDocumentNonBlocking, errorEmitter, FirestorePermissionError } from '@/firebase';
-import { collection, getDocs, query, where, doc } from 'firebase/firestore';
+import { collection, getDocs, query, where, doc, collectionGroup } from 'firebase/firestore';
 import type { Course } from '@/lib/data';
 import {
   Card,
@@ -94,7 +94,7 @@ export default function TimetablePage() {
     const enrollmentsQuery = useMemoFirebase(() => { if (!firestore || !authUser || userProfile?.role !== 'student') return null; return collection(firestore, 'users', authUser.uid, 'enrollments'); }, [firestore, authUser, userProfile]);
     const { data: enrollments } = useCollection<{courseId: string}>(enrollmentsQuery);
     
-    const enrolledCourses = useMemo(() => { if (!enrollments || !allCourses) return null; const ids = new Set(enrollments.map(e => e.courseId)); return allCourses.filter(c => ids.has(c.id)); }, [enrollments, allCourses]);
+    const enrolledCourseIds = useMemo(() => { if (!enrollments) return []; return enrollments.map(e => e.courseId); }, [enrollments]);
     const [fullTimetable, setFullTimetable] = useState<Timetable[] | null>(null);
     const [isTimetableLoading, setIsTimetableLoading] = useState(true);
     const { facultyCourses, isLoading: areFacultyCoursesLoading, error: facultyCoursesError } = useFacultyCourses();
@@ -109,31 +109,45 @@ export default function TimetablePage() {
 
     useEffect(() => {
         if (isUserLoading || areAllCoursesLoading || !userProfile || !firestore || !allCourses) return;
-        let targetCourses: Course[] | null = null;
-        if (userProfile.role === 'student') targetCourses = enrolledCourses;
-        else if (userProfile.role === 'faculty') targetCourses = facultyCourses;
-        else if (isAdmin) targetCourses = allCourses;
-
-        if (targetCourses === null) { setFullTimetable([]); setIsTimetableLoading(false); return; }
-        const fetchTimetable = async () => {
+        
+        const fetchTimetableOptimized = async () => {
           setIsTimetableLoading(true);
           try {
             const courseMap = new Map(allCourses.map(c => [c.id, c]));
-            const timetablePromises = targetCourses!.map(async (course) => {
-                const querySnapshot = await getDocs(query(collection(firestore, 'courses', course.id, 'timetables')));
-                return querySnapshot.docs.map(doc => {
-                    const data = doc.data(); const details = courseMap.get(data.courseId);
-                    return details ? { id: doc.id, ...data, course: { name: details.name, code: details.code } } as Timetable : null;
-                }).filter((e): e is Timetable => e !== null);
-            });
-            const results = (await Promise.all(timetablePromises)).flat();
+            let targetCourseIds: string[] = [];
+
+            if (userProfile.role === 'student') targetCourseIds = enrolledCourseIds;
+            else if (userProfile.role === 'faculty') targetCourseIds = facultyCourses?.map(c => c.id) || [];
+            else if (isAdmin) targetCourseIds = allCourses.map(c => c.id);
+
+            if (targetCourseIds.length === 0) {
+                setFullTimetable([]);
+                setIsTimetableLoading(false);
+                return;
+            }
+
+            // PERFORMANCE FIX: Use collectionGroup with 'in' operator for zero-latency fetching
+            const timetableQuery = query(collectionGroup(firestore, 'timetables'), where('courseId', 'in', targetCourseIds.slice(0, 30)));
+            const querySnapshot = await getDocs(timetableQuery);
+            
+            const results = querySnapshot.docs.map(doc => {
+                const data = doc.data();
+                const details = courseMap.get(data.courseId);
+                return details ? { id: doc.id, ...data, course: { name: details.name, code: details.code } } as Timetable : null;
+            }).filter((e): e is Timetable => e !== null);
+
             results.sort((a, b) => a.startTime.localeCompare(b.startTime));
             setFullTimetable(results);
-          } catch (error) { errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' })); setFullTimetable([]); } 
-          finally { setIsTimetableLoading(false); }
+          } catch (error) {
+            console.error("Timetable optimized fetch error:", error);
+            errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'timetables', operation: 'list' }));
+            setFullTimetable([]);
+          } finally {
+            setIsTimetableLoading(false);
+          }
         };
-        fetchTimetable();
-      }, [isUserLoading, areAllCoursesLoading, userProfile, firestore, allCourses, enrolledCourses, areFacultyCoursesLoading, facultyCourses, isAdmin]);
+        fetchTimetableOptimized();
+      }, [isUserLoading, areAllCoursesLoading, userProfile, firestore, allCourses, enrolledCourseIds, areFacultyCoursesLoading, facultyCourses, isAdmin]);
 
     const form = useForm<z.infer<typeof timetableSchema>>({ 
         resolver: zodResolver(timetableSchema), 
@@ -174,7 +188,7 @@ export default function TimetablePage() {
                   <h1 className="text-4xl md:text-5xl font-black tracking-tighter uppercase leading-none">CLASS TIMETABLE</h1>
                   <p className="text-indigo-100/70 font-medium max-w-lg">{canManageTimetable ? "Synchronize academic calendars and manage session venues." : "View your official institutional class distribution for the current term."}</p>
               </div>
-              {canManageTimetable && <Button onClick={handleAddNew} className="bg-white text-primary hover:bg-indigo-50 font-black rounded-xl h-12 px-8 shadow-xl shadow-black/20 uppercase tracking-widest text-[10px]"><PlusCircle className="mr-2 h-4 w-4" /> Add Session Slot</Button>}
+              {canManageTimetable && <Button onClick={handleAddNew} className="bg-white text-primary hover:bg-indigo-50 font-black rounded-xl h-12 px-8 shadow-xl shadow-black/20 uppercase tracking-widest text-[10px] active:scale-95 transition-all"><PlusCircle className="mr-2 h-4 w-4" /> Add Session Slot</Button>}
           </div>
       </div>
 
@@ -241,7 +255,7 @@ export default function TimetablePage() {
                         </div>
                         <FormField control={form.control} name="room" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Physical Venue</FormLabel><FormControl><Input placeholder="A-101" {...field} className="glass-input" /></FormControl></FormItem> )} />
                         <FormField control={form.control} name="meetingUrl" render={({ field }) => ( <FormItem><FormLabel className="text-[10px] font-black uppercase tracking-widest text-muted-foreground ml-1">Online Gateway (Optional)</FormLabel><FormControl><Input type="url" placeholder="https://..." {...field} className="glass-input" /></FormControl></FormItem> )} />
-                        <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose><Button type="submit" className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Finalize Allocation</Button></DialogFooter>
+                        <DialogFooter className="pt-6"><DialogClose asChild><Button type="button" variant="ghost">Abort</Button></DialogClose><Button type="submit" className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all">Finalize Allocation</Button></DialogFooter>
                     </form>
                 </Form>
                 )}
