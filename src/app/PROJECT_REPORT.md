@@ -8,7 +8,7 @@ Campus Connect is a high-fidelity, role-based digital ecosystem designed to unif
 
 ## 2. Core Architecture
 - **Framework**: Next.js 15 (App Router) - Leveraging Server Components for data integrity and Client Components for HUD interactivity.
-- **Data Engine**: Firebase Firestore - Optimized with **Collection Grouping** and **Batched Parallel Queries** to ensure sub-second response times even with large datasets.
+- **Data Engine**: Firebase Firestore - Optimized with **Collection Grouping**, **Batched Parallel Queries**, and **Chunked Identity Resolution** to ensure sub-second response times even with large datasets.
 - **Identity Layer**: Firebase Auth - Features a mandatory **Institutional Audit Workflow** where new personas require Registrar verification before accessing restricted ledgers.
 - **Intelligence Layer**: Google Genkit (Gemini 2.5 Flash) - Powering 8 specialized flows for academic material synthesis, feedback generation, and administrative drafting.
 
@@ -36,9 +36,9 @@ Campus Connect is a high-fidelity, role-based digital ecosystem designed to unif
 ---
 
 ## 4. Performance & UX Hardening
-- **Waterfall Elimination**: Replaced sequential database loops with parallel promises, resolving the "1-minute hang" during heavy course loads.
+- **Waterfall Elimination**: Replaced serial sequential database loops with **Parallel Promise Resolution** and **CollectionGroup Batching**, resolving the "1-minute hang" during heavy course loads.
 - **Identity Denormalization**: Student names are synchronized across submissions to ensure instant Faculty Audit views without cross-directory lookups.
-- **Tactile HUD**: Every button and interaction utilizes high-contrast `glass-input` styling and scale-responsive feedback.
+- **Tactile HUD**: Every button and interaction utilizes high-contrast `glass-input` styling and `active:scale-95` tactile feedback.
 
 ---
 

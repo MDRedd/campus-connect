@@ -145,26 +145,47 @@ export default function EngagementPage() {
     const { data: communityPosts, isLoading: areCommunityPostsLoading } = useCollection<CommunityPost>(communityPostsQuery);
     
     useEffect(() => {
-        if (!firestore || areCoursesLoading) return;
-        if (!allCourses) { setForums([]); setAreForumsLoading(false); return; }
-        const fetchForums = async () => {
+        if (!firestore || areCoursesLoading || !allCourses) {
+            if (!areCoursesLoading) {
+                setForums([]);
+                setAreForumsLoading(false);
+            }
+            return;
+        }
+
+        const fetchForumsOptimized = async () => {
             setAreForumsLoading(true);
-            const allForums: Forum[] = [];
             try {
-                for (const course of allCourses) {
-                    const forumsQuery = query(collection(firestore, 'courses', course.id, 'forums'));
-                    const querySnapshot = await getDocs(forumsQuery);
-                    querySnapshot.forEach((doc) => {
-                        allForums.push({ id: doc.id, courseCode: course.code, courseName: course.name, ...(doc.data() as Omit<Forum, 'id'>) });
-                    });
-                }
+                const courseIds = allCourses.map(c => c.id);
+                const courseMap = new Map(allCourses.map(c => [c.id, c]));
+
+                // Optimization: Use collectionGroup with parallel execution or batching
+                // We fetch all forums and filter by authorized courses on the client or via 'in' if manageable
+                const forumsQuery = query(collectionGroup(firestore, 'forums'), where('courseId', 'in', courseIds.slice(0, 30)));
+                const querySnapshot = await getDocs(forumsQuery);
+                
+                const allForums: Forum[] = querySnapshot.docs.map(doc => {
+                    const data = doc.data() as Omit<Forum, 'id'>;
+                    const course = courseMap.get(data.courseId);
+                    return {
+                        id: doc.id,
+                        courseCode: course?.code || 'N/A',
+                        courseName: course?.name || 'Unknown',
+                        ...data
+                    };
+                });
+                
                 setForums(allForums);
             } catch (error) {
+                console.error("Optimized Forum Fetch Error:", error);
                 errorEmitter.emit('permission-error', new FirestorePermissionError({ path: 'forums', operation: 'list' }));
                 setForums([]);
-            } finally { setAreForumsLoading(false); }
+            } finally {
+                setAreForumsLoading(false);
+            }
         };
-        fetchForums();
+
+        fetchForumsOptimized();
     }, [firestore, allCourses, areCoursesLoading, refetchTrigger]);
     
     const { facultyCourses, isLoading: areFacultyCoursesLoading } = useFacultyCourses();
@@ -255,10 +276,10 @@ export default function EngagementPage() {
 
       <Tabs defaultValue="community" className="w-full">
         <TabsList className="grid w-full max-w-lg grid-cols-4 h-12 p-1 bg-white/50 backdrop-blur-sm border rounded-xl">
-          <TabsTrigger value="community" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Social</TabsTrigger>
-          <TabsTrigger value="forums" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Forums</TabsTrigger>
-          <TabsTrigger value="clubs" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Clubs</TabsTrigger>
-          <TabsTrigger value="events" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm">Events</TabsTrigger>
+          <TabsTrigger value="community" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all active:scale-95">Social</TabsTrigger>
+          <TabsTrigger value="forums" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all active:scale-95">Forums</TabsTrigger>
+          <TabsTrigger value="clubs" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all active:scale-95">Clubs</TabsTrigger>
+          <TabsTrigger value="events" className="rounded-lg data-[state=active]:bg-white data-[state=active]:shadow-sm transition-all active:scale-95">Events</TabsTrigger>
         </TabsList>
 
         <TabsContent value="community" className="mt-8">
@@ -269,7 +290,7 @@ export default function EngagementPage() {
                         <CardDescription className="text-xs font-medium">A shared space for campus voices and daily updates.</CardDescription>
                     </div>
                     <Dialog open={openCommunityPostDialog} onOpenChange={setOpenCommunityPostDialog}>
-                        <DialogTrigger asChild><Button onClick={() => communityPostForm.reset({ title: '', description: '' })} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button onClick={() => communityPostForm.reset({ title: '', description: '' })} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6 active:scale-95 transition-all"><PlusCircle className="mr-2 h-4 w-4" /> Start Thread</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">New Community Thread</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Share your thoughts with the campus.</DialogDescription></DialogHeader>
                             <Form {...communityPostForm}><form onSubmit={communityPostForm.handleSubmit(onCommunityPostSubmit)} className="space-y-4 pt-4">
@@ -317,7 +338,7 @@ export default function EngagementPage() {
                 </div>
                 {isFacultyOrAdmin && (
                     <Dialog open={openForumDialog} onOpenChange={setOpenForumDialog}>
-                        <DialogTrigger asChild><Button onClick={() => forumForm.reset({ courseId: '', title: '', description: '' })} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
+                        <DialogTrigger asChild><Button onClick={() => forumForm.reset({ courseId: '', title: '', description: '' })} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6 active:scale-95 transition-all"><PlusCircle className="mr-2 h-4 w-4" /> Create Forum</Button></DialogTrigger>
                         <DialogContent className="rounded-3xl">
                             <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Establish New Forum</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Set up a specialized discussion space.</DialogDescription></DialogHeader>
                             <Form {...forumForm}><form onSubmit={forumForm.handleSubmit(onCreateForum)} className="space-y-4 pt-4">
@@ -349,7 +370,7 @@ export default function EngagementPage() {
                                     <CardTitle className="text-lg font-black uppercase tracking-tight truncate leading-none">{forum.title}</CardTitle>
                                     <CardDescription className="text-[10px] font-black uppercase tracking-widest text-primary/60 mt-1">{forum.courseCode} • {forum.courseName}</CardDescription>
                                 </div>
-                                <Button asChild variant="secondary" className="rounded-xl h-10 px-8 shrink-0 font-black uppercase tracking-widest text-[10px]">
+                                <Button asChild variant="secondary" className="rounded-xl h-10 px-8 shrink-0 font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">
                                     <Link href={`/engagement/forum/${forum.id}?courseId=${forum.courseId}`}>Enter Forum <Zap className="ml-2 h-3 w-3 fill-current" /></Link>
                                 </Button>
                             </CardHeader>
@@ -369,7 +390,7 @@ export default function EngagementPage() {
                     </div>
                     {isSuperAdmin && (
                         <Dialog open={openClubDialog} onOpenChange={setOpenClubDialog}>
-                            <DialogTrigger asChild><Button onClick={handleAddNewClub} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button onClick={handleAddNewClub} className="rounded-xl shadow-lg shadow-primary/20 font-black uppercase tracking-widest text-[10px] h-11 px-6 active:scale-95 transition-all"><PlusCircle className="mr-2 h-4 w-4" /> New Club</Button></DialogTrigger>
                             <DialogContent className="rounded-3xl">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Register New Club</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Establish a new institutional student organization.</DialogDescription></DialogHeader>
                                 <Form {...clubForm}><form onSubmit={clubForm.handleSubmit(onClubSubmit)} className="space-y-4 pt-4">
@@ -403,7 +424,7 @@ export default function EngagementPage() {
                                 <CardContent className="flex-grow pt-4">
                                     <p className="text-xs text-muted-foreground line-clamp-3 leading-relaxed font-medium">"{club.description}"</p>
                                 </CardContent>
-                                <CardFooter><Button asChild className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11"><Link href={`/engagement/club/${club.id}`}>Membership Details <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardFooter>
+                                <CardFooter><Button asChild className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11 active:scale-95 transition-all"><Link href={`/engagement/club/${club.id}`}>Membership Details <ArrowRight className="ml-2 h-4 w-4" /></Link></Button></CardFooter>
                             </Card>
                         )})
                     ) : <div className="col-span-full text-center py-20 opacity-20 uppercase font-black tracking-widest text-xs">No registered clubs indexed</div>}
@@ -420,7 +441,7 @@ export default function EngagementPage() {
                     </div>
                      {isFacultyOrAdmin && (
                         <Dialog open={openEventDialog} onOpenChange={setOpenEventDialog}>
-                            <DialogTrigger asChild><Button onClick={handleAddNewEvent} className="rounded-xl shadow-lg shadow-accent/20 font-black uppercase tracking-widest text-[10px] h-11 px-6"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
+                            <DialogTrigger asChild><Button onClick={handleAddNewEvent} className="rounded-xl shadow-lg shadow-accent/20 font-black uppercase tracking-widest text-[10px] h-11 px-6 active:scale-95 transition-all"><PlusCircle className="mr-2 h-4 w-4" /> Proclaim Event</Button></DialogTrigger>
                             <DialogContent className="rounded-3xl">
                                 <DialogHeader><DialogTitle className="text-2xl font-black uppercase tracking-tight">Publish Campus Event</DialogTitle><DialogDescription className="font-bold text-primary uppercase text-[10px] tracking-widest">Announce a new workshop or seminar.</DialogDescription></DialogHeader>
                                 <Form {...eventForm}><form onSubmit={eventForm.handleSubmit(onEventSubmit)} className="space-y-4 pt-4">
@@ -453,10 +474,10 @@ export default function EngagementPage() {
                                 <CardFooter className="flex gap-2">
                                     {isFacultyOrAdmin ? (
                                         <>
-                                            <Button variant="outline" size="sm" className="w-full rounded-xl font-black uppercase tracking-widest text-[10px]" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
-                                            <Button variant="destructive" size="sm" className="rounded-xl" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
+                                            <Button variant="outline" size="sm" className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all" onClick={() => handleEditEvent(event)}><Edit className="mr-2 h-4 w-4" />Edit</Button>
+                                            <Button variant="destructive" size="sm" className="rounded-xl active:scale-95 transition-all" onClick={() => handleDeleteEvent(event.id)}><Trash2 className="h-4 w-4" /></Button>
                                         </>
-                                    ) : <Button variant="secondary" className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11" onClick={() => handleViewDetails(event)}>Reserve Access</Button>}
+                                    ) : <Button variant="secondary" className="w-full rounded-xl font-black uppercase tracking-widest text-[10px] h-11 active:scale-95 transition-all" onClick={() => handleViewDetails(event)}>Reserve Access</Button>}
                                 </CardFooter>
                             </Card>
                         ))
@@ -487,7 +508,7 @@ export default function EngagementPage() {
                 </div>
             </div>
             <DialogFooter>
-                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20">Close Entry</Button></DialogClose>
+                <DialogClose asChild><Button className="w-full h-12 rounded-xl font-black uppercase tracking-widest text-[10px] shadow-lg shadow-primary/20 active:scale-95 transition-all">Close Entry</Button></DialogClose>
             </DialogFooter>
         </DialogContent>
     </Dialog>

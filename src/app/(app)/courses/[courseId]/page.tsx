@@ -1,4 +1,3 @@
-
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
@@ -125,12 +124,17 @@ export default function CourseDetailPage() {
 
             const studentIds = [...new Set(courseResults.map(r => r.studentId))];
             const studentsData: UserProfile[] = [];
+            
+            // Optimization: Use Promise.all for chunked parallel identity resolution
+            const chunkPromises = [];
             for (let i = 0; i < studentIds.length; i += 30) {
                 const chunk = studentIds.slice(i, i + 30);
                 const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
-                const studentsSnapshot = await getDocs(studentsQuery);
-                studentsSnapshot.forEach(doc => studentsData.push(doc.data() as UserProfile));
+                chunkPromises.push(getDocs(studentsQuery));
             }
+            const chunkSnapshots = await Promise.all(chunkPromises);
+            chunkSnapshots.forEach(snap => snap.forEach(doc => studentsData.push(doc.data() as UserProfile)));
+
             const studentMap = new Map(studentsData.map(s => [s.id, s.name]));
 
             const gradeCounts: { [grade: string]: number } = {};
@@ -179,12 +183,15 @@ export default function CourseDetailPage() {
 
             if (studentIds.length > 0) {
                 const studentsData: UserProfile[] = [];
+                // Optimization: Use Promise.all for chunked parallel identity resolution
+                const chunkPromises = [];
                 for (let i = 0; i < studentIds.length; i += 30) {
                     const chunk = studentIds.slice(i, i + 30);
                     const studentsQuery = query(collection(firestore, 'users'), where('id', 'in', chunk));
-                    const studentsSnapshot = await getDocs(studentsQuery);
-                    studentsSnapshot.forEach(doc => studentsData.push(doc.data() as UserProfile));
+                    chunkPromises.push(getDocs(studentsQuery));
                 }
+                const chunkSnapshots = await Promise.all(chunkPromises);
+                chunkSnapshots.forEach(snap => snap.forEach(doc => studentsData.push(doc.data() as UserProfile)));
                 setEnrolledStudents(studentsData);
             } else {
                 setEnrolledStudents([]);
@@ -303,7 +310,7 @@ export default function CourseDetailPage() {
       <div className="academic-hero">
         <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
             <div className="space-y-4">
-                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl" onClick={() => router.back()}>
+                <Button variant="outline" size="sm" className="bg-white/10 border-white/20 text-white hover:bg-white/20 rounded-xl active:scale-95 transition-all" onClick={() => router.back()}>
                     <ArrowLeft className="mr-2 h-4 w-4" /> Back to Catalog
                 </Button>
                 <div className="space-y-1">
@@ -325,10 +332,10 @@ export default function CourseDetailPage() {
 
       <Tabs defaultValue="assignments" className="w-full">
             <TabsList className="grid w-full max-w-2xl grid-cols-2 md:grid-cols-4 h-12 p-1 bg-white/50 backdrop-blur-sm border rounded-xl">
-                <TabsTrigger value="assignments" className="rounded-lg">Assignments</TabsTrigger>
-                <TabsTrigger value="materials" className="rounded-lg">Study HUD</TabsTrigger>
-                {userProfile?.role !== 'student' && <TabsTrigger value="students" className="rounded-lg">Enrolled</TabsTrigger>}
-                {userProfile?.role !== 'student' && <TabsTrigger value="performance" className="rounded-lg">Analytics</TabsTrigger>}
+                <TabsTrigger value="assignments" className="rounded-lg transition-all active:scale-95">Assignments</TabsTrigger>
+                <TabsTrigger value="materials" className="rounded-lg transition-all active:scale-95">Study HUD</TabsTrigger>
+                {userProfile?.role !== 'student' && <TabsTrigger value="students" className="rounded-lg transition-all active:scale-95">Enrolled</TabsTrigger>}
+                {userProfile?.role !== 'student' && <TabsTrigger value="performance" className="rounded-lg transition-all active:scale-95">Analytics</TabsTrigger>}
             </TabsList>
 
             <TabsContent value="assignments" className="mt-8">
@@ -346,7 +353,7 @@ export default function CourseDetailPage() {
                                                 <Clock className="h-3 w-3" /> Deadline: {format(new Date(assignment.deadline), 'PPP')}
                                             </CardDescription>
                                         </div>
-                                        <Button asChild variant="secondary" size="sm" className="rounded-xl h-10 px-8 font-black uppercase tracking-widest text-[10px]">
+                                        <Button asChild variant="secondary" size="sm" className="rounded-xl h-10 px-8 font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">
                                             <Link href={`/academics/assignment/${assignment.id}?courseId=${assignment.courseId}`}>Access Work Node</Link>
                                         </Button>
                                     </CardHeader>
@@ -369,10 +376,10 @@ export default function CourseDetailPage() {
                                         <p className="text-xs text-muted-foreground font-medium italic">"{material.description}"</p>
                                     </div>
                                     <div className="flex flex-wrap items-center gap-2">
-                                        <Button variant="outline" size="sm" onClick={() => handleSummarize(material)} disabled={isSummarizing} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50"><Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />Summary</Button>
-                                        <Button variant="outline" size="sm" onClick={() => handleGenerateQuestions(material)} disabled={isGeneratingQuestions} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-500" />Questions</Button>
-                                        <Button variant="outline" size="sm" onClick={() => handleStartQuiz(material)} disabled={isGeneratingQuiz} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50"><BadgeCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />Quiz</Button>
-                                        <Button size="sm" asChild className="rounded-xl h-9 px-6 font-black uppercase text-[9px] tracking-widest"><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-1.5 h-3.5 w-3.5" />Download</a></Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleSummarize(material)} disabled={isSummarizing} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50 active:scale-95 transition-all"><Sparkles className="mr-1.5 h-3.5 w-3.5 text-primary" />Summary</Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleGenerateQuestions(material)} disabled={isGeneratingQuestions} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50 active:scale-95 transition-all"><Lightbulb className="mr-1.5 h-3.5 w-3.5 text-amber-500" />Questions</Button>
+                                        <Button variant="outline" size="sm" onClick={() => handleStartQuiz(material)} disabled={isGeneratingQuiz} className="rounded-xl h-9 border-indigo-100 font-black uppercase text-[9px] tracking-widest bg-white/50 active:scale-95 transition-all"><BadgeCheck className="mr-1.5 h-3.5 w-3.5 text-green-500" />Quiz</Button>
+                                        <Button size="sm" asChild className="rounded-xl h-9 px-6 font-black uppercase text-[9px] tracking-widest active:scale-95 transition-all"><a href={material.fileUrl} target="_blank" rel="noopener noreferrer"><Download className="mr-1.5 h-3.5 w-3.5" />Download</a></Button>
                                     </div>
                                 </Card>
                             ))
@@ -427,7 +434,7 @@ export default function CourseDetailPage() {
                                                     <TableCell className="pl-8 font-bold text-slate-700">{res.studentName}</TableCell>
                                                     <TableCell className="text-center font-black text-primary">{res.marks}%</TableCell>
                                                     <TableCell className="text-right pr-8">
-                                                        <Badge className={cn("rounded-lg font-black text-[10px] min-w-8 justify-center uppercase", res.marks >= 80 ? "bg-green-500" : "bg-primary")}>{res.grade}</Badge>
+                                                        <Badge className={cn("rounded-lg font-black text-[10px] min-w-8 justify-center uppercase", res.marks >= 80 ? "bg-green-500" : res.marks < 50 ? "bg-destructive" : "bg-primary")}>{res.grade}</Badge>
                                                     </TableCell>
                                                 </TableRow>
                                             ))}
@@ -500,7 +507,7 @@ export default function CourseDetailPage() {
                                 <h3 className="text-3xl font-black uppercase tracking-tight">Challenge Finalized</h3>
                                 <p className="text-sm text-slate-500 font-medium">Performance index synchronized with session history.</p>
                             </div>
-                            <Button onClick={() => setShowQuizDialog(false)} className="rounded-xl h-12 px-12 font-black uppercase tracking-widest text-[10px]">Close Node</Button>
+                            <Button onClick={() => setShowQuizDialog(false)} className="rounded-xl h-12 px-12 font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">Close Node</Button>
                         </div>
                     ) : quizData ? (
                         <div className="space-y-8 animate-in slide-in-from-right-4 duration-500">
@@ -541,9 +548,9 @@ export default function CourseDetailPage() {
 
                             <div className="flex justify-end gap-3 pt-6">
                                 {!showExplanation ? (
-                                    <Button onClick={handleSubmitAnswer} disabled={selectedOption === null} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px]">Authorize Response</Button>
+                                    <Button onClick={handleSubmitAnswer} disabled={selectedOption === null} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">Authorize Response</Button>
                                 ) : (
-                                    <Button onClick={handleNextQuestion} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px]">
+                                    <Button onClick={handleNextQuestion} className="rounded-xl h-12 px-10 font-black uppercase tracking-widest text-[10px] active:scale-95 transition-all">
                                         {currentQuizIndex === quizData.length - 1 ? 'Finalize Challenge' : 'Next Node'}
                                     </Button>
                                 )}
